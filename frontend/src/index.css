@@ -111,3 +111,76 @@ body {
 ::selection {
   background: color-mix(in srgb, var(--color-accent) 20%, transparent);
 }
+
+/* ---------------------------------------------------------------------- */
+/* Demo graph — anomalous rope-link pulse                                 */
+/* ---------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .demo-edge-pulse {
+    animation: demo-edge-pulse 3s ease-in-out infinite;
+  }
+}
+
+@keyframes demo-edge-pulse {
+  0%, 100% {
+    opacity: var(--pulse-peak, 1);
+  }
+  50% {
+    opacity: calc(var(--pulse-peak, 1) * 0.55);
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Demo graph — spawn "pop": travel in from canvas centre, overshoot scale */
+/* ---------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .demo-node-spawn {
+    animation-name: demo-node-spawn;
+    animation-duration: 800ms;
+    animation-fill-mode: both;
+  }
+}
+
+@keyframes demo-node-spawn {
+  0% {
+    transform: translate(var(--start-dx, 0px), var(--start-dy, 0px)) scale(0);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  70% {
+    transform: translate(0, 0) scale(1.12);
+    opacity: 1;
+    animation-timing-function: ease-out;
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Demo graph — one-shot flash on a live status transition                */
+/* ---------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .demo-node-flash {
+    animation: demo-node-flash 600ms ease-out;
+  }
+}
+
+@keyframes demo-node-flash {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  30% {
+    transform: scale(1.4);
+    filter: brightness(2.2);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}

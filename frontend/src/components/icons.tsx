@@ -42,3 +42,44 @@ export function DashboardIcon({ className }: IconProps) {
     </svg>
   )
 }
+
+export function MenuIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <line x1="3" y1="6" x2="17" y2="6" />
+      <line x1="3" y1="10" x2="17" y2="10" />
+      <line x1="3" y1="14" x2="17" y2="14" />
+    </svg>
+  )
+}
+
+export function CloseIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <line x1="5" y1="5" x2="15" y2="15" />
+      <line x1="15" y1="5" x2="5" y2="15" />
+    </svg>
+  )
+}
+
+export function FlagIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <line x1="5" y1="17" x2="5" y2="3" />
+      <path d="M5 4L15 4L12 7.5L15 11L5 11" />
+    </svg>
+  )
+}
+
+export function ControlRoomIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="6" cy="7" r="2" />
+      <circle cx="14" cy="13" r="2" />
+      <line x1="6" y1="9" x2="6" y2="15" />
+      <line x1="14" y1="5" x2="14" y2="11" />
+      <line x1="6" y1="15" x2="14" y2="15" />
+      <line x1="6" y1="5" x2="14" y2="5" />
+    </svg>
+  )
+}

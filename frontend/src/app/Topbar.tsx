@@ -4,6 +4,7 @@ const titles: Record<string, string> = {
   graph: 'Graph',
   search: 'Search',
   dashboard: 'Dashboard',
+  workspace: 'Graph',
 }
 
 export function Topbar() {

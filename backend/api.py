@@ -15,9 +15,11 @@ hardcoded — every number is a query.
   GET /search?q=
   GET /stats                     pipeline and normalization metrics
   GET /lineage/{id}
+  POST /access-requests           onboarding form submission
 """
 
 import json
+import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -25,12 +27,14 @@ from typing import Optional
 import duckdb
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 import ontology
 from sources import SOURCES
 
 ROOT = Path(__file__).parent
 DB_PATH = ROOT / "isildur.duckdb"
+ACCESS_REQUESTS_PATH = ROOT / "access_requests.jsonl"
 
 app = FastAPI(title="Isildur Operational Intelligence API")
 app.add_middleware(
@@ -39,6 +43,47 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class AccessRequestPayload(BaseModel):
+    company_name: str
+    business_email: str
+    phone: str
+    website: str
+    industry: str
+    company_size: str
+    country: str
+    address_line1: str
+    address_line2: Optional[str] = None
+    city: str
+    state_region: str
+    postal_code: str
+    business_description: str
+    use_case: str
+    hear_about_us: Optional[str] = None
+    deployment_environment: str
+    expected_analysts: str
+    systems: list[str]
+    systems_other: Optional[str] = None
+    target_timeline: str
+    billing_contact_name: str
+    billing_contact_email: str
+    tax_id: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# POST /access-requests
+# ---------------------------------------------------------------------------
+
+
+@app.post("/access-requests")
+def create_access_request(payload: AccessRequestPayload):
+    request_id = str(uuid.uuid4())
+    submitted_at = datetime.utcnow().isoformat() + "Z"
+    record = {"id": request_id, "submitted_at": submitted_at, **payload.model_dump()}
+    with open(ACCESS_REQUESTS_PATH, "a") as f:
+        f.write(json.dumps(record) + "\n")
+    return {"id": request_id, "submitted_at": submitted_at}
 
 
 def get_con():

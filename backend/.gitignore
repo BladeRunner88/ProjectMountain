@@ -1,5 +1,6 @@
 .venv/
 __pycache__/
 *.duckdb
+access_requests.jsonl
 data/raw/*
 !data/raw/.gitkeep

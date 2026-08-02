@@ -1,13 +1,42 @@
-import { NavLink } from 'react-router-dom'
-import { GraphIcon, SearchIcon, DashboardIcon } from '../components/icons'
+import { Link, useLocation } from 'react-router-dom'
+import { GraphIcon, SearchIcon, DashboardIcon, ControlRoomIcon, FlagIcon } from '../components/icons'
 
 const items = [
-  { to: '/app/graph', label: 'Graph', icon: GraphIcon },
-  { to: '/app/search', label: 'Search', icon: SearchIcon },
-  { to: '/app/dashboard', label: 'Dashboard', icon: DashboardIcon },
+  {
+    to: '/app/graph',
+    label: 'Graph',
+    icon: GraphIcon,
+    isActive: (pathname: string) => pathname.startsWith('/app/graph') || pathname.startsWith('/demo'),
+  },
+  {
+    to: '/app/search',
+    label: 'Search',
+    icon: SearchIcon,
+    isActive: (pathname: string) => pathname.startsWith('/app/search'),
+  },
+  {
+    to: '/app/dashboard',
+    label: 'Dashboard',
+    icon: DashboardIcon,
+    isActive: (pathname: string) => pathname.startsWith('/app/dashboard'),
+  },
+  {
+    to: '/app/control-room',
+    label: 'Control Room',
+    icon: ControlRoomIcon,
+    isActive: (pathname: string) => pathname === '/app/control-room',
+  },
+  {
+    to: '/app/control-room/findings',
+    label: 'Findings',
+    icon: FlagIcon,
+    isActive: (pathname: string) => pathname.startsWith('/app/control-room/findings'),
+  },
 ]
 
 export function Sidebar() {
+  const { pathname } = useLocation()
+
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col border-r border-hairline bg-app">
       <div className="flex h-14 shrink-0 items-center px-6">
@@ -17,22 +46,20 @@ export function Sidebar() {
       </div>
 
       <nav className="flex flex-col gap-0.5 px-3">
-        {items.map(({ to, label, icon: Icon }) => (
-          <NavLink
+        {items.map(({ to, label, icon: Icon, isActive }) => (
+          <Link
             key={to}
             to={to}
-            className={({ isActive }) =>
-              [
-                'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13.5px] transition-colors duration-fast ease-out',
-                isActive
-                  ? 'bg-black/[0.045] font-medium text-ink'
-                  : 'text-ink-soft hover:bg-black/[0.03] hover:text-ink',
-              ].join(' ')
-            }
+            className={[
+              'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13.5px] transition-colors duration-fast ease-out',
+              isActive(pathname)
+                ? 'bg-black/[0.045] font-medium text-ink'
+                : 'text-ink-soft hover:bg-black/[0.03] hover:text-ink',
+            ].join(' ')}
           >
             <Icon className="h-[18px] w-[18px] shrink-0" />
             {label}
-          </NavLink>
+          </Link>
         ))}
       </nav>
 

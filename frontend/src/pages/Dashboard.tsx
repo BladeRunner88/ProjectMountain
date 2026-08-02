@@ -1,144 +1,263 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { api, type Stats, type ObjectType } from '../lib/api'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { climbers, companies, countries, environments, regions, useGraphSimulationContext } from '../components/demo/graph/GraphSimulationContext'
+import type { SourceId } from '../components/demo/graph/useGraphSimulation'
+import { BG, TEXT_PRIMARY } from '../components/dashboard/tokens'
+import { KpiTile, Panel, PanelLabel, PanelRow } from '../components/dashboard/primitives'
+import { ExpeditionClock } from '../components/dashboard/ExpeditionClock'
+import { RouteAnalysis } from '../components/dashboard/RouteAnalysis'
+import { AscentBalance } from '../components/dashboard/AscentBalance'
+import { ExposureLoad } from '../components/dashboard/ExposureLoad'
+import { CampTemperature } from '../components/dashboard/CampTemperature'
+import { Conditions } from '../components/dashboard/Conditions'
+import { DataStream } from '../components/dashboard/DataStream'
+import { ConnectedSystems } from '../components/dashboard/ConnectedSystems'
+import type { SourceRow } from '../components/dashboard/ConnectedSystems'
+import { SystemCounters } from '../components/dashboard/SystemCounters'
+import { FindingsList } from '../components/dashboard/FindingsList'
 
-const TYPE_COLOR: Record<string, string> = {
-  Person: '#5B7C99',
-  Organization: '#A6803F',
-  Location: '#5F8264',
-}
+// Base Camp -> Camp I -> ... -> Summit push, the same six stages climbers.js
+// assigns each climber's currentPosition from — reused as-is for the camp
+// progression axis on both CAMP TEMPERATURE and DATA STREAM.
+const POSITIONS = ['Base Camp', 'Camp I', 'Camp II', 'Camp III', 'Camp IV', 'Summit push']
+const EXPOSED_POSITIONS = new Set(['Camp III', 'Camp IV', 'Summit push'])
+// Illustrative reference curve (m/hr) — slower higher up the mountain. Not
+// live data: the grey "context" series against the two live red/white ones.
+const ASCENT_RATE_REFERENCE = [220, 190, 160, 130, 100, 70]
+const MAX_PARTIES_ON_ROUTE = 26
 
-const TYPE_LABEL: Record<string, string> = {
-  Person: 'PERSON',
-  Organization: 'ORGANIZATION',
-  Location: 'LOCATION',
-}
+const EXPOSURE_HISTORY_LENGTH = 30
+const EXPOSURE_SAMPLE_MS = 3000
 
-function Bar({ value, max, color }: { value: number; max: number; color: string }) {
-  const pct = max === 0 ? 0 : Math.max((value / max) * 100, 2)
-  return (
-    <div className="h-1 w-full rounded-full bg-black/[0.06]">
-      <div
-        className="h-1 rounded-full transition-[width] duration-500 ease-out"
-        style={{ width: `${pct}%`, backgroundColor: color }}
-      />
-    </div>
-  )
+const SOURCE_NAME: Record<SourceId, string> = {
+  'sensor-mesh': 'Sensor mesh',
+  'weather-feed': 'Weather feed',
+  'permit-registry': 'Permit registry',
+  'operator-rosters': 'Operator rosters',
+  'medical-logs': 'Medical logs',
 }
+const SOURCE_NAME_BY_ID = new Map(Object.entries(SOURCE_NAME) as [SourceId, string][])
+
+const regionById = new Map(regions.map((r) => [r.id, r]))
 
 export function Dashboard() {
-  const navigate = useNavigate()
-  const [stats, setStats] = useState<Stats | null>(null)
+  const { climberVitals, environmentReading, statusOf, layout, findings } = useGraphSimulationContext()
+  const [selectedSourceId, setSelectedSourceId] = useState<SourceId | null>(null)
 
-  useEffect(() => {
-    api.stats().then(setStats)
+  const lowestSpo2 = useMemo(() => {
+    let min = 100
+    for (const vitals of climberVitals.values()) min = Math.min(min, vitals.spo2)
+    return min
+  }, [climberVitals])
+
+  const congestionPct = useMemo(
+    () =>
+      Math.round(
+        (regions.reduce((sum, r) => sum + r.partiesOnRoute, 0) / regions.length / MAX_PARTIES_ON_ROUTE) * 100
+      ),
+    []
+  )
+
+  const totalNodes = statusOf.size
+  const anomalyCount = useMemo(() => [...statusOf.values()].filter((s) => s === 'anomaly').length, [statusOf])
+
+  // Featured route: whichever environment currently reads worst (anomaly >
+  // watch > nominal, tie-broken by wind speed) — ties the ROUTE ANALYSIS,
+  // CAMP TEMPERATURE, and CONDITIONS panels to whatever's live and notable.
+  const featuredEnvironment = useMemo(() => {
+    let best = environments[0]
+    let bestScore = -1
+    for (const env of environments) {
+      const status = statusOf.get(env.id)
+      const rank = status === 'anomaly' ? 2 : status === 'watch' ? 1 : 0
+      const wind = environmentReading.get(env.id)?.windKph ?? 0
+      const score = rank * 1000 + wind
+      if (score > bestScore) {
+        bestScore = score
+        best = env
+      }
+    }
+    return best
+  }, [statusOf, environmentReading])
+
+  const featuredRegion = regionById.get(featuredEnvironment.regionId)
+  const featuredReading = environmentReading.get(featuredEnvironment.id)
+
+  const exposedPct = useMemo(() => {
+    const exposed = climbers.filter((c) => EXPOSED_POSITIONS.has(c.currentPosition)).length
+    return Math.round((exposed / climbers.length) * 100)
   }, [])
 
-  if (!stats) {
-    return <div className="h-full w-full bg-app" />
+  const currentExposureLoadPct = totalNodes === 0 ? 0 : (anomalyCount / totalNodes) * 100
+  const [exposureHistory, setExposureHistory] = useState<number[]>(() => Array(EXPOSURE_HISTORY_LENGTH).fill(currentExposureLoadPct))
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setExposureHistory((prev) => [...prev.slice(1), currentExposureLoadPct])
+    }, EXPOSURE_SAMPLE_MS)
+    return () => window.clearInterval(interval)
+  }, [currentExposureLoadPct])
+
+  const campTemps = useMemo(() => {
+    if (!featuredReading) return []
+    const lapsePerM = 6.5 / 1000
+    const camps = [
+      { label: 'BC', offsetM: 0 },
+      { label: 'C2', offsetM: 700 },
+      { label: 'C3', offsetM: 1300 },
+      { label: 'C4', offsetM: 1900 },
+    ]
+    return camps.map((camp) => ({
+      label: camp.label,
+      tempC: Math.round(featuredReading.tempC - camp.offsetM * lapsePerM),
+    }))
+  }, [featuredReading])
+
+  const { spo2Series, hrSeries } = useMemo(() => {
+    const spo2: number[] = []
+    const hr: number[] = []
+    for (const position of POSITIONS) {
+      const atPosition = climbers.filter((c) => c.currentPosition === position)
+      if (atPosition.length === 0) {
+        spo2.push(90)
+        hr.push(90)
+        continue
+      }
+      let spo2Sum = 0
+      let hrSum = 0
+      for (const climber of atPosition) {
+        const vitals = climberVitals.get(climber.id)
+        spo2Sum += vitals?.spo2 ?? climber.baseSpO2
+        hrSum += vitals?.hr ?? climber.baseHr
+      }
+      spo2.push(Math.round(spo2Sum / atPosition.length))
+      hr.push(Math.round(hrSum / atPosition.length))
+    }
+    return { spo2Series: spo2, hrSeries: hr }
+  }, [climberVitals])
+
+  // --- CONNECTED SYSTEMS: the two live feeds grow their record count and
+  // refresh their sync time on every real tick from the shared store; the
+  // three registries are static, and Permit registry starts degraded with a
+  // sync time hours stale — a fixed offset captured once at mount.
+  const sensorMeshCountRef = useRef(climbers.length)
+  const [sensorMeshCount, setSensorMeshCount] = useState(climbers.length)
+  const [sensorMeshSync, setSensorMeshSync] = useState(() => new Date())
+  useEffect(() => {
+    sensorMeshCountRef.current += climbers.length
+    setSensorMeshCount(sensorMeshCountRef.current)
+    setSensorMeshSync(new Date())
+  }, [climberVitals])
+
+  const weatherFeedCountRef = useRef(environments.length)
+  const [weatherFeedCount, setWeatherFeedCount] = useState(environments.length)
+  const [weatherFeedSync, setWeatherFeedSync] = useState(() => new Date())
+  useEffect(() => {
+    weatherFeedCountRef.current += environments.length
+    setWeatherFeedCount(weatherFeedCountRef.current)
+    setWeatherFeedSync(new Date())
+  }, [environmentReading])
+
+  const [permitRegistrySync] = useState(() => new Date(Date.now() - (7 * 60 + 12) * 60 * 1000))
+  const [operatorRosterSync] = useState(() => new Date(Date.now() - 14 * 60 * 1000))
+  const [medicalLogsSync] = useState(() => new Date(Date.now() - 41 * 60 * 1000))
+  const permitRegistryCount = useMemo(() => countries.reduce((sum, c) => sum + c.permitsIssued, 0), [])
+  const operatorRosterCount = useMemo(() => companies.reduce((sum, c) => sum + c.guidesActive, 0), [])
+  const medicalLogsCount = climbers.length
+
+  const sources: SourceRow[] = [
+    { id: 'sensor-mesh', name: SOURCE_NAME['sensor-mesh'], recordCount: sensorMeshCount, lastSync: sensorMeshSync, degraded: false },
+    { id: 'weather-feed', name: SOURCE_NAME['weather-feed'], recordCount: weatherFeedCount, lastSync: weatherFeedSync, degraded: false },
+    { id: 'permit-registry', name: SOURCE_NAME['permit-registry'], recordCount: permitRegistryCount, lastSync: permitRegistrySync, degraded: true },
+    { id: 'operator-rosters', name: SOURCE_NAME['operator-rosters'], recordCount: operatorRosterCount, lastSync: operatorRosterSync, degraded: false },
+    { id: 'medical-logs', name: SOURCE_NAME['medical-logs'], recordCount: medicalLogsCount, lastSync: medicalLogsSync, degraded: false },
+  ]
+  const recordsIngested = sources.reduce((sum, s) => sum + s.recordCount, 0)
+
+  function handleSelectSource(id: SourceId) {
+    setSelectedSourceId((s) => (s === id ? null : id))
   }
 
-  const typeEntries = Object.entries(stats.by_type) as [string, number][]
-  const maxByType = Math.max(...typeEntries.map(([, v]) => v), 1)
-
-  const linkEntries = Object.entries(stats.links_by_type) as [string, number][]
-  const maxLinks = Math.max(...linkEntries.map(([, v]) => v), 1)
-
   return (
-    <div className="h-full w-full overflow-y-auto bg-app">
-      <div className="mx-auto max-w-3xl px-8 py-16">
-        {/* entities by type */}
-        <section>
-          <h2 className="text-[13px] font-medium text-ink-soft">Entities</h2>
-          <div className="mt-6 grid grid-cols-3 gap-8">
-            {typeEntries.map(([type, count]) => (
-              <div key={type}>
-                <p className="font-mono text-[32px] leading-none text-ink">
-                  {count.toLocaleString()}
-                </p>
-                <p className="mt-2 text-[13px] text-ink-soft">{type}</p>
-                <div className="mt-3">
-                  <Bar value={count} max={maxByType} color={TYPE_COLOR[type] ?? '#98989D'} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+    <div className="h-full w-full overflow-y-auto" style={{ backgroundColor: BG, color: TEXT_PRIMARY }}>
+      <PanelRow>
+        <Panel span={4}>
+          <KpiTile label="Lowest SpO2 on route" value={String(lowestSpo2)} unit="%" segValue={lowestSpo2} segMax={100} />
+        </Panel>
+        <Panel span={4}>
+          <KpiTile label="Route congestion" value={String(congestionPct)} unit="%" segValue={congestionPct} segMax={100} />
+        </Panel>
+        <Panel span={4}>
+          <KpiTile
+            label="Anomaly load"
+            value={`${anomalyCount} / ${totalNodes}`}
+            unit=""
+            segValue={anomalyCount}
+            segMax={totalNodes || 1}
+          />
+        </Panel>
+      </PanelRow>
 
-        {/* resolution stats — the highlight */}
-        <section className="mt-16 border-y border-hairline py-12">
-          <h2 className="text-[13px] font-medium text-ink-soft">Resolution</h2>
-          <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-2">
-            <span className="font-mono text-[40px] leading-none text-ink">
-              {stats.resolution.raw_records.toLocaleString()}
-            </span>
-            <span className="text-[15px] text-ink-soft">records</span>
-            <span className="mx-1 text-[28px] text-ink-faint">→</span>
-            <span className="font-mono text-[40px] leading-none text-ink">
-              {stats.resolution.resolved_entities.toLocaleString()}
-            </span>
-            <span className="text-[15px] text-ink-soft">entities</span>
-            <span className="mx-1 text-[22px] text-ink-faint">·</span>
-            <span className="font-mono text-[28px] leading-none text-ink-soft">
-              {stats.resolution.merged.toLocaleString()}
-            </span>
-            <span className="text-[15px] text-ink-soft">merged</span>
-          </div>
-        </section>
+      <PanelRow>
+        <Panel span={4} className="flex flex-col gap-5">
+          <PanelLabel>Expedition clock</PanelLabel>
+          <ExpeditionClock />
+        </Panel>
+        <Panel span={4}>
+          <RouteAnalysis
+            routeName={featuredRegion?.name ?? 'Route analysis'}
+            entry={featuredEnvironment.altitudeBandLowM}
+            crux={featuredRegion?.maxAltitudeM ?? featuredEnvironment.altitudeBandHighM}
+            exit={featuredEnvironment.altitudeBandHighM}
+          />
+        </Panel>
+        <Panel span={4} className="flex flex-col gap-5">
+          <PanelLabel>Ascent balance</PanelLabel>
+          <AscentBalance exposedPct={exposedPct} />
+        </Panel>
+      </PanelRow>
 
-        {/* most connected */}
-        <section className="mt-16">
-          <h2 className="text-[13px] font-medium text-ink-soft">Most connected</h2>
-          <div className="mt-4">
-            {stats.most_connected.map((e, i) => (
-              <button
-                key={e.id}
-                type="button"
-                onClick={() => navigate(`/app/graph?focus=${e.id}`)}
-                className={`flex w-full items-center gap-4 py-3 text-left transition-colors duration-fast ease-out hover:text-accent ${
-                  i === 0 ? '' : 'border-t border-hairline'
-                }`}
-              >
-                <span className="w-5 shrink-0 font-mono text-[12px] text-ink-faint">
-                  {i + 1}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-ink">
-                  {e.name}
-                </span>
-                <span className="shrink-0 font-mono text-[10px] tracking-wide text-ink-faint">
-                  {TYPE_LABEL[e.type as ObjectType] ?? e.type}
-                </span>
-                <span className="w-10 shrink-0 text-right font-mono text-[13px] text-ink-soft">
-                  {e.connections}
-                </span>
-              </button>
-            ))}
-          </div>
-        </section>
+      <PanelRow>
+        <Panel span={6} className="flex flex-col gap-5">
+          <PanelLabel>Exposure load</PanelLabel>
+          <ExposureLoad values={exposureHistory} />
+        </Panel>
+        <Panel span={6} className="flex flex-col gap-5">
+          <PanelLabel>{`Camp temperature — ${featuredRegion?.name ?? ''}`}</PanelLabel>
+          <CampTemperature camps={campTemps} />
+        </Panel>
+      </PanelRow>
 
-        {/* links by relationship type */}
-        <section className="mt-16 pb-16">
-          <h2 className="text-[13px] font-medium text-ink-soft">Links</h2>
-          <div className="mt-4">
-            {linkEntries.map(([relType, count], i) => (
-              <div
-                key={relType}
-                className={`flex items-center gap-4 py-3 ${i === 0 ? '' : 'border-t border-hairline'}`}
-              >
-                <span className="w-32 shrink-0 font-mono text-[12px] text-ink-soft">
-                  {relType}
-                </span>
-                <div className="flex-1">
-                  <Bar value={count} max={maxLinks} color="#98989D" />
-                </div>
-                <span className="w-10 shrink-0 text-right font-mono text-[13px] text-ink">
-                  {count}
-                </span>
-              </div>
-            ))}
+      <PanelRow>
+        <Panel span={6} className="flex flex-col gap-5">
+          <PanelLabel>{`Conditions — ${featuredRegion?.name ?? ''}`}</PanelLabel>
+          <Conditions
+            tempC={featuredReading?.tempC ?? 0}
+            windKph={featuredReading?.windKph ?? 0}
+            windBearingDeg={featuredReading?.windBearingDeg ?? 0}
+          />
+        </Panel>
+        <Panel span={6} className="flex flex-col gap-5">
+          <PanelLabel>Data stream</PanelLabel>
+          <DataStream spo2Series={spo2Series} hrSeries={hrSeries} ascentSeries={ASCENT_RATE_REFERENCE} />
+        </Panel>
+      </PanelRow>
+
+      <PanelRow>
+        <Panel span={12} className="flex flex-col gap-8">
+          <PanelLabel>Connected systems</PanelLabel>
+          <ConnectedSystems sources={sources} selectedSourceId={selectedSourceId} onSelectSource={handleSelectSource} />
+          <div className="border-t pt-6" style={{ borderColor: '#1C1C1C' }}>
+            <SystemCounters
+              entitiesResolved={totalNodes}
+              linksBuilt={layout.edges.length}
+              anomaliesOpen={anomalyCount}
+              recordsIngested={recordsIngested}
+            />
           </div>
-        </section>
-      </div>
+          <div className="border-t pt-6" style={{ borderColor: '#1C1C1C' }}>
+            <FindingsList findings={findings} selectedSourceId={selectedSourceId} sourceNameById={SOURCE_NAME_BY_ID} />
+          </div>
+        </Panel>
+      </PanelRow>
     </div>
   )
 }

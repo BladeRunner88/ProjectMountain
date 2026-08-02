@@ -78,9 +78,30 @@ export type AccessRequestPayload = {
   tax_id: string | null
 }
 
+export class ApiError extends Error {
+  status: number
+  body: unknown
+
+  constructor(status: number, body: unknown) {
+    super(`Request failed with status ${status}`)
+    this.name = 'ApiError'
+    this.status = status
+    this.body = body
+  }
+}
+
+async function parseErrorBody(res: Response): Promise<unknown> {
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
+}
+
 async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, { signal })
-  if (!res.ok) throw new Error(`${path} -> ${res.status}`)
+  if (!res.ok) throw new ApiError(res.status, await parseErrorBody(res))
   return res.json()
 }
 
@@ -90,7 +111,9 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!res.ok) throw new Error(`${path} -> ${res.status}`)
+  if (!res.ok) {
+    throw new ApiError(res.status, await parseErrorBody(res))
+  }
   return res.json()
 }
 

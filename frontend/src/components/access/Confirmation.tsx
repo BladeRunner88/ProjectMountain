@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom'
 import type { AccessSummary } from '../../lib/access'
+import { SquareButton } from '../SquareButton'
 
 export function Confirmation({ summary }: { summary: AccessSummary }) {
   return (
@@ -21,12 +21,9 @@ export function Confirmation({ summary }: { summary: AccessSummary }) {
       </div>
 
       <div className="mt-16">
-        <Link
-          to="/app"
-          className="text-[14px] text-ink-faint transition-colors duration-fast ease-out hover:text-ink-soft"
-        >
-          Continue to demo workspace
-        </Link>
+        <SquareButton tone="light" to="/demo/enter">
+          Enter demo workspace
+        </SquareButton>
       </div>
     </div>
   )

@@ -8,11 +8,24 @@ import { StepDeployment } from '../components/access/steps/StepDeployment'
 import { Confirmation } from '../components/access/Confirmation'
 import { initialFormData, validateStep, type FormData } from '../components/access/formTypes'
 import { useAccess, type AccessSummary } from '../lib/access'
-import { api } from '../lib/api'
+import { api, ApiError } from '../lib/api'
 import { toE164 } from '../lib/validation'
 import { SquareButton } from '../components/SquareButton'
 
 const TOTAL_STEPS = 4
+
+function describeSubmitError(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 422) {
+      return 'The server rejected some of the submitted information. Please review your answers and try again.'
+    }
+    if (err.status >= 500) {
+      return 'The server hit an error processing your request. Please try again in a moment.'
+    }
+    return `Your request could not be submitted (error ${err.status}). Please try again.`
+  }
+  return 'Could not reach the server. Check your connection and try again.'
+}
 
 const STEP_COPY: Record<number, { headline: string; sub?: string }> = {
   1: {
@@ -120,8 +133,8 @@ export function RequestAccess() {
       }
       grantAccess(s)
       setSummary(s)
-    } catch {
-      setSubmitError('Something went wrong submitting your request. Please try again.')
+    } catch (err) {
+      setSubmitError(describeSubmitError(err))
     } finally {
       setSubmitting(false)
     }
