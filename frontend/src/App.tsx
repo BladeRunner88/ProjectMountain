@@ -9,8 +9,18 @@ import { AppShell } from './app/AppShell'
 import { Graph } from './pages/Graph'
 import { Search } from './pages/Search'
 import { Dashboard } from './pages/Dashboard'
-import { ControlRoomGraph } from './pages/ControlRoomGraph'
+import { ControlRoom } from './pages/ControlRoom'
 import { ControlRoomFindings } from './pages/ControlRoomFindings'
+import { TabStub } from './components/controlRoom/TabStub'
+import { Overview } from './components/controlRoom/Overview'
+import { Processing } from './components/controlRoom/Processing'
+import { Identity } from './components/controlRoom/Identity'
+import { Meaning } from './components/controlRoom/Meaning'
+import { Reasoning } from './components/controlRoom/Reasoning'
+import { Detection } from './components/controlRoom/Detection'
+import { Revision } from './components/controlRoom/Revision'
+import { Model } from './components/controlRoom/Model'
+import { DEFAULT_TAB_ID } from './components/controlRoom/tabs'
 import { DemoEnter } from './pages/DemoEnter'
 import { DemoWorkspace } from './pages/DemoWorkspace'
 import { useAccess } from './lib/access'
@@ -42,7 +52,18 @@ function App() {
           <Route path="graph" element={<Graph />} />
           <Route path="search" element={<Search />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="control-room" element={<ControlRoomGraph />} />
+          <Route path="control-room" element={<ControlRoom />}>
+            <Route index element={<Navigate to={DEFAULT_TAB_ID} replace />} />
+            <Route path="overview" element={<Overview />} />
+            <Route path="processing" element={<Processing />} />
+            <Route path="model" element={<Model />} />
+            <Route path="identity" element={<Identity />} />
+            <Route path="meaning" element={<Meaning />} />
+            <Route path="reasoning" element={<Reasoning />} />
+            <Route path="detection" element={<Detection />} />
+            <Route path="revision" element={<Revision />} />
+            <Route path=":tab" element={<TabStub />} />
+          </Route>
           <Route path="control-room/findings" element={<ControlRoomFindings />} />
         </Route>
         <Route path="/demo/enter" element={<DemoEnter />} />

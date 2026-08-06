@@ -58,12 +58,15 @@ function prefersReducedMotion(): boolean {
 //     re-renders such as hover/select.
 // ---------------------------------------------------------------------------
 
-export function ClimberGraphCanvas({ lenses }: { lenses: Set<string> }) {
+export function ClimberGraphCanvas({ lenses, initialSelection = null }: { lenses: Set<string>; initialSelection?: Selection | null }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
   const [view, setView] = useState<View>({ cx: CANVAS_SIZE / 2, cy: CANVAS_SIZE / 2, zoom: 1 })
   const [hoverId, setHoverId] = useState<string | null>(null)
-  const [selection, setSelection] = useState<Selection | null>(null)
+  // Seeded once from a deep link (e.g. the Records pill's "show me in
+  // graph"), never re-applied afterward — ordinary clicks still fully own
+  // `selection` from here on.
+  const [selection, setSelection] = useState<Selection | null>(initialSelection)
   const reduced = useRef(prefersReducedMotion()).current
   const [mounted, setMounted] = useState(reduced)
   const dragState = useRef<{

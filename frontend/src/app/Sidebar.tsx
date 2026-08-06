@@ -24,7 +24,8 @@ const items = [
     to: '/app/control-room',
     label: 'Control Room',
     icon: ControlRoomIcon,
-    isActive: (pathname: string) => pathname === '/app/control-room',
+    isActive: (pathname: string) =>
+      pathname.startsWith('/app/control-room') && !pathname.startsWith('/app/control-room/findings'),
   },
   {
     to: '/app/control-room/findings',

@@ -47,9 +47,17 @@
   /* landing page only — the product UI keeps --font-sans (system) + --font-mono */
   --font-inter: "Inter", -apple-system, sans-serif;
 
-  /* motion */
+  /* motion — landing/marketing site only */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-fast: 160ms;
+
+  /* motion — Control Room (S9.1h). The built-in `ease-out`/`ease-in-out`
+     keywords are too weak; every Control Room animation below references
+     one of these two curves instead, never the bare keyword. Never
+     ease-in anywhere — it delays the first frames, which is exactly when
+     the user is watching. */
+  --cr-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --cr-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -182,5 +190,95 @@ body {
   100% {
     transform: scale(1);
     filter: brightness(1);
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Control Room motion (S1c, S9.5b, corrected by S9.1h). Four animations   */
+/* exist, nothing else does: value change (cross-fade + a meaning-coloured */
+/* flash, now only on a threshold crossing), panel open/close (exits along */
+/* the path it entered), and a button's press feedback (on pointer-down,   */
+/* via :active). Selection has no transition — it's instant, on purpose.   */
+/* Durations here must match src/ase/tokens.ts's MOTION_* constants.       */
+/* ---------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .value-fade {
+    animation: value-fade 200ms var(--cr-ease-out);
+  }
+  .value-flash {
+    animation: value-flash 240ms var(--cr-ease-out);
+  }
+  .panel-transition {
+    transition: opacity 240ms var(--cr-ease-out), transform 240ms var(--cr-ease-out);
+  }
+  .pressable {
+    transition: transform 120ms var(--cr-ease-out);
+  }
+  .pressable:active {
+    transform: scale(0.97);
+  }
+  /* S9.1h: "rows in an EvidenceTable take a background change on
+     pointer-down, not on click" — a full-width row scaling down reads as a
+     glitch, so table rows (EvidenceTable, IdentityList, MeaningList,
+     DetectionList) get this instead of `.pressable`. #161920 must match
+     ase/tokens.ts's PANEL_RAISED. */
+  .pressable-row {
+    transition: background-color 120ms var(--cr-ease-out);
+  }
+  .pressable-row:active {
+    background-color: #161920;
+  }
+}
+
+/* Reduced motion: the flash and dependency-dim still carry meaning with no
+   static equivalent (S9.1h), so they apply as an instant state change
+   rather than being removed outright — everything that's purely
+   decorative (fade, panel slide, press scale) is simply skipped. */
+@media (prefers-reduced-motion: reduce) {
+  .value-flash {
+    animation: value-flash 1ms linear;
+  }
+}
+
+@keyframes value-fade {
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Set `--flash-color` (one of tokens.ts's meaning colours) on the element
+   before applying this class — the flash always fades to transparent so it
+   never leaves a stray background behind. */
+@keyframes value-flash {
+  from {
+    background-color: color-mix(in srgb, var(--flash-color, transparent) 35%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Detection Map (S9.9) — a wire whose downstream node is in anomaly gets  */
+/* a slow breathing pulse so a live red path up to a country reads as      */
+/* "ongoing," not a static warning colour.                                 */
+/* ---------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .detection-map-wire-pulse {
+    animation: detection-map-wire-pulse 3s var(--cr-ease-in-out) infinite;
+  }
+}
+
+@keyframes detection-map-wire-pulse {
+  0%, 100% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0.5;
   }
 }

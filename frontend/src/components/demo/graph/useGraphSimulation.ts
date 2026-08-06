@@ -127,6 +127,11 @@ export interface Finding {
   level: NodeStatus
   message: string
   source: SourceId
+  // structured subject reference, so consumers (e.g. the Control Room's
+  // Pattern Learning section) can group/count by identity instead of
+  // parsing the human-readable message string
+  subjectId: string
+  subjectName: string
 }
 
 function nextLeafStatus(kind: LeafKind, current: NodeStatus): NodeStatus {
@@ -196,8 +201,10 @@ function buildFinding(
 ): Finding {
   const level = transition.to
   let message: string
+  let subjectName: string
   if (transition.kind === 'climber') {
     const climber = climberById.get(transition.id)!
+    subjectName = climber.name
     message =
       transition.to === 'anomaly'
         ? `${climber.name} - SpO2/HR outside safe range`
@@ -205,12 +212,13 @@ function buildFinding(
   } else {
     const env = environmentById.get(transition.id)!
     const regionName = regionNameByEnvironmentId.get(env.id) ?? 'Unknown route'
+    subjectName = regionName
     if (transition.to === 'watch') message = `${regionName} - conditions deteriorating (wind ${windKph} kph)`
     else if (transition.to === 'anomaly') message = `${regionName} - wind ${windKph} kph exceeds operating threshold`
     else message = `${regionName} - conditions normalized`
   }
   const source: SourceId = transition.kind === 'climber' ? 'sensor-mesh' : 'weather-feed'
-  return { id: `${transition.id}-${Date.now()}`, time: nowTimeString(), level, message, source }
+  return { id: `${transition.id}-${Date.now()}`, time: nowTimeString(), level, message, source, subjectId: transition.id, subjectName }
 }
 
 // -- the store --------------------------------------------------------------

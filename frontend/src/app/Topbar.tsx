@@ -9,6 +9,14 @@ const titles: Record<string, string> = {
 
 export function Topbar() {
   const { pathname } = useLocation()
+
+  // The Control Room's own shell (9.1d) supplies a complete 48px bar with
+  // nothing above it — "ONE BAR. NOT TWO." /control-room/findings is a
+  // separate, unrelated page that still wants this generic bar.
+  if (pathname.startsWith('/app/control-room') && !pathname.startsWith('/app/control-room/findings')) {
+    return null
+  }
+
   const segment = pathname.split('/').filter(Boolean).pop() ?? ''
   const title = titles[segment] ?? ''
 

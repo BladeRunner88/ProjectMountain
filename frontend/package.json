@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
+    "lint": "oxlint && node scripts/check-confidence-casts.mjs",
+    "test": "vitest run",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -27,6 +28,7 @@
     "postcss": "^8.5.21",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
-    "vite": "^8.1.1"
+    "vite": "^8.1.1",
+    "vitest": "^4.1.10"
   }
 }
