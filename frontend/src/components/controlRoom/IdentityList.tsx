@@ -319,11 +319,11 @@ function HeaderCell({
   onSort: (c: SortColumn) => void
 }) {
   const { focused, handlers } = useFocusRing()
-  if (!label) return <span style={{ flex }} />
   return (
     <button
       type="button"
       onClick={() => onSort(column)}
+      aria-label={label || 'Sort by status'}
       {...handlers}
       className="pressable"
       style={{ ...TYPE_CAPTION, flex, textAlign: 'left', color: active ? TEXT_PRIMARY : TEXT_DIM, ...focusRingStyle(focused) }}

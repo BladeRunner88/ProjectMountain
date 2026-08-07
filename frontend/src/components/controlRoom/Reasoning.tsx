@@ -398,6 +398,14 @@ function DependencyMap({ answer }: { answer: ReasoningAnswer }) {
   const width = (maxLayer + 1) * DEP_LAYER_GAP
   const height = maxRows * DEP_ROW_GAP + DEP_NODE_R * 2
 
+  // Every edge here is a hop's computation depending on an earlier one —
+  // always a present, current relationship (there's no "past" dependency in
+  // one reasoning chain), so solid is correct for all of them. Colour still
+  // has to follow S9.6b convention #2: the node the edge connects to, i.e.
+  // what it feeds into — so a wire leading into the cause or the limiting
+  // step reads in that node's own colour, not a flat neutral grey.
+  const statusOf = (id: string): NodeStatus => (id === 'cause' ? 'anomaly' : id === limitingHopId ? 'watch' : 'nominal')
+
   return (
     <div>
       <p style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>DEPENDENCY MAP</p>
@@ -413,7 +421,7 @@ function DependencyMap({ answer }: { answer: ReasoningAnswer }) {
               y1={from.y}
               x2={to.x}
               y2={to.y}
-              stroke={TEXT_DIM}
+              stroke={nodeVisual(statusOf(e.to)).fill}
               strokeWidth={1}
               strokeDasharray={edgeDashArray('present')}
               opacity={0.5}
@@ -422,7 +430,7 @@ function DependencyMap({ answer }: { answer: ReasoningAnswer }) {
         })}
         {nodes.map((n) => {
           const pos = positions.get(n.id)!
-          const status: NodeStatus = n.id === 'cause' ? 'anomaly' : n.id === limitingHopId ? 'watch' : 'nominal'
+          const status: NodeStatus = statusOf(n.id)
           const visual = nodeVisual(status)
           return (
             <g key={n.id}>

@@ -22,6 +22,7 @@ import {
 } from '../../ase/tokens'
 import { focusRingStyle, useFocusRing } from './focusRing'
 import { DirectManipulationSlider } from './DirectManipulationSlider'
+import { maskedSerial } from '../../ase/serial'
 import {
   compositeScore,
   confusionMatrix,
@@ -63,9 +64,58 @@ export function IdentityMethod({
         How ASE matches records — global, not about any one person selected in List.
       </p>
 
+      <WorkedExampleSection data={data} />
       <MatchRuleCards weights={weights} onChangeWeights={onChangeWeights} thresholds={thresholds} groundTruth={data.groundTruthPairs} />
       <BlockingSection data={data} />
       <ThresholdsSection data={data} weights={weights} thresholds={thresholds} onChangeThresholds={onChangeThresholds} />
+    </div>
+  )
+}
+
+// -- WORKED EXAMPLE ------------------------------------------------------------
+
+/** S9.5b: what the identity record's "source records merged" figure actually counts — the cluster that produced one real ASE serial, not a narrated total. */
+function WorkedExampleSection({ data }: { data: EntityResolutionData }) {
+  const { worked } = data
+  return (
+    <div style={{ marginTop: SPACE_32 }}>
+      <p style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>WORKED EXAMPLE — {worked.label.toUpperCase()}</p>
+      <div style={{ marginTop: SPACE_16, padding: SPACE_16, background: PANEL_RAISED, borderRadius: RADIUS_STATIC }}>
+        <p style={{ ...TYPE_BODY, color: TEXT_SECONDARY }}>
+          {worked.records.length} source records, three different spellings of the same name, merged into one identity.
+        </p>
+        <div className="grid grid-cols-3" style={{ gap: SPACE_16, marginTop: SPACE_16 }}>
+          {worked.records.map((r) => (
+            <div key={r.id} style={{ padding: SPACE_16, border: `${BORDER_WIDTH}px solid ${HAIRLINE}`, borderRadius: RADIUS_STATIC }}>
+              <p style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>{r.source.toUpperCase()}</p>
+              <p className="font-mono" style={{ ...TYPE_BODY, color: TEXT_PRIMARY, marginTop: SPACE_8 }}>
+                {r.name.value}
+              </p>
+              <p style={{ ...TYPE_BODY, color: TEXT_SECONDARY, marginTop: SPACE_8 }}>
+                DOB {r.dobIso} · {r.operatorName}
+              </p>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: SPACE_16 }}>
+          {worked.pairwiseScores.map((p) => (
+            <p key={`${p.aLabel}-${p.bLabel}`} style={{ ...TYPE_BODY, color: TEXT_SECONDARY }}>
+              {p.aLabel} ↔ {p.bLabel}: {Math.round(p.score * 100)}% match
+            </p>
+          ))}
+        </div>
+        <p style={{ ...TYPE_BODY, color: TEXT_PRIMARY, marginTop: SPACE_16 }}>
+          Merged as <span className="font-mono">{worked.merged.value}</span>
+          {worked.serial ? (
+            <>
+              {' '}
+              — issued serial <span className="font-mono">{maskedSerial(worked.serial.value)}</span>
+            </>
+          ) : (
+            ' — no serial issued yet.'
+          )}
+        </p>
+      </div>
     </div>
   )
 }

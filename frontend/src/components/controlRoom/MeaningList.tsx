@@ -17,17 +17,17 @@ import {
 } from '../../ase/tokens'
 import { confidence } from '../../ase/folds'
 import { readingCoverage, type ContextEngineState, type Reading } from '../../ase/contextEngine'
-import { useSelection } from '../../ase/selection'
-import { useNavigate } from 'react-router-dom'
 import { maskedSerial } from '../../ase/serial'
 import { formatElapsed } from '../../ase/activity'
 import { compareValues, computeVisibleRange } from './evidenceTableLogic'
 import { focusRingStyle, useFocusRing } from './focusRing'
+import { PersonBadge } from './PersonBadge'
 
 // LIST — every reading across every source, newest first. ABOUT is the
-// bridge to Identity that S9.7's rebuild adds: clicking it selects that
-// person globally so switching to Identity lands on them, same contract
-// S9.6b's PersonBadge already guarantees everywhere else.
+// bridge to Identity that S9.7's rebuild adds: renders through the shared
+// PersonBadge (S9.6b convention #1) for climber-kind subjects, so it gets
+// the same name/serial typography, hover-full-serial and select+navigate
+// contract as every other person-naming surface in the app.
 
 type SortColumn = 'arrived' | 'source' | 'about' | 'understood' | 'confidence'
 type SortDirection = 'asc' | 'desc'
@@ -263,16 +263,7 @@ function TableBody({ rows, onSelect }: { rows: ListRow[]; onSelect: (readingId: 
 function Row({ row, top, onSelect }: { row: ListRow; top: number; onSelect: () => void }) {
   const [hovered, setHovered] = useState(false)
   const { focused, handlers } = useFocusRing()
-  const { select } = useSelection()
-  const navigate = useNavigate()
   const { reading } = row
-
-  function activateAbout(e: React.MouseEvent) {
-    e.stopPropagation()
-    if (reading.about.kind !== 'climber') return
-    select({ kind: 'identity', climberId: reading.about.climberId })
-    navigate('/app/control-room/identity')
-  }
 
   return (
     <div
@@ -306,15 +297,11 @@ function Row({ row, top, onSelect }: { row: ListRow; top: number; onSelect: () =
       </span>
       <span style={{ flex: 1.3, color: TEXT_SECONDARY }}>{reading.source}</span>
       <span style={{ flex: 2.2 }}>
-        <button
-          type="button"
-          onClick={activateAbout}
-          disabled={reading.about.kind !== 'climber'}
-          className="pressable"
-          style={{ color: reading.about.kind === 'climber' ? TEXT_PRIMARY : TEXT_SECONDARY, cursor: reading.about.kind === 'climber' ? 'pointer' : 'default' }}
-        >
-          {row.aboutLabel}
-        </button>
+        {reading.about.kind === 'climber' ? (
+          <PersonBadge climberId={reading.about.climberId} name={reading.about.label} serial={reading.about.serial} />
+        ) : (
+          <span style={{ color: TEXT_SECONDARY }}>{row.aboutLabel}</span>
+        )}
       </span>
       <span style={{ flex: SAYS_FLEX, color: TEXT_SECONDARY }} className="truncate">
         {reading.headline}

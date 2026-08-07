@@ -68,7 +68,7 @@ export interface GraphWire {
   toId: string
   toPortId: string | null
   kind: WireKind
-  colorToken: 'structure' | 'anomaly' | Severity
+  colorToken: 'structure' | 'anomaly' | 'watch' | Severity
 }
 
 export interface DetectionGraph {
@@ -200,14 +200,18 @@ export function buildDetectionGraph(engine: DetectionEngineState): DetectionGrap
     if (!n.parentId) continue
     const parent = nodes.find((p) => p.id === n.parentId)
     if (!parent) continue
+    // S9.6b: watch is an amber flag, never treated on par with anomaly — a
+    // watch-status child still renders as a plain structural (dashed) wire,
+    // just tinted to call it out, not promoted to the same loud solid-red
+    // treatment a real anomaly gets.
     structureWires.push({
       id: `struct:${parent.id}:${n.id}`,
       fromId: parent.id,
       fromPortId: null,
       toId: n.id,
       toPortId: null,
-      kind: n.status !== 'nominal' ? 'anomaly' : 'structure',
-      colorToken: n.status !== 'nominal' ? 'anomaly' : 'structure',
+      kind: n.status === 'anomaly' ? 'anomaly' : 'structure',
+      colorToken: n.status === 'anomaly' ? 'anomaly' : n.status === 'watch' ? 'watch' : 'structure',
     })
   }
 

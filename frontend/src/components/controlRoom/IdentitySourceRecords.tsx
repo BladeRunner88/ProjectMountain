@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import {
   ANOMALY,
   BORDER_WIDTH,
@@ -25,7 +25,7 @@ import {
 } from '../../ase/tokens'
 import type { Dataset } from '../../ase/dataset'
 import { statusFromAnomalyState, type Associate, type PersonStatus } from '../../ase/identityCard'
-import { edgeDashArray, nodeVisual } from '../../ase/nodeLanguage'
+import { edgeColor, edgeDashArray, nodeVisual } from '../../ase/nodeLanguage'
 import { Metric } from '../../ase/Metric'
 import { useSelection } from '../../ase/selection'
 import { isAnteMortemUnsealed } from '../../ase/identityRecord'
@@ -64,8 +64,7 @@ export function IdentitySourceRecords({
   return (
     <div>
       <IdentityCardPanel record={record} card={card} status={status} unsealed={unsealed} ethnicityConflict={ethnicityConflict} />
-      <NodeChart card={card} status={status} onSelectPerson={onSelectPerson} />
-      <MovementTrail card={card} />
+      <AssociatesAndTrail card={card} status={status} dataset={dataset} onSelectPerson={onSelectPerson} />
     </div>
   )
 }
@@ -240,6 +239,7 @@ function FooterStrip({ card }: { card: NonNullable<ReturnType<Dataset['identityC
         <Metric traced={card.footer.longitude} label="Last fix longitude" format={(v) => (v as number).toFixed(4)} />
       </span>
       <Metric traced={card.footer.resolvedPlace} label="Resolved place" />
+      <Metric traced={card.footer.camp} label="Camp" />
       <Metric traced={card.footer.altitudeM} label="Altitude" format={(v) => `${v as number}m`} />
       <span style={{ color: fixColor }}>
         <Metric traced={card.footer.fixAgeSec} label="Age of last fix" format={(v) => `${formatFixAge(v as number)} old`} />
@@ -261,13 +261,79 @@ const CHART_HEIGHT = 420
 const CENTER = { x: CHART_WIDTH / 2, y: CHART_HEIGHT / 2 - 20 }
 const ORBIT_RADIUS = 150
 
-function NodeChart({
+// Wraps the node chart and the movement trail together so a thin connector
+// can be drawn from a node in one to the camp it shared with the selected
+// person in the other — two otherwise-separate DOM regions, joined by an
+// absolutely-positioned overlay measured in real screen pixels (the same
+// technique the Detection Map's wires use), not by sharing one coordinate
+// space.
+function AssociatesAndTrail({
   card,
   status,
+  dataset,
   onSelectPerson,
 }: {
   card: NonNullable<ReturnType<Dataset['identityCards']['get']>>
   status: PersonStatus
+  dataset: Dataset
+  onSelectPerson: (climberId: string) => void
+}) {
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const [connectors, setConnectors] = useState<{ id: string; x1: number; y1: number; x2: number; y2: number }[]>([])
+
+  useLayoutEffect(() => {
+    const wrapper = wrapperRef.current
+    if (!wrapper) return
+    function recompute() {
+      if (!wrapper) return
+      const wrapperRect = wrapper.getBoundingClientRect()
+      const next: { id: string; x1: number; y1: number; x2: number; y2: number }[] = []
+      for (const stop of card.trail) {
+        for (const assocId of stop.sharedWithAssociateIds) {
+          const nodeEl = wrapper.querySelector(`[data-node-id="${assocId}"]`)
+          const stopEl = wrapper.querySelector(`[data-trail-stop="${CSS.escape(stop.camp)}"]`)
+          if (!nodeEl || !stopEl) continue
+          const nodeRect = nodeEl.getBoundingClientRect()
+          const stopRect = stopEl.getBoundingClientRect()
+          next.push({
+            id: `${assocId}-${stop.camp}`,
+            x1: nodeRect.left + nodeRect.width / 2 - wrapperRect.left,
+            y1: nodeRect.top + nodeRect.height / 2 - wrapperRect.top,
+            x2: stopRect.left + stopRect.width / 2 - wrapperRect.left,
+            y2: stopRect.top + stopRect.height / 2 - wrapperRect.top,
+          })
+        }
+      }
+      setConnectors(next)
+    }
+    recompute()
+    const ro = new ResizeObserver(recompute)
+    ro.observe(wrapper)
+    return () => ro.disconnect()
+  }, [card])
+
+  return (
+    <div ref={wrapperRef} style={{ position: 'relative' }}>
+      <NodeChart card={card} status={status} dataset={dataset} onSelectPerson={onSelectPerson} />
+      <MovementTrail card={card} />
+      <svg aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+        {connectors.map((c) => (
+          <line key={c.id} x1={c.x1} y1={c.y1} x2={c.x2} y2={c.y2} stroke={TEXT_DIM} strokeWidth={1} strokeDasharray="2 3" opacity={0.6} />
+        ))}
+      </svg>
+    </div>
+  )
+}
+
+function NodeChart({
+  card,
+  status,
+  dataset,
+  onSelectPerson,
+}: {
+  card: NonNullable<ReturnType<Dataset['identityCards']['get']>>
+  status: PersonStatus
+  dataset: Dataset
   onSelectPerson: (climberId: string) => void
 }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -300,7 +366,7 @@ function NodeChart({
             y1={CENTER.y}
             x2={a.x}
             y2={a.y}
-            stroke={nodeVisual(a.status).fill}
+            stroke={edgeColor(a.when, a.status)}
             strokeWidth={1.5}
             strokeDasharray={edgeDashArray(a.when)}
             opacity={dimmed(a.id) ? DEPENDENCY_DIM_OPACITY : 0.6}
@@ -315,6 +381,7 @@ function NodeChart({
             x={a.x}
             y={a.y}
             dimmed={dimmed(a.id)}
+            resolvedRecord={a.climberId ? dataset.identityRecords.get(a.climberId) : undefined}
             onHover={(hovered) => setHoveredId(hovered ? a.id : null)}
             onSelectPerson={onSelectPerson}
           />
@@ -354,6 +421,7 @@ function AssociateNode({
   x,
   y,
   dimmed,
+  resolvedRecord,
   onHover,
   onSelectPerson,
 }: {
@@ -361,12 +429,18 @@ function AssociateNode({
   x: number
   y: number
   dimmed: boolean
+  /** Only set for associates who resolve to a real climber (currently just the rope partner) — that's the only case with a real ASE serial to lead the tooltip with. */
+  resolvedRecord: NonNullable<ReturnType<Dataset['identityRecords']['get']>> | undefined
   onHover: (hovered: boolean) => void
   onSelectPerson: (climberId: string) => void
 }) {
   const r = 10 + associate.strength * 18
   const clickable = associate.kind === 'rope_partner' && associate.climberId
   const visual = nodeVisual(associate.status)
+  const isAnomaly = resolvedRecord ? statusFromAnomalyState(resolvedRecord.derived.anomalyState.value) === 'anomaly' : false
+  const tooltip = resolvedRecord
+    ? `${maskedSerial(resolvedRecord.serial.value)}${isAnomaly ? ' · ANOMALY' : ''} — ${associate.label} — ${associate.kind.replace('_', ' ')} (${associate.when})`
+    : `${associate.label} — ${associate.kind.replace('_', ' ')} (${associate.when})`
   return (
     <g
       onMouseEnter={() => onHover(true)}
@@ -375,13 +449,11 @@ function AssociateNode({
       style={{ cursor: clickable ? 'pointer' : 'default', opacity: dimmed ? DEPENDENCY_DIM_OPACITY : 1, transition: `opacity ${dimmed ? MOTION_DEPENDENCY_DIM_MS : MOTION_DEPENDENCY_RESTORE_MS}ms var(--cr-ease-out)` }}
     >
       {visual.ring && <circle cx={x} cy={y} r={r + 4} fill="none" stroke={visual.ring} strokeWidth={2} />}
-      <circle cx={x} cy={y} r={r} fill={visual.fill} opacity={associate.when === 'past' ? 0.5 : 0.85} />
+      <circle data-node-id={associate.id} cx={x} cy={y} r={r} fill={visual.fill} opacity={associate.when === 'past' ? 0.5 : 0.85} />
       <text x={x} y={y + r + 14} textAnchor="middle" fill={TEXT_SECONDARY} fontSize={10}>
         {associate.label.length > 18 ? `${associate.label.slice(0, 17)}…` : associate.label}
       </text>
-      <title>
-        {associate.label} — {associate.kind.replace('_', ' ')} ({associate.when})
-      </title>
+      <title>{tooltip}</title>
     </g>
   )
 }
@@ -399,6 +471,7 @@ function MovementTrail({ card }: { card: NonNullable<ReturnType<Dataset['identit
               {i > 0 && <div style={{ flex: 1, height: BORDER_WIDTH, background: card.trail[i - 1].reached ? TEXT_SECONDARY : HAIRLINE }} />}
               <span
                 aria-hidden
+                data-trail-stop={stop.camp}
                 style={{
                   width: 14,
                   height: 14,

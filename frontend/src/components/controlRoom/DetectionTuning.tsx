@@ -19,10 +19,11 @@ import {
   WATCH,
 } from '../../ase/tokens'
 import { instant } from '../../ase/traced'
-import { simulateThreshold, subjectLabel, type DetectionEngineState, type DetectionRule, type Suppression, type TuningPopulationMember } from '../../ase/detection'
+import { needsTuning, simulateThreshold, subjectLabel, type DetectionEngineState, type DetectionRule, type Suppression, type TuningPopulationMember } from '../../ase/detection'
 import { PersonBadge } from './PersonBadge'
 import { focusRingStyle, useFocusRing } from './focusRing'
 import { DirectManipulationSlider } from './DirectManipulationSlider'
+import { RecommendedSection, type Recommendation } from './RecommendationCard'
 
 function formatValue(rule: DetectionRule, value: number): string {
   const rounded = Math.round(value * 10) / 10
@@ -37,10 +38,12 @@ export function DetectionTuning({
   engine,
   rule,
   onSuppress,
+  onApplyThreshold,
 }: {
   engine: DetectionEngineState
   rule: DetectionRule
   onSuppress: (s: Suppression) => void
+  onApplyThreshold: (ruleId: string, newThreshold: number) => void
 }) {
   const population = useMemo(() => engine.tuningPopulations.get(rule.id) ?? [], [engine.tuningPopulations, rule])
   const range = useMemo(() => thresholdRange(rule), [rule])
@@ -48,6 +51,24 @@ export function DetectionTuning({
 
   const liveResult = simulateThreshold(population, rule.thresholdDirection, rule.thresholdValue, candidate)
   const alertsPerDay = population.length === 0 ? 0 : Math.round((liveResult.firingCount / population.length) * (24 * 60) / Math.max(rule.windowMinutes ?? 15, 5))
+
+  // "Alert load per operator per day" only cleanly means something for
+  // climber-watching rules, where each subject belongs to exactly one
+  // operator (a sensor's or an operator's own alerts don't divide the same
+  // way) — count the distinct operators actually represented in this rule's
+  // population and spread the extrapolated load across them.
+  const operatorCount = useMemo(() => {
+    if (rule.watches !== 'climbers') return null
+    const ids = new Set<string>()
+    for (const m of population) {
+      const subject = m.subject
+      if (subject.kind !== 'climber') continue
+      const node = engine.mapNodes.find((n) => n.id === subject.nodeId)
+      if (node?.parentId) ids.add(node.parentId)
+    }
+    return ids.size > 0 ? ids.size : null
+  }, [population, engine.mapNodes, rule.watches])
+  const alertsPerOperatorPerDay = operatorCount ? alertsPerDay / operatorCount : null
 
   const curve = useMemo(() => {
     const steps = 24
@@ -60,17 +81,51 @@ export function DetectionTuning({
 
   const activeSuppressions = engine.suppressions.filter((s) => s.ruleId === rule.id)
 
+  // S9.6b convention #3: a rule below 60% precision gets a recommendation to
+  // retune, with the predicted effect on firing count and recall stated
+  // before the drag — not just a passive "needs tuning" badge in List.
+  const retuneRecommendation: Recommendation[] = useMemo(() => {
+    if (!needsTuning(rule)) return []
+    const atCurrent = simulateThreshold(population, rule.thresholdDirection, rule.thresholdValue, rule.thresholdValue)
+    const best = curve.reduce((b, p) => (p.accuracyPct > b.accuracyPct ? p : b), curve[0])
+    const atBest = simulateThreshold(population, rule.thresholdDirection, rule.thresholdValue, best.threshold)
+    return [
+      {
+        id: `retune-${rule.id}`,
+        action: `Retune to ${formatValue(rule, best.threshold)}`,
+        why: `${rule.label} is right only ${Math.round(rule.accuracy * 100)}% of the time at its current threshold — below the 60% bar ASE treats as reliable enough to trust unattended.`,
+        confidencePct: best.accuracyPct,
+        ifYouDoNothing: `Firing stays at ${atCurrent.firingCount} a day, right ${atCurrent.accuracyPct}% of the time. Moving to ${formatValue(rule, best.threshold)} would change that to ${atBest.firingCount} ${atBest.firingCount === 1 ? 'firing' : 'firings'} a day, right ${atBest.accuracyPct}% of the time.`,
+        doneLabel: 'DONE — THRESHOLD APPLIED',
+        onRun: () => {
+          setCandidate(best.threshold)
+          onApplyThreshold(rule.id, best.threshold)
+        },
+      },
+    ]
+  }, [rule, population, curve, onApplyThreshold])
+
   return (
     <div>
       <p style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>{rule.watches.toUpperCase()} · {rule.label.toUpperCase()}</p>
       <p style={{ ...TYPE_BODY, color: TEXT_SECONDARY, marginTop: SPACE_8, textTransform: 'none', letterSpacing: 'normal' }}>{rule.conditionSentence}, checked {rule.window === 'live' ? 'continuously' : `over a ${rule.window} window`}.</p>
 
-      <ThresholdSlider rule={rule} range={range} candidate={candidate} onChange={setCandidate} />
+      {retuneRecommendation.length > 0 && (
+        <div style={{ marginTop: SPACE_16 }}>
+          <RecommendedSection recommendations={retuneRecommendation} emptyMessage="" />
+        </div>
+      )}
+
+      <ThresholdSlider rule={rule} range={range} candidate={candidate} onChange={setCandidate} onApply={() => onApplyThreshold(rule.id, candidate)} />
 
       <div className="grid grid-cols-3" style={{ gap: SPACE_16, marginTop: SPACE_24 }}>
         <Stat label="FIRING AT THIS THRESHOLD" value={String(liveResult.firingCount)} />
         <Stat label="HOW OFTEN RIGHT" value={`${liveResult.accuracyPct}%`} />
-        <Stat label="ALERT LOAD, PER DAY (EXTRAPOLATED)" value={String(alertsPerDay)} />
+        {alertsPerOperatorPerDay !== null ? (
+          <Stat label="ALERT LOAD, PER OPERATOR PER DAY (EXTRAPOLATED)" value={alertsPerOperatorPerDay.toFixed(1)} />
+        ) : (
+          <Stat label="ALERT LOAD, PER DAY (EXTRAPOLATED)" value={String(alertsPerDay)} />
+        )}
       </div>
 
       <WhoChanges result={liveResult} />
@@ -94,12 +149,16 @@ function ThresholdSlider({
   range,
   candidate,
   onChange,
+  onApply,
 }: {
   rule: DetectionRule
   range: { min: number; max: number }
   candidate: number
   onChange: (v: number) => void
+  onApply: () => void
 }) {
+  const changed = candidate !== rule.thresholdValue
+  const { focused, handlers } = useFocusRing()
   return (
     <div style={{ marginTop: SPACE_24 }}>
       <div className="flex items-center justify-between">
@@ -121,8 +180,28 @@ function ThresholdSlider({
       </div>
       <div className="flex items-center justify-between">
         <span style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>{formatValue(rule, range.min)}</span>
-        {candidate !== rule.thresholdValue && (
-          <span style={{ ...TYPE_CAPTION, color: TEXT_SECONDARY, textTransform: 'none', letterSpacing: 'normal' }}>currently live at {formatValue(rule, rule.thresholdValue)}</span>
+        {changed && (
+          <span className="flex items-center" style={{ gap: SPACE_8 }}>
+            <span style={{ ...TYPE_CAPTION, color: TEXT_SECONDARY, textTransform: 'none', letterSpacing: 'normal' }}>currently live at {formatValue(rule, rule.thresholdValue)}</span>
+            <button
+              type="button"
+              onClick={onApply}
+              {...handlers}
+              className="pressable"
+              style={{
+                ...TYPE_CAPTION,
+                textTransform: 'none',
+                letterSpacing: 'normal',
+                color: NOMINAL,
+                border: `${BORDER_WIDTH}px solid ${NOMINAL}`,
+                borderRadius: RADIUS_INTERACTIVE,
+                padding: `1px ${SPACE_8}px`,
+                ...focusRingStyle(focused),
+              }}
+            >
+              APPLY
+            </button>
+          </span>
         )}
         <span style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>{formatValue(rule, range.max)}</span>
       </div>

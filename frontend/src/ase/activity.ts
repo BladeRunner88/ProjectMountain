@@ -98,15 +98,21 @@ function isPrimitive(v: unknown): v is string | number | boolean {
 }
 
 // S9.6 fix: a raw seconds count past 90 reads as noise ("4646 seconds ago")
-// rather than information — express it in minutes instead, same threshold
-// EvidenceStrip and formatElapsed already treat as "no longer a seconds
-// figure." Minute/hour/day-unit readings are already the right scale and
-// pass through unchanged.
+// rather than information — escalate through the same unit ladder
+// `formatElapsed` uses (seconds -> minutes -> hours -> days), so a source
+// that's been down a long time reads as "3.2 hours ago", never a
+// four-or-five-digit seconds count. Minute/hour/day-unit readings that are
+// already the right scale pass through unchanged unless they, too, cross
+// into the next unit up.
 function formatAgeQuantity(amount: number, baseUnit: string): { value: string; unit: string } {
-  if (baseUnit === 'second' && amount > 90) {
-    return { value: (amount / 60).toFixed(1), unit: 'minutes' }
-  }
-  return { value: String(amount), unit: `${baseUnit}s` }
+  const seconds = baseUnit === 'second' ? amount : baseUnit === 'minute' ? amount * 60 : baseUnit === 'hour' ? amount * 3600 : amount * 86400
+  if (seconds < 90) return { value: String(Math.round(seconds)), unit: 'seconds' }
+  const minutes = seconds / 60
+  if (minutes < 90) return { value: minutes.toFixed(1), unit: 'minutes' }
+  const hours = minutes / 60
+  if (hours < 36) return { value: hours.toFixed(1), unit: 'hours' }
+  const days = hours / 24
+  return { value: days.toFixed(1), unit: 'days' }
 }
 
 function composeSentence(oldTv: TracedValue<unknown>, newTv: TracedValue<unknown>): string {

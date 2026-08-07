@@ -8,14 +8,18 @@
 //                 (watch is a ring around a nominal-coloured node, not a
 //                 third fill colour — it says "otherwise fine, but flagged"
 //                 rather than putting it visually on par with anomaly)
-//   EDGE COLOUR   follows the node it connects to
-//   SOLID edge    a present, current relationship
-//   DASHED edge   a verified past or structural relationship
+//   EDGE COLOUR   a PRESENT edge follows the node it connects to; a PAST
+//                 edge is always white, regardless of that node's status —
+//                 dashed-white reads as "structural, not current" at a
+//                 glance, rather than making an old relationship compete
+//                 visually with today's anomalies.
+//   SOLID edge    a present, current relationship, coloured by its node
+//   DASHED edge   a verified past or structural relationship, always white
 //   NODE SIZE     by association strength or tier, never aesthetics —
 //                 each consumer supplies its own strength/tier scale, this
 //                 file only fixes colour and dash, not size
 
-import { ANOMALY, NOMINAL, WATCH } from './tokens'
+import { ANOMALY, NOMINAL, TEXT_PRIMARY, WATCH } from './tokens'
 
 export type NodeStatus = 'nominal' | 'watch' | 'anomaly'
 export type EdgeRelationship = 'present' | 'past'
@@ -35,4 +39,9 @@ export function nodeVisual(status: NodeStatus): NodeVisual {
 /** A solid edge for a present/current relationship, dashed for a verified past or structural one. Returns the `strokeDasharray` value, or undefined for solid. */
 export function edgeDashArray(relationship: EdgeRelationship): string | undefined {
   return relationship === 'past' ? '4 4' : undefined
+}
+
+/** Present edges follow the node they connect to; past edges are always white. */
+export function edgeColor(relationship: EdgeRelationship, connectedNodeStatus: NodeStatus): string {
+  return relationship === 'past' ? TEXT_PRIMARY : nodeVisual(connectedNodeStatus).fill
 }

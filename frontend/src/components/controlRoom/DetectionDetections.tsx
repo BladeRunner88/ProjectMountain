@@ -299,7 +299,8 @@ function WhoItWasDetectedOn({ detection, engine, dataset }: { detection: Detecti
       </div>
       {record && card && (
         <p style={{ ...TYPE_BODY, color: TEXT_SECONDARY, marginTop: SPACE_8, textTransform: 'none', letterSpacing: 'normal' }}>
-          {record.contacts.operatorName.value} · {card.routeName.value} · {card.footer.camp.value}
+          {record.contacts.operatorName.value} · {card.routeName.value} · {card.footer.camp.value} · last known position{' '}
+          {card.footer.resolvedPlace.value}
         </p>
       )}
 
@@ -310,7 +311,7 @@ function WhoItWasDetectedOn({ detection, engine, dataset }: { detection: Detecti
             {ropePartners.map((p) =>
               p.climberId ? (
                 <div key={p.id} className="flex items-center" style={{ gap: SPACE_8 }}>
-                  <PersonBadge climberId={p.climberId} name={p.label} serial="" />
+                  <PersonBadge climberId={p.climberId} name={p.label} serial={dataset.identityRecords.get(p.climberId)?.serial.value ?? ''} />
                   <span style={{ ...TYPE_CAPTION, color: p.status === 'anomaly' ? ANOMALY : p.status === 'watch' ? WATCH : TEXT_DIM }}>{p.status}</span>
                 </div>
               ) : (

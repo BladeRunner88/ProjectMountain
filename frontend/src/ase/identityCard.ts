@@ -7,13 +7,15 @@
 // distinguishing marks, blood group, allergies, medical alerts, passport,
 // nationality, permit number, biometric references — respecting the same
 // seal), and adds only what 9.6 needs that 9.5b deliberately does not
-// carry: ethnicity and race AS RECORDED ON THE SOURCE DOCUMENT. That is a
-// stated, explicit exception to 9.5b's "never store a race or ethnicity
-// category" rule for THIS card only — see the S9.6 spec — which is why
-// these two fields live here and nowhere near identityRecord.ts, and why
-// the conflict that feeds them is excluded from IdentityRecord's own
-// `conflictingFields` (identityRecord.ts keeps its own "does not store one
-// anywhere" claim true).
+// carry: ethnicity and race AS RECORDED ON THE SOURCE DOCUMENT. These are
+// declared values quoted from a specific document, not an ASE observation
+// and not a categorical judgement ASE itself is making — 9.6 is explicit
+// that they must be labelled as document-declared and show which document
+// each came from. That is why these two fields live here and nowhere near
+// identityRecord.ts, and why the conflict that feeds them is excluded from
+// IdentityRecord's own `conflictingFields` (identityRecord.ts keeps its own
+// "does not store one anywhere" claim true — that rule governs the
+// canonical record and its exports, not this document facsimile).
 //
 // Weight, build, eye colour, hair colour and skin tone reuse the EXACT
 // rolls behind the ante-mortem record's composed `physicalDescription`

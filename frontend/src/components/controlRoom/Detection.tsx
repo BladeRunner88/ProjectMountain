@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { BORDER_WIDTH, HAIRLINE, PAGE_GUTTER, PANEL_RAISED, RADIUS_INTERACTIVE, RADIUS_STATIC, SPACE_8, SPACE_12, SPACE_32, TEXT_DIM, TEXT_PRIMARY, TEXT_SECONDARY, TYPE_BODY, TYPE_CAPTION } from '../../ase/tokens'
 import { useDataset } from '../../ase/store'
-import { applySuppression, type DetectionEngineState, type Suppression } from '../../ase/detection'
+import { applySuppression, applyThresholdChange, type DetectionEngineState, type Suppression } from '../../ase/detection'
 import { focusRingStyle, useFocusRing } from './focusRing'
 import { DetectionList } from './DetectionList'
 import { DetectionMap } from './DetectionMap'
@@ -52,6 +52,12 @@ export function Detection() {
     setEngine(next)
     logRevision(`Suppressed "${engine.rules.find((r) => r.id === suppression.ruleId)?.label}" for ${suppression.subject.kind === 'climber' ? suppression.subject.name : suppression.subject.label} — ${suppression.reason}`)
   }
+  function handleApplyThreshold(ruleId: string, newThreshold: number) {
+    const rule = engine.rules.find((r) => r.id === ruleId)
+    const from = rule?.thresholdValue
+    setEngine(applyThresholdChange(engine, ruleId, newThreshold))
+    logRevision(`"${rule?.label}" threshold changed from ${from}${rule?.thresholdUnit} to ${newThreshold}${rule?.thresholdUnit}, by you.`)
+  }
 
   const selectedRule = selectedRuleId ? engine.rules.find((r) => r.id === selectedRuleId) ?? null : null
 
@@ -82,7 +88,7 @@ export function Detection() {
           />
         </div>
         <div style={{ display: subTab === 'tuning' ? 'block' : 'none' }}>
-          {selectedRule ? <DetectionTuning engine={engine} rule={selectedRule} onSuppress={handleSuppress} /> : <SelectARuleFirst />}
+          {selectedRule ? <DetectionTuning engine={engine} rule={selectedRule} onSuppress={handleSuppress} onApplyThreshold={handleApplyThreshold} /> : <SelectARuleFirst />}
         </div>
       </div>
     </div>

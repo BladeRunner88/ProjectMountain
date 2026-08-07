@@ -85,6 +85,7 @@ export interface IdentityRecord {
     secondContact: ContactInfo
     operatorName: TracedValue<string>
     leadGuide: TracedValue<string>
+    leadGuidePhone: TracedValue<string>
     operatorPhone: TracedValue<string>
     ropePartnerSerials: TracedValue<string>[]
     embassy: TracedValue<string>
@@ -302,6 +303,7 @@ export function buildIdentityRecords(
         secondContact: buildContact(rng, permitSourceId, permitReliability, `${c.id}:second`),
         operatorName: observed(permitSourceId, `${c.id}:operator_name`, c.operatorName, permitReliability),
         leadGuide: observed(permitSourceId, `${c.id}:lead_guide`, c.leadGuideName, permitReliability),
+        leadGuidePhone: observed(permitSourceId, `${c.id}:lead_guide_phone`, generatePhone(rng), permitReliability),
         operatorPhone: observed(permitSourceId, `${c.id}:operator_phone`, generatePhone(rng), permitReliability),
         ropePartnerSerials: [], // filled in a second pass once every serial is known
         embassy: observed(permitSourceId, `${c.id}:embassy`, `${c.countryOfOrigin} Embassy or Consulate, nearest to ${c.registryCountry}`, permitReliability),
@@ -309,10 +311,9 @@ export function buildIdentityRecords(
       derived: {
         sourceRecordsMerged: derived([c.name.id], derivationFnId(`${c.id}:source-records-merged`), sourceRecordCount(c.name)),
         identityConfidencePct: Math.round(confidence(c.name) * 100),
-        // S9.6's "ethnicity as recorded on the source document" conflict
-        // overrides S9.5b's "never store race/ethnicity" rule only for its
-        // own Source Records card — it must not leak into this canonical
-        // record, the Inspector, or either export card.
+        // 9.6's "ethnicity as recorded on the source document" conflict
+        // belongs to its own Source Records card, not this canonical record —
+        // kept out of the Inspector and both export cards accordingly.
         conflictingFields: conflicts.filter((cf) => cf.entityLabel === c.entityLabel && cf.propertyLabel !== 'Ethnicity (as recorded)'),
         priorExpeditions: observed(permitSourceId, `${c.id}:prior_expeditions`, rng.int(0, 6), permitReliability),
         anomalyState: observed(permitSourceId, `${c.id}:anomaly_state`, findingSentence, permitReliability),

@@ -542,3 +542,9 @@ export function applySuppression(state: DetectionEngineState, suppression: Suppr
   const { nodes, edges } = buildMapTree(state.mapNodes, detections)
   return { ...state, detections, suppressions: [...state.suppressions, suppression], mapNodes: nodes, mapEdges: edges }
 }
+
+/** Commits a dragged Tuning threshold as the rule's real, persisted value — "any change writes to Revision" needs an actual change to persist, not just a live preview. */
+export function applyThresholdChange(state: DetectionEngineState, ruleId: string, newThreshold: number): DetectionEngineState {
+  const rules = state.rules.map((r) => (r.id === ruleId ? { ...r, thresholdValue: newThreshold } : r))
+  return { ...state, rules }
+}

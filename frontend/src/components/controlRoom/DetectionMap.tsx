@@ -22,7 +22,6 @@ import {
   TEXT_PRIMARY,
   TEXT_SECONDARY,
   TYPE_CAPTION,
-  VERIFIED,
   WATCH,
 } from '../../ase/tokens'
 import { useSelection } from '../../ase/selection'
@@ -48,14 +47,35 @@ const KIND_HEADER_COLOR: Record<GraphNodeKind, string> = {
 }
 const SEVERITY_COLOR: Record<string, string> = { critical: ANOMALY, high: ANOMALY, medium: WATCH, low: TEXT_DIM }
 
-const NODE_WIDTH = 178
-const HEADER_HEIGHT = 28
-const PORT_ROW_HEIGHT = 15
-const NODE_PADDING_V = 8
-const COLUMN_X: Record<GraphNodeKind, number> = { rule: 20, country: 320, route: 600, operator: 900, sensor: 1080, climber: 1220 }
-const ROW_HEIGHT = 46
-const MIN_SCALE = 0.3
+const NODE_WIDTH = 390
+const HEADER_HEIGHT = 58
+const PORT_ROW_HEIGHT = 34
+const NODE_PADDING_V = 17
+// A fixed, generous gap between every adjacent tier's column — computed
+// from NODE_WIDTH plus a wide margin, so widening nodes can never leave two
+// columns overlapping again (a fixed COLUMN_X table drifted out of sync
+// with NODE_WIDTH once before).
+const COLUMN_GAP = 220
+const COLUMN_ORDER: GraphNodeKind[] = ['rule', 'country', 'route', 'operator', 'sensor', 'climber']
+const COLUMN_X: Record<GraphNodeKind, number> = COLUMN_ORDER.reduce(
+  (acc, kind, i) => ({ ...acc, [kind]: 30 + i * (NODE_WIDTH + COLUMN_GAP) }),
+  {} as Record<GraphNodeKind, number>
+)
+// Vertical gap between two nodes stacked in the same column — nodes have
+// very different heights depending on how many ports they carry (a rule
+// node is short, a climber with 8 ports is tall), so this is a GAP added
+// on top of each node's own real height, never a fixed row pitch that
+// assumes every node is the same size.
+const ROW_GAP = 50
+const MIN_SCALE = 0.15
 const MAX_SCALE = 2.5
+// RESET VIEW's own floor is much higher than the interaction floor above —
+// fitting all ~113 entities on screen at once would shrink every node back
+// down to illegible, defeating the point of sizing them up. Collapse,
+// FOCUS and the minimap are the tools for "everything at once"; the
+// default view should read clearly instead — pan and the minimap are how
+// you reach the rest of a canvas this size.
+const RESET_VIEW_MIN_SCALE = 0.6
 
 function nodeHeight(node: GraphNode): number {
   const left = node.ports.filter((p) => p.side === 'left').length
@@ -98,12 +118,14 @@ function computeLayout(graph: DetectionGraph): Layout {
   const sensors = orderByParent(byKind.sensor, routeIdx)
 
   const positions = new Map<string, { x: number; y: number }>()
-  let maxRows = 1
+  let maxBottom = 0
   function place(list: GraphNode[], kind: GraphNodeKind) {
-    maxRows = Math.max(maxRows, list.length)
-    list.forEach((n, i) => {
-      positions.set(n.id, { x: COLUMN_X[kind], y: 24 + i * ROW_HEIGHT })
-    })
+    let y = 24
+    for (const n of list) {
+      positions.set(n.id, { x: COLUMN_X[kind], y })
+      y += nodeHeight(n) + ROW_GAP
+    }
+    maxBottom = Math.max(maxBottom, y)
   }
   place(rules, 'rule')
   place(countries, 'country')
@@ -113,7 +135,7 @@ function computeLayout(graph: DetectionGraph): Layout {
   place(sensors, 'sensor')
 
   const width = COLUMN_X.climber + NODE_WIDTH + 40
-  const height = 24 + maxRows * ROW_HEIGHT + 60
+  const height = maxBottom + 40
   return { positions, width, height }
 }
 
@@ -199,7 +221,7 @@ export function DetectionMap({
   function resetView() {
     const scaleX = viewport.width / (layout.width + 80)
     const scaleY = viewport.height / (layout.height + 80)
-    const fit = Math.min(Math.max(Math.min(scaleX, scaleY), MIN_SCALE), MAX_SCALE)
+    const fit = Math.min(Math.max(Math.min(scaleX, scaleY), RESET_VIEW_MIN_SCALE), MAX_SCALE)
     springScale.current.jumpTo(fit)
     springX.current.jumpTo(40)
     springY.current.jumpTo(40)
@@ -325,7 +347,16 @@ export function DetectionMap({
         onPointerMove={onCanvasPointerMove}
         onPointerUp={onCanvasPointerUp}
         className="relative"
-        style={{ width: '100%', height: 640, overflow: 'hidden', background: CANVAS, border: `${BORDER_WIDTH}px solid ${HAIRLINE}`, cursor: draggingRef.current?.kind === 'pan' ? 'grabbing' : 'grab', touchAction: 'none' }}
+        style={{
+          width: '100%',
+          height: 'calc(100vh - 340px)',
+          minHeight: 640,
+          overflow: 'hidden',
+          background: CANVAS,
+          border: `${BORDER_WIDTH}px solid ${HAIRLINE}`,
+          cursor: draggingRef.current?.kind === 'pan' ? 'grabbing' : 'grab',
+          touchAction: 'none',
+        }}
       >
         <div style={{ position: 'absolute', left: 0, top: 0, transform: `translate(${tx}px, ${ty}px) scale(${scale})`, transformOrigin: '0 0' }}>
           <GridBackground width={layout.width} height={layout.height} />
@@ -514,7 +545,7 @@ function NodeCard({
         opacity,
         cursor: node.kind === 'rule' ? 'default' : 'pointer',
         transition: 'opacity 100ms var(--cr-ease-out)',
-        boxShadow: ringColor ? `0 0 0 ${multiFiring ? 3 : 2}px ${ringColor}` : 'none',
+        boxShadow: ringColor ? `0 0 0 ${multiFiring ? 5 : 3}px ${ringColor}` : 'none',
         borderRadius: RADIUS_INTERACTIVE,
       }}
     >
@@ -524,22 +555,22 @@ function NodeCard({
           background: headerColor,
           borderTopLeftRadius: RADIUS_INTERACTIVE,
           borderTopRightRadius: RADIUS_INTERACTIVE,
-          borderTop: node.kind === 'rule' && node.severity ? `3px solid ${SEVERITY_COLOR[node.severity]}` : undefined,
+          borderTop: node.kind === 'rule' && node.severity ? `5px solid ${SEVERITY_COLOR[node.severity]}` : undefined,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 8px',
+          padding: '0 16px',
         }}
       >
-        <span className="truncate" style={{ ...TYPE_CAPTION, textTransform: 'none', letterSpacing: 'normal', color: CANVAS, fontWeight: 600 }}>
+        <span className="truncate" style={{ ...TYPE_CAPTION, fontSize: 20, textTransform: 'none', letterSpacing: 'normal', color: CANVAS, fontWeight: 600 }}>
           {node.label}
         </span>
-        <span className="flex items-center" style={{ gap: 4 }}>
+        <span className="flex items-center" style={{ gap: 10 }}>
           {multiFiring && (
-            <span style={{ ...TYPE_CAPTION, color: CANVAS, fontWeight: 700 }}>×{node.firingRuleIds.length}</span>
+            <span style={{ ...TYPE_CAPTION, fontSize: 18, color: CANVAS, fontWeight: 700 }}>×{node.firingRuleIds.length}</span>
           )}
           {node.serialTail && (
-            <span className="font-mono" style={{ ...TYPE_CAPTION, color: CANVAS, opacity: 0.7 }}>
+            <span className="font-mono" style={{ ...TYPE_CAPTION, fontSize: 18, color: CANVAS, opacity: 0.7 }}>
               …{node.serialTail}
             </span>
           )}
@@ -563,29 +594,29 @@ function NodeCard({
               display: 'flex',
               alignItems: 'center',
               justifyContent: port.side === 'left' ? 'flex-start' : 'flex-end',
-              padding: '0 10px',
+              padding: '0 16px',
             }}
           >
             <span
               aria-hidden
               style={{
                 position: 'absolute',
-                [port.side === 'left' ? 'left' : 'right']: -4,
-                width: 8,
-                height: 8,
+                [port.side === 'left' ? 'left' : 'right']: -8,
+                width: 16,
+                height: 16,
                 borderRadius: '50%',
                 background: port.live ? NOMINAL : HAIRLINE,
-                border: `1px solid ${port.live ? NOMINAL : TEXT_DIM}`,
+                border: `2px solid ${port.live ? NOMINAL : TEXT_DIM}`,
               }}
             />
-            <span style={{ fontSize: 10, color: port.live ? TEXT_PRIMARY : TEXT_DIM }}>{port.label}</span>
+            <span style={{ fontSize: 17, color: port.live ? TEXT_PRIMARY : TEXT_DIM }}>{port.label}</span>
             {hoveredPort === port.id && (
               <PortTooltip port={port} side={port.side} rowIndex={i} />
             )}
           </div>
         ))}
         {node.ports.length === 0 && (
-          <div style={{ padding: '0 10px', fontSize: 10, color: TEXT_DIM }}>{node.isSummary ? 'click to expand' : ''}</div>
+          <div style={{ padding: '0 16px', fontSize: 17, color: TEXT_DIM }}>{node.isSummary ? 'click to expand' : ''}</div>
         )}
       </div>
     </div>
@@ -603,22 +634,22 @@ function PortTooltip({ port, side }: { port: GraphNode['ports'][number]; side: '
         background: CANVAS,
         border: `${BORDER_WIDTH}px solid ${HAIRLINE}`,
         borderRadius: RADIUS_INTERACTIVE,
-        padding: '4px 8px',
+        padding: '6px 12px',
         whiteSpace: 'nowrap',
         zIndex: 10,
       }}
     >
       {port.live ? (
         <>
-          <p style={{ fontSize: 11, color: TEXT_PRIMARY }}>
+          <p style={{ fontSize: 17, color: TEXT_PRIMARY }}>
             {port.label}: {port.live.valueText}
           </p>
-          <p style={{ fontSize: 10, color: TEXT_DIM }}>
+          <p style={{ fontSize: 15, color: TEXT_DIM }}>
             {formatElapsed(port.live.ageAt)} · {port.live.confidencePct}% confidence
           </p>
         </>
       ) : (
-        <p style={{ fontSize: 11, color: TEXT_DIM }}>{port.label}: not currently monitored</p>
+        <p style={{ fontSize: 17, color: TEXT_DIM }}>{port.label}: not currently monitored</p>
       )}
     </div>
   )
@@ -667,25 +698,35 @@ function WirePath({
   const isHoverMatch = hoverCone ? hoverCone.has(wire.fromId) && hoverCone.has(wire.toId) : true
   const dimmed = !isRuleFilterMatch || !isHoverMatch
 
-  let stroke = VERIFIED
+  // Exactly three wire colours, everywhere on this map:
+  //   GREY — a normal, structural relationship (the country/route/operator/
+  //          climber skeleton, and a verified past relationship, dashed)
+  //   BLUE — a rule watching a value, or firing at a non-anomaly severity —
+  //          "potential" (could fire) or "stable" (managed, not urgent)
+  //   RED  — an actual anomaly, full stop
+  let stroke = TEXT_SECONDARY
   let strokeWidth = 2
-  let dash: string | undefined = '2 5'
-  let opacity = 0.45
+  let dash: string | undefined
+  let opacity = 0.5
 
   if (wire.kind === 'anomaly') {
     stroke = ANOMALY
     strokeWidth = 2.5
-    dash = undefined
     opacity = 0.9
   } else if (wire.kind === 'detection') {
-    stroke = SEVERITY_COLOR[wire.colorToken] ?? WATCH
+    stroke = NOMINAL
     strokeWidth = 1.5
-    dash = undefined
     opacity = 0.85
+  } else if (wire.kind === 'structure' && wire.colorToken === 'watch') {
+    // Still a structural relationship, not a detection wire — stays solid,
+    // just tinted blue ("stable, worth watching") instead of grey.
+    stroke = NOMINAL
+    opacity = 0.75
   } else if (wire.kind === 'past') {
-    stroke = VERIFIED
+    stroke = TEXT_SECONDARY
+    strokeWidth = 1
     dash = '1 4'
-    opacity = 0.25
+    opacity = 0.3
   }
 
   return (

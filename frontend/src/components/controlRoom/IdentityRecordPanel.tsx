@@ -127,6 +127,7 @@ export function IdentityRecordPanel({ climberId }: { climberId: string }) {
         <ContactBlock heading="Second contact" contact={record.contacts.secondContact} />
         <FieldRow label="Operator" traced={record.contacts.operatorName} />
         <FieldRow label="Lead guide" traced={record.contacts.leadGuide} />
+        <FieldRow label="Lead guide phone" traced={record.contacts.leadGuidePhone} />
         <FieldRow label="Operator phone" traced={record.contacts.operatorPhone} />
         {record.contacts.ropePartnerSerials.map((tv, i) => (
           <FieldRow key={i} label="Rope partner (by serial)" traced={tv} />
@@ -135,7 +136,7 @@ export function IdentityRecordPanel({ climberId }: { climberId: string }) {
       </Section>
 
       <Section heading="Derived, not entered">
-        <DerivedRow label="Source records merged" value={record.derived.sourceRecordsMerged.value} linkTo="/app/control-room/identity" />
+        <DerivedRow label="Source records merged" value={record.derived.sourceRecordsMerged.value} linkTo="/app/control-room/identity?sub=method" />
         <DerivedRow label="Identity confidence" value={`${record.derived.identityConfidencePct}%`} />
         <DerivedRow label="Conflicting fields (S9.4)" value={record.derived.conflictingFields.length} />
         <DerivedRow label="Prior expeditions" value={record.derived.priorExpeditions.value} />

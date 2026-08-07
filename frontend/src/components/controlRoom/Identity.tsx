@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   BORDER_WIDTH,
   HAIRLINE,
@@ -44,12 +45,22 @@ const SUB_TABS: { id: SubTab; label: string }[] = [
 // Inspector's S9.5b identity record stays in sync with whoever this tab is
 // currently looking at.
 export function Identity() {
+  const [searchParams] = useSearchParams()
   const [subTab, setSubTab] = useState<SubTab>('list')
   const [selectedClimberId, setSelectedClimberId] = useState<string | null>(null)
   const [weights, setWeights] = useState<ScoringWeights>(DEFAULT_WEIGHTS)
   const [thresholds, setThresholds] = useState<DecisionThresholds>(DEFAULT_THRESHOLDS)
   const { dataset } = useDataset()
   const { select, selection } = useSelection()
+
+  // Lets an external link deep-link straight to a sub-tab, e.g. the
+  // identity record's "source records merged" row pointing at Method's
+  // worked entity-resolution example rather than just the tab root.
+  useEffect(() => {
+    const sub = searchParams.get('sub')
+    if (sub && SUB_TABS.some((t) => t.id === sub)) setSubTab(sub as SubTab)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   function selectPerson(climberId: string, moveToSourceRecords: boolean) {
     setSelectedClimberId(climberId)

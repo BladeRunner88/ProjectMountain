@@ -698,13 +698,12 @@ export function buildDataset(seed: number = SEED, options: BuildDatasetOptions =
     resolve: (policy) => resolveConflict(nationalityA, nationalityB, policy, nationalityFn),
   }
 
-  // 3b. Ethnicity (as recorded on the source document) — S9.6's Source
-  // Records card explicitly overrides S9.5b's "never store a race or
-  // ethnicity category" rule for THIS card only, framing both fields as
-  // declared values quoted from a specific document rather than an ASE
-  // observation. Kept out of identityRecord.ts entirely (S9.5b's own file
-  // stays honest about never storing one) — this conflict, and the
-  // ethnicity/race fields it feeds, live only in identityCard.ts's S9.6
+  // 3b. Ethnicity (as recorded on the source document) — 9.6's Source
+  // Records card feeds this AS RECORDED, a declared value quoted from a
+  // specific document rather than an ASE observation, distinct from the
+  // canonical identity record which never carries a race/ethnicity
+  // category. Kept out of identityRecord.ts entirely — this conflict, and
+  // the ethnicity/race fields it feeds, live only in identityCard.ts's 9.6
   // domain wiring below.
   const ethnicityDeclaredLabel = climberNames[30]
   const ethnicityDeclaredA = observed(permit.def.id, 'ethnicity_declared', 'Sherpa', permit.reliability)

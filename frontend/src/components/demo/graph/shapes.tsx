@@ -4,13 +4,18 @@
 
 import type { CSSProperties } from 'react'
 import type { NodeStatus } from '../../../demo/types'
+import { ANOMALY, NOMINAL, WATCH } from '../../../ase/tokens'
 
 export const GRAPH_CANVAS_COLOR = '#0B0E12'
 export const TEAM_NODE_FILL = '#151A21'
 export const TEAM_NODE_STROKE = 'rgba(233,237,242,0.35)'
-export const CLIMBER_NORMAL_COLOR = '#4C8DFF'
-export const ANOMALY_COLOR = '#F0483E'
-export const WATCH_COLOR = '#E8A33D'
+// Sourced from ase/tokens.ts rather than redefined here — the ASE Control
+// Room and this older demo graph rendered the exact same hex values by
+// coincidence, which is exactly the kind of drift a shared source of truth
+// prevents from ever silently diverging.
+export const CLIMBER_NORMAL_COLOR = NOMINAL
+export const ANOMALY_COLOR = ANOMALY
+export const WATCH_COLOR = WATCH
 
 // Country / region / company / environment all share the same "structural"
 // status treatment: grey by default, an amber stroke on 'watch', a red fill
