@@ -41,6 +41,10 @@ import {
   type Suppression,
   type TuningPopulationMember,
 } from './detection'
+import { buildPredictions, type PredictionState } from './prediction'
+import { buildRevisionState, type RevisionState } from './revision'
+import { buildExposureState, type ExposureClimberMarker, type ExposureState } from './exposure'
+import { buildTrustState, type TrustState } from './trust'
 import {
   actorId,
   asserted,
@@ -73,13 +77,28 @@ export interface SourceDef {
   category: string
 }
 
+// S9.12: sensor mesh split into the wearable oximeter and the GPS tracker,
+// and a new manual-observation feed added — six operational sources for
+// Exposure's own panels to reason about individually rather than one coarse
+// "sensor mesh" blob. Operator rosters and medical logs are KEPT alongside
+// the new six, deliberately: both are load-bearing in S9.6's own
+// three-source entity-resolution demo (permit vs roster vs medical), and
+// retiring either would break that already-built, already-tested feature
+// for a rename Exposure itself doesn't need — Exposure's own UI only ever
+// lists the six named in its spec, not these two legacy sources.
 export const SOURCE_DEFS: SourceDef[] = [
-  { id: sourceId('sensor-mesh'), name: 'Sensor mesh', category: 'Route sensor network' },
+  { id: sourceId('wearable-oximeter'), name: 'Wearable oximeter', category: 'Wearable sensor' },
+  { id: sourceId('gps-tracker'), name: 'GPS tracker', category: 'Position sensor' },
   { id: sourceId('weather-feed'), name: 'Weather feed', category: 'Weather feed' },
+  { id: sourceId('radio-check-in-log'), name: 'Radio check-in log', category: 'Communications log' },
   { id: sourceId('permit-registry'), name: 'Permit registry', category: 'Permit registry' },
+  { id: sourceId('manual-observation'), name: 'Manual observation', category: 'Manual log' },
   { id: sourceId('operator-rosters'), name: 'Operator rosters', category: 'Operator roster' },
   { id: sourceId('medical-logs'), name: 'Medical logs', category: 'Medical log' },
 ]
+
+/** The six sources Exposure's own panels enumerate — operator rosters and medical logs are real sources but not part of this list (see the comment on SOURCE_DEFS). */
+export const EXPOSURE_SOURCE_NAMES = ['Wearable oximeter', 'GPS tracker', 'Weather feed', 'Radio check-in log', 'Permit registry', 'Manual observation'] as const
 
 export interface SourceRuntime {
   def: SourceDef
@@ -152,6 +171,10 @@ export interface Dataset {
   contextEngine: ContextEngineState
   reasoningEngine: ReasoningEngineState
   detectionEngine: DetectionEngineState
+  predictions: PredictionState
+  revision: RevisionState
+  exposure: ExposureState
+  trust: TrustState
   stages: PipelineStage[]
   needsYou: NeedsYouRow[]
   headline: {
@@ -320,11 +343,17 @@ export function buildDataset(seed: number = SEED, options: BuildDatasetOptions =
     }
   })
   const sourceByName = new Map(sources.map((s) => [s.def.name, s]))
-  const sensorMesh = sourceByName.get('Sensor mesh')!
+  const wearableOximeter = sourceByName.get('Wearable oximeter')!
+  const gpsTracker = sourceByName.get('GPS tracker')!
   const permit = sourceByName.get('Permit registry')!
   const roster = sourceByName.get('Operator rosters')!
   const medical = sourceByName.get('Medical logs')!
+  const manualObservation = sourceByName.get('Manual observation')!
   const weatherFeed = sourceByName.get('Weather feed')!
+  // Kept as an alias during the split so nothing downstream silently reads
+  // stale data — every genuine physiological reading below now goes to the
+  // wearable oximeter; nothing should still reference `sensorMesh` by name.
+  const sensorMesh = wearableOximeter
 
   // -- operators + climber name assignment ----------------------------------
   const operatorNames = ROUTE_OPERATORS.flat() // 30, route-ordered
@@ -464,8 +493,8 @@ export function buildDataset(seed: number = SEED, options: BuildDatasetOptions =
     if (isConflictingVital) {
       const norm = normalised(rawPermit.id, transformId('trim-whitespace'), label)
       nameTv = norm
-      const medicalHr = observed(medical.def.id, 'resting_hr_bpm', rng.int(58, 68), medical.reliability, { recordedAt: hoursAgo(2) })
-      const sensorHr = observed(sensorMesh.def.id, 'baseline_hr_bpm', rng.int(78, 92), sensorMesh.reliability, { recordedAt: hoursAgo(1) })
+      const medicalHr = observed(manualObservation.def.id, 'resting_hr_bpm', rng.int(58, 68), manualObservation.reliability, { recordedAt: hoursAgo(2) })
+      const sensorHr = observed(wearableOximeter.def.id, 'baseline_hr_bpm', rng.int(78, 92), wearableOximeter.reliability, { recordedAt: hoursAgo(1) })
       const fid = `finding-vital-${i}`
       findingId = fid
       findings.push({
@@ -480,9 +509,9 @@ export function buildDataset(seed: number = SEED, options: BuildDatasetOptions =
       const norm = normalised(rawPermit.id, transformId('trim-whitespace'), label)
       nameTv = norm
       const slug = slugify(label)
-      const baselineSpo2 = observed(medical.def.id, `${slug}:spo2_baseline_pct`, 90, medical.reliability, { recordedAt: hoursAgo(72) })
-      const priorReading = observed(sensorMesh.def.id, `${slug}:blood_oxygen_pct`, 84, sensorMesh.reliability, { recordedAt: hoursAgo(3) })
-      const currentReading = observed(sensorMesh.def.id, `${slug}:blood_oxygen_pct`, 81, sensorMesh.reliability, { recordedAt: hoursAgo(0.1) })
+      const baselineSpo2 = observed(manualObservation.def.id, `${slug}:spo2_baseline_pct`, 90, manualObservation.reliability, { recordedAt: hoursAgo(72) })
+      const priorReading = observed(wearableOximeter.def.id, `${slug}:blood_oxygen_pct`, 84, wearableOximeter.reliability, { recordedAt: hoursAgo(3) })
+      const currentReading = observed(wearableOximeter.def.id, `${slug}:blood_oxygen_pct`, 81, wearableOximeter.reliability, { recordedAt: hoursAgo(0.1) })
       supersede(priorReading.id, currentReading)
       nimaSpo2Current = currentReading
       nimaSpo2Baseline = baselineSpo2
@@ -509,10 +538,10 @@ export function buildDataset(seed: number = SEED, options: BuildDatasetOptions =
   const silentSensorRegion = REGIONS[silentSensorRouteIndex].name
   const silentSensorRoute = ROUTE_NAMES[silentSensorRouteIndex]
   const silentSensorTv = observed(
-    sensorMesh.def.id,
+    gpsTracker.def.id,
     `${slugify(silentSensorRegion)}-sensor:last_sync_minutes_ago`,
     15,
-    sensorMesh.reliability
+    gpsTracker.reliability
   )
   const silentFid = 'finding-silent-sensor'
   findings.push({
@@ -612,8 +641,8 @@ export function buildDataset(seed: number = SEED, options: BuildDatasetOptions =
 
   // 2. Resting heart rate — medical log vs sensor baseline, 6 bpm apart.
   const hrLabel = climberNames[5]
-  const hrA = observed(medical.def.id, 'resting_hr_bpm', 58, medical.reliability, { recordedAt: hoursAgo(10) })
-  const hrB = observed(sensorMesh.def.id, 'baseline_hr_bpm', 64, sensorMesh.reliability, { recordedAt: hoursAgo(2) })
+  const hrA = observed(manualObservation.def.id, 'resting_hr_bpm', 58, manualObservation.reliability, { recordedAt: hoursAgo(10) })
+  const hrB = observed(wearableOximeter.def.id, 'baseline_hr_bpm', 64, wearableOximeter.reliability, { recordedAt: hoursAgo(2) })
   const hrFn = conflictFnSlug(hrLabel, 'Resting heart rate')
   const hrPolicyMostRecent: ConflictPolicy = {
     id: 'conflict-hr-most-recent',
@@ -625,7 +654,7 @@ export function buildDataset(seed: number = SEED, options: BuildDatasetOptions =
     id: 'conflict-hr-source-priority',
     property: 'Climber.restingHeartRate',
     strategy: 'source-priority',
-    sourcePriority: [medical.def.id, sensorMesh.def.id],
+    sourcePriority: [manualObservation.def.id, wearableOximeter.def.id],
     rationale: 'The medical log is kept by clinical staff and takes precedence.',
   }
   const hrPolicyHighestConfidence: ConflictPolicy = {
@@ -790,10 +819,10 @@ export function buildDataset(seed: number = SEED, options: BuildDatasetOptions =
   const pressureRegion = REGIONS[pressureRouteIndex].name
   const pressureRoute = ROUTE_NAMES[pressureRouteIndex]
   const pressureLabel = `${pressureRoute} (${pressureRegion})`
-  const pressureA = observed(sensorMesh.def.id, `${slugify(pressureRegion)}:ambient_pressure_hpa`, 862, sensorMesh.reliability, {
+  const pressureA = observed(weatherFeed.def.id, `${slugify(pressureRegion)}:ambient_pressure_hpa`, 862, weatherFeed.reliability, {
     recordedAt: hoursAgo(0.5),
   })
-  const pressureB = observed(sensorMesh.def.id, `${slugify(pressureRegion)}:ambient_pressure_hpa`, 871, sensorMesh.reliability, {
+  const pressureB = observed(weatherFeed.def.id, `${slugify(pressureRegion)}:ambient_pressure_hpa`, 871, weatherFeed.reliability, {
     recordedAt: hoursAgo(0.3),
   })
   const pressureFn = conflictFnSlug(pressureLabel, 'Ambient pressure')
@@ -1013,7 +1042,7 @@ export function buildDataset(seed: number = SEED, options: BuildDatasetOptions =
   const contextEngine = buildContextEngine([
     {
       id: 'reading-sensor-nima',
-      source: sensorMesh.def.name,
+      source: wearableOximeter.def.name,
       about: nimaAbout,
       arrivedAt: secondsAgo(4),
       takenAt: secondsAgo(6),
@@ -1179,9 +1208,9 @@ export function buildDataset(seed: number = SEED, options: BuildDatasetOptions =
     { ruleId: spo2Rule.id, subject: climberSubject(5), value: 76, startValue: 87, minutesAgo: 22, sourceId: sensorMesh.def.id, reliability: sensorMesh.reliability, rawField: `${climbers[5].id}:spo2_pct` },
     { ruleId: spo2Rule.id, subject: climberSubject(7), value: 79, startValue: 90, minutesAgo: 6, sourceId: sensorMesh.def.id, reliability: sensorMesh.reliability, rawField: `${climbers[7].id}:spo2_pct` },
     // Dangerous wind — sensor 1 (Khumbu/EBC) reuses S9.8's exact 78 kph.
-    { ruleId: windRule.id, subject: sensorSubject(0), value: 78, startValue: 52, minutesAgo: 41, sourceId: sensorMesh.def.id, reliability: sensorMesh.reliability, rawField: 'sensor1:wind_kph' },
-    { ruleId: windRule.id, subject: sensorSubject(1), value: 75, startValue: 60, minutesAgo: 15, sourceId: sensorMesh.def.id, reliability: sensorMesh.reliability, rawField: 'sensor2:wind_kph' },
-    { ruleId: windRule.id, subject: sensorSubject(4), value: 82, startValue: 58, minutesAgo: 8, sourceId: sensorMesh.def.id, reliability: sensorMesh.reliability, rawField: 'sensor5:wind_kph' },
+    { ruleId: windRule.id, subject: sensorSubject(0), value: 78, startValue: 52, minutesAgo: 41, sourceId: weatherFeed.def.id, reliability: weatherFeed.reliability, rawField: 'sensor1:wind_kph' },
+    { ruleId: windRule.id, subject: sensorSubject(1), value: 75, startValue: 60, minutesAgo: 15, sourceId: weatherFeed.def.id, reliability: weatherFeed.reliability, rawField: 'sensor2:wind_kph' },
+    { ruleId: windRule.id, subject: sensorSubject(4), value: 82, startValue: 58, minutesAgo: 8, sourceId: weatherFeed.def.id, reliability: weatherFeed.reliability, rawField: 'sensor5:wind_kph' },
     // Sustained high pulse
     { ruleId: pulseRule.id, subject: climberSubject(nimaIndex), value: 134, startValue: 98, minutesAgo: 12, sourceId: sensorMesh.def.id, reliability: sensorMesh.reliability, rawField: `${climbers[nimaIndex].id}:hr_bpm` },
     { ruleId: pulseRule.id, subject: climberSubject(30), value: 125, startValue: 100, minutesAgo: 25, sourceId: sensorMesh.def.id, reliability: sensorMesh.reliability, rawField: `${climbers[30].id}:hr_bpm` },
@@ -1202,12 +1231,12 @@ export function buildDataset(seed: number = SEED, options: BuildDatasetOptions =
     // Not enough guides
     { ruleId: guidesRule.id, subject: operatorSubject(5), value: 0.5, startValue: 1.2, minutesAgo: 50, sourceId: roster.def.id, reliability: roster.reliability, rawField: 'operator-5:guides_per_party' },
     // Visibility collapse
-    { ruleId: visRule.id, subject: sensorSubject(9), value: 150, startValue: 900, minutesAgo: 18, sourceId: sensorMesh.def.id, reliability: sensorMesh.reliability, rawField: 'sensor10:visibility_m' },
-    // Low battery
-    { ruleId: battRule.id, subject: sensorSubject(2), value: 15, startValue: 45, minutesAgo: 90, sourceId: sensorMesh.def.id, reliability: sensorMesh.reliability, rawField: 'sensor3:battery_pct' },
-    { ruleId: battRule.id, subject: sensorSubject(6), value: 12, startValue: 40, minutesAgo: 130, sourceId: sensorMesh.def.id, reliability: sensorMesh.reliability, rawField: 'sensor7:battery_pct' },
-    // Pressure mismatch
-    { ruleId: pressureRule.id, subject: climberSubject(33), value: 310, startValue: 40, minutesAgo: 65, sourceId: sensorMesh.def.id, reliability: sensorMesh.reliability, rawField: `${climbers[33].id}:altitude_discrepancy_m` },
+    { ruleId: visRule.id, subject: sensorSubject(9), value: 150, startValue: 900, minutesAgo: 18, sourceId: weatherFeed.def.id, reliability: weatherFeed.reliability, rawField: 'sensor10:visibility_m' },
+    // Low battery — a route sensor's own device health, GPS tracker's network.
+    { ruleId: battRule.id, subject: sensorSubject(2), value: 15, startValue: 45, minutesAgo: 90, sourceId: gpsTracker.def.id, reliability: gpsTracker.reliability, rawField: 'sensor3:battery_pct' },
+    { ruleId: battRule.id, subject: sensorSubject(6), value: 12, startValue: 40, minutesAgo: 130, sourceId: gpsTracker.def.id, reliability: gpsTracker.reliability, rawField: 'sensor7:battery_pct' },
+    // Pressure mismatch — altitude discrepancy is a position reading, GPS tracker's.
+    { ruleId: pressureRule.id, subject: climberSubject(33), value: 310, startValue: 40, minutesAgo: 65, sourceId: gpsTracker.def.id, reliability: gpsTracker.reliability, rawField: `${climbers[33].id}:altitude_discrepancy_m` },
   ]
 
   const detections: Detection[] = firingPlan.map((item, i) => {
@@ -1336,6 +1365,94 @@ export function buildDataset(seed: number = SEED, options: BuildDatasetOptions =
     rng,
   })
 
+  // -- predictions (S9.10) — reuses Nima Tamang's exact SpO2 chain from
+  // above, not a second, unrelated dataset of "who's at risk."
+  const predictions = buildPredictions({
+    climbers,
+    identityRecords,
+    identityCards,
+    detectionEngine,
+    nimaClimberId: `climber-${nimaIndex + 1}`,
+    nimaSpo2Baseline: nimaSpo2Baseline!,
+    nimaSpo2Current: nimaSpo2Current!,
+    rng,
+    buildNowMs: buildNow,
+  })
+
+  // -- revision (S9.11) — every queue item below traces to a real signal
+  // already built above (a conflict, a rule, an unbound field, a resolved
+  // prediction, a single-source dependency), never a second list.
+  const revision = buildRevisionState({
+    conflicts,
+    detectionEngine,
+    contextEngine,
+    predictions,
+    identityRecords,
+    identityCards,
+    rng,
+    buildNowMs: buildNow,
+  })
+
+  // -- exposure (S9.12) — real conclusions already built above, tagged by
+  // which class they belong to. Nothing here is a second dataset: every
+  // marker's `marker` field IS the exact TracedValue Identity/Meaning/
+  // Detection/Prediction already show on screen.
+  const exposureMarkers: ExposureClimberMarker[] = []
+  for (const c of climbers) {
+    const record = identityRecords.get(c.id)
+    if (!record) continue
+    exposureMarkers.push({
+      climberId: c.id,
+      name: record.who.fullLegalName.value,
+      serial: record.serial.value,
+      label: `${record.who.fullLegalName.value} — ASE serial`,
+      className: 'Identity',
+      marker: record.serial,
+    })
+  }
+  for (const r of contextEngine.readings) {
+    const tv = r.rawFieldTvs.get(r.headlineFieldKey)
+    if (!tv) continue
+    const about = r.about
+    exposureMarkers.push({
+      climberId: about.kind === 'climber' ? about.climberId : null,
+      name: about.kind === 'climber' ? about.label : null,
+      serial: about.kind === 'climber' ? about.serial : null,
+      label: `${r.source} — ${r.headline}`,
+      className: 'Meaning',
+      marker: tv,
+    })
+  }
+  for (const d of detections) {
+    const subject = d.subject
+    const ruleLabel = rule(d.ruleId).label
+    exposureMarkers.push({
+      climberId: subject.kind === 'climber' ? subject.climberId : null,
+      name: subject.kind === 'climber' ? subject.name : null,
+      serial: subject.kind === 'climber' ? subject.serial : null,
+      label: `${ruleLabel} — ${subject.kind === 'climber' ? subject.name : subject.label}`,
+      className: 'Detection',
+      marker: d.valueTraced,
+    })
+  }
+  for (const p of predictions.predictions.values()) {
+    exposureMarkers.push({
+      climberId: p.climberId,
+      name: p.name,
+      serial: p.serial,
+      label: `${p.name} — requires-descent likelihood`,
+      className: 'Prediction',
+      marker: p.likelihoodTraced,
+    })
+  }
+  const exposureSources = EXPOSURE_SOURCE_NAMES.map((name) => sourceByName.get(name)!)
+  const exposure = buildExposureState({ sources: exposureSources, markers: exposureMarkers, buildNowMs: buildNow })
+
+  // -- trust (S9.13) — the system's own decisions/security/quality/
+  // connections/performance record. Not domain data, so it needs no rng or
+  // buildNow — see trust.ts's own header comment for why.
+  const trust = buildTrustState()
+
   return {
     sources,
     climbers,
@@ -1351,6 +1468,10 @@ export function buildDataset(seed: number = SEED, options: BuildDatasetOptions =
     contextEngine,
     reasoningEngine,
     detectionEngine,
+    predictions,
+    revision,
+    exposure,
+    trust,
     stages,
     needsYou,
     headline: { entitiesTracked, factsHeld, meanConfidencePct, openIssues },

@@ -62,6 +62,17 @@ export function Identity() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
+  // S8.9: the graph's investigation panel's "OPEN IN CONTROL ROOM" link —
+  // same deep-link shape as `sub` above, one query param further. Only
+  // ever resolves for ids that are genuinely in THIS page's own roster
+  // (dataset.identityRecords); an unresolvable id is left alone rather
+  // than clearing whatever was already selected.
+  useEffect(() => {
+    const climberId = searchParams.get('climberId')
+    if (climberId && dataset.identityRecords.has(climberId)) selectPerson(climberId, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
   function selectPerson(climberId: string, moveToSourceRecords: boolean) {
     setSelectedClimberId(climberId)
     select({ kind: 'identity', climberId })

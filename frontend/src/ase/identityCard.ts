@@ -44,7 +44,12 @@ export function statusFromAnomalyState(value: string): PersonStatus {
 
 // -- declared-value pools (S9.6 only) ---------------------------------------
 
-const ETHNICITY_POOL = [
+// Exported (S8.9): the graph's investigation panel reuses this exact pool
+// for its own climbers' "ethnicity" field — same vocabulary as the Control
+// Room's source-document facsimile, though the graph's own climbers are an
+// independently generated roster (S8.3), so this is shared WORDS, not a
+// shared per-person value.
+export const ETHNICITY_POOL = [
   'Sherpa', 'Tamang', 'Gurung', 'Punjabi', 'Pashtun', 'Sindhi', 'Han Chinese', 'Tibetan',
   'Anglo', 'Basque', 'Yamato', 'Korean', 'Castilian', 'Polish', 'Kazakh', 'Rajput',
 ]
@@ -56,7 +61,7 @@ const ACCLIMATISATION = [
   'Fully acclimatised to current altitude; cleared for further ascent.',
   'Acclimatisation behind schedule — held an extra rotation at Camp I.',
 ]
-const FIX_SOURCES = ['Sensor mesh', 'Satellite beacon', 'Manual check-in']
+const FIX_SOURCES = ['GPS tracker', 'Satellite beacon', 'Manual check-in']
 const MOVEMENT_CAMPS = ['Base Camp', 'Camp I', 'Camp II', 'Camp III', 'Camp IV', 'Summit']
 const MOVEMENT_ALTITUDES_M = [5364, 5943, 6400, 7162, 7900, 8849]
 

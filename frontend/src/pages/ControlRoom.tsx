@@ -5,6 +5,9 @@ import { SelectionProvider, useSelection } from '../ase/selection'
 import { HoverProvider } from '../ase/hover'
 import { DatasetProvider, useDataset } from '../ase/store'
 import { AsOfProvider } from '../ase/asOfContext'
+import { SimulationModeProvider } from '../ase/simulationMode'
+import { DemoModeProvider } from '../ase/demoMode'
+import { DemoRunner } from '../components/controlRoom/DemoRunner'
 import { latest } from '../ase/graph'
 import { InspectorProvider } from '../components/controlRoom/InspectorContext'
 import { Inspector } from '../components/controlRoom/Inspector'
@@ -22,7 +25,12 @@ export function ControlRoom() {
         <InspectorProvider>
           <DatasetProvider>
             <AsOfProvider>
-              <ControlRoomShell />
+              <SimulationModeProvider>
+                <DemoModeProvider>
+                  <DemoRunner />
+                  <ControlRoomShell />
+                </DemoModeProvider>
+              </SimulationModeProvider>
             </AsOfProvider>
           </DatasetProvider>
         </InspectorProvider>

@@ -169,6 +169,231 @@ body {
 }
 
 /* ---------------------------------------------------------------------- */
+/* S8.5N NETWORK view — THE CELL-GROWTH REVEAL, replacing S8.4b/8.5R's      */
+/* edge-then-pop staged reveal entirely. Two primitives (graph/            */
+/* spawnStages.ts is the timing engine; this file is only ever the shape). */
+/* ---------------------------------------------------------------------- */
+
+/* PRIMITIVE A — countries only. scale 0 -> 1.0 -> 1.22 -> 1.0: ease IN for
+   the first 45% (reaching scale 1.0 exactly there), ease OUT for the
+   remaining 55% (the 1.22 overshoot and its settle both live inside the
+   ease-out portion). Opacity separately reaches 1 over the first 40% —
+   deliberately a different fraction than the scale timeline's 45%, per
+   spec. The 1.22 peak's own exact position within the ease-out portion
+   isn't spec'd numerically beyond "then decelerates back to 1.0" — placed
+   at 75% here for a natural decelerating overshoot, a disclosed choice. */
+@media (prefers-reduced-motion: no-preference) {
+  .network-pop-a {
+    animation-name: network-pop-a;
+    animation-duration: 680ms;
+    animation-fill-mode: both;
+  }
+}
+
+@keyframes network-pop-a {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.42, 0, 0.58, 1);
+  }
+  40% {
+    opacity: 1;
+  }
+  45% {
+    transform: scale(1);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  75% {
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* The country's one-shot arrival ring — "a single soft ring expands
+   outward from it as it lands... then never again." A plain circle drawn
+   with r=1 so `scale()` maps directly onto its final pixel radius (40px),
+   avoiding any question of whether SVG `r` itself is CSS-animatable. */
+@media (prefers-reduced-motion: no-preference) {
+  .network-arrival-ring {
+    animation-name: network-arrival-ring;
+    animation-duration: 520ms;
+    animation-timing-function: ease-out;
+    animation-fill-mode: both;
+  }
+}
+
+@keyframes network-arrival-ring {
+  from {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(40);
+    opacity: 0;
+  }
+}
+
+/* The country name, fading in 200ms after it lands. */
+@media (prefers-reduced-motion: no-preference) {
+  .network-country-label {
+    animation-name: network-country-label-fade;
+    animation-duration: 300ms;
+    animation-timing-function: ease-out;
+    animation-fill-mode: both;
+  }
+}
+
+@keyframes network-country-label-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* PRIMITIVE B — every other node (regions, environment, routes, operators,
+   climbers): cell division, not travel-to-a-destination. A CHILD appears AT
+   THE PARENT'S OWN POSITION (--from-dx/--from-dy, resolved layout offsets
+   set inline per node) at scale 0.15 in the parent's own colour
+   (--color-from), migrates outward over 380ms (fast-in, easing into
+   place — a NON-overshooting curve, since the overshoot here belongs only
+   to the settle phase that follows), taking on its own final colour
+   (--color-to) as it arrives, then settles 0.85 -> 1.10 -> 1.0 over 260ms.
+   One continuous 640ms timeline (380+260) rather than two chained
+   animations, since migrate-then-settle for a single child is strictly
+   sequential — no cross-element composition needed the way the parent's
+   swell/relax (below) does. */
+@media (prefers-reduced-motion: no-preference) {
+  .network-bud-child {
+    animation-name: network-bud-child;
+    animation-duration: 640ms;
+    animation-fill-mode: both;
+  }
+}
+
+@keyframes network-bud-child {
+  0% {
+    transform: translate(var(--from-dx, 0px), var(--from-dy, 0px)) scale(0.15);
+    fill: var(--color-from, currentColor);
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  59.375% {
+    /* = 380ms/640ms: migration ends, settle begins */
+    transform: translate(0, 0) scale(0.85);
+    fill: var(--color-to, currentColor);
+    animation-timing-function: ease-out;
+  }
+  79.6875% {
+    /* = (380+130)ms/640ms: the settle's own small overshoot peak */
+    transform: translate(0, 0) scale(1.1);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+/* The PARENT's own swell-while-budding, rendered on a SEPARATE outer <g>
+   from the node's own network-bud-child/network-pop-a arrival (its inner
+   <g>) — nested-<g> transforms multiply, so a node that is simultaneously
+   still settling from its OWN arrival and already swelling to bud its next
+   litter (S8.5N deliberately overlaps routes landing with operators
+   budding) never has two animations fighting over one element's transform.
+   A parent with more than one litter across the reveal (a region buds
+   environment in stage 3, then routes in stage 4) gets multiple
+   swell/relax instances chained via animation-delay in the shorthand
+   (graph/spawnStages.ts's parentPopEpisodes) — non-overlapping, so
+   fill-mode:forwards on each holds 1.0 cleanly until the next one starts. */
+@media (prefers-reduced-motion: no-preference) {
+  .network-parent-pop {
+    animation-timing-function: ease-out;
+    animation-fill-mode: forwards;
+  }
+}
+
+@keyframes network-parent-swell {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.14);
+  }
+}
+
+@keyframes network-parent-relax {
+  from {
+    transform: scale(1.14);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* S8.5N: "only two things carry a ring, ever — the selected node, an
+   anomaly." Keyboard focus used to draw a THIRD custom ring circle; that's
+   exactly the "rings on every node" clutter this block removes. A native
+   focus-visible outline (system-standard, not part of the graph's own ring
+   vocabulary) keeps the a11y affordance without adding a third ring kind. */
+g[data-entity-id]:focus-visible {
+  outline: 1.5px solid rgba(255, 255, 255, 0.8);
+  outline-offset: 3px;
+}
+
+/* An anomalous climber's own delayed colour flip — "arrives normal, then
+   TURNS RED 200ms after settling... the delay matters, it reads as a
+   discovery rather than a property." Same --flush-from/--flush-to custom-
+   property shape as network-edge-flush below, applied to the circle's own
+   fill instead of an edge's stroke. */
+@keyframes network-node-flush {
+  from {
+    fill: var(--flush-from, currentColor);
+  }
+  to {
+    fill: var(--flush-to, #f0483e);
+  }
+}
+
+/* The environment node's own "never static" pulse — teal or red, whatever
+   its current colour is, breathing at a fixed rate regardless of the
+   reveal. Gated behind reduced-motion same as everything else here: it
+   keeps reading LIVE by its NUMBERS updating, just without the visual
+   breathing a motion-sensitive viewer didn't ask for. */
+@media (prefers-reduced-motion: no-preference) {
+  .environment-pulse {
+    animation-name: environment-pulse;
+    animation-duration: 2400ms;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
+  }
+}
+
+@keyframes environment-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* S8.4b: "its edge chain to the country flushes red in sequence, outward
+   to inward" — a colour-only keyframe, staggered per edge via
+   animation-delay (graph/spawnStages.ts's anomalyFlushDelayMs), forwards
+   fill so it STAYS red once the flush reaches it. */
+@keyframes network-edge-flush {
+  from {
+    stroke: var(--flush-from, currentColor);
+  }
+  to {
+    stroke: var(--flush-to, #f0483e);
+  }
+}
+
+/* ---------------------------------------------------------------------- */
 /* Demo graph — one-shot flash on a live status transition                */
 /* ---------------------------------------------------------------------- */
 

@@ -4,6 +4,7 @@ import { Rng } from '../mock/rng'
 import { applyConflictPolicy, CONFLICT_STRATEGY_LABEL, type Conflict, type ConflictPolicy } from './conflict'
 import { buildDataset, tickOnce, type Dataset } from './dataset'
 import { instant, type Instant } from './traced'
+import { computeSeal, type AuditRecordEntry, type QueueItem } from './revision'
 
 // The one place a tab is allowed to get data from (S1f acceptance c: "no tab
 // component imports a data generator"). `dataset.ts` is never imported
@@ -48,6 +49,12 @@ interface DatasetContextValue {
   openIncident: (climberId: string, climberLabel: string) => void
   auditLog: AuditEntry[]
   logAccess: (who: string, what: string, why: string) => void
+  /** S9.11's real seal-chained audit chain — seeded from `dataset.revision.auditSeed`, then genuinely extended (each new entry's seal chained to the previous) by every action Revision's Queue takes. This is what Record actually reads; `auditLog` above stays as the lighter S9.5b access log it always was. */
+  auditRecord: AuditRecordEntry[]
+  appendAuditRecordEntry: (entry: Omit<AuditRecordEntry, 'id' | 'at' | 'seal'>) => void
+  /** S9.13: "Trust feeds Revision" — a challenged decision, a security finding, a coverage drop or a budget violation genuinely lands here, merged into RevisionQueue's own rendering, not just logged as a toast. Session-only, the same way `extraQueueItems` mirrors `auditRecord`'s live-append pattern. */
+  extraQueueItems: QueueItem[]
+  addQueueItem: (item: QueueItem) => void
 }
 
 const DatasetCtx = createContext<DatasetContextValue | null>(null)
@@ -69,6 +76,8 @@ export function DatasetProvider({ children }: { children: ReactNode }) {
   const [revisionLog, setRevisionLog] = useState<RevisionEntry[]>([])
   const [openIncidents, setOpenIncidents] = useState<Set<string>>(new Set())
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([])
+  const [auditRecord, setAuditRecord] = useState<AuditRecordEntry[]>(dataset.revision.auditSeed)
+  const [extraQueueItems, setExtraQueueItems] = useState<QueueItem[]>([])
 
   useEffect(() => {
     const rng = new Rng(LIVE_TICK_SEED)
@@ -98,6 +107,21 @@ export function DatasetProvider({ children }: { children: ReactNode }) {
     setAuditLog((log) => [{ id: `audit-${log.length + 1}`, at: instant(new Date().toISOString()), who, what, why }, ...log])
   }, [])
 
+  const appendAuditRecordEntry = useCallback((entry: Omit<AuditRecordEntry, 'id' | 'at' | 'seal'>) => {
+    setAuditRecord((chain) => {
+      const withoutSeal = { ...entry, id: `audit-live-${chain.length + 1}`, at: instant(new Date().toISOString()) }
+      const previousSeal = chain.length > 0 ? chain[chain.length - 1].seal : 'genesis'
+      const seal = computeSeal(withoutSeal, previousSeal)
+      return [...chain, { ...withoutSeal, seal }]
+    })
+    setTick((t) => t + 1)
+  }, [])
+
+  const addQueueItem = useCallback((item: QueueItem) => {
+    setExtraQueueItems((items) => (items.some((i) => i.id === item.id) ? items : [...items, item]))
+    setTick((t) => t + 1)
+  }, [])
+
   const openIncident = useCallback(
     (climberId: string, climberLabel: string) => {
       setOpenIncidents((prev) => {
@@ -112,8 +136,22 @@ export function DatasetProvider({ children }: { children: ReactNode }) {
   )
 
   const value = useMemo(
-    () => ({ dataset, tick, revisionLog, logRevision, changeConflictPolicy, openIncidents, openIncident, auditLog, logAccess }),
-    [dataset, tick, revisionLog, logRevision, changeConflictPolicy, openIncidents, openIncident, auditLog, logAccess]
+    () => ({
+      dataset,
+      tick,
+      revisionLog,
+      logRevision,
+      changeConflictPolicy,
+      openIncidents,
+      openIncident,
+      auditLog,
+      logAccess,
+      auditRecord,
+      appendAuditRecordEntry,
+      extraQueueItems,
+      addQueueItem,
+    }),
+    [dataset, tick, revisionLog, logRevision, changeConflictPolicy, openIncidents, openIncident, auditLog, logAccess, auditRecord, appendAuditRecordEntry, extraQueueItems, addQueueItem]
   )
 
   return <DatasetCtx.Provider value={value}>{children}</DatasetCtx.Provider>

@@ -10,7 +10,11 @@ describe('buildDataset', () => {
     const a = buildDataset(1)
     expect(a.climbers).toHaveLength(50)
     expect(a.stages).toHaveLength(12)
-    expect(a.sources).toHaveLength(5)
+    // S9.12: sensor mesh split into the wearable oximeter and the GPS
+    // tracker, plus a new radio-check-in log and manual-observation feed —
+    // eight sources total (operator rosters and medical logs kept
+    // alongside the six Exposure names, see SOURCE_DEFS's own comment).
+    expect(a.sources).toHaveLength(8)
 
     const b = buildDataset(1)
     expect(b.headline.entitiesTracked.value).toBe(a.headline.entitiesTracked.value)

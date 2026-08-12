@@ -1,174 +1,151 @@
+import { useMemo, useState } from 'react'
 import {
-  ACCENT_INDICATOR_WIDTH,
   BORDER_WIDTH,
   HAIRLINE,
-  HUMAN,
   PAGE_GUTTER,
-  ROW_HEIGHT_DEFAULT,
+  PANEL_RAISED,
+  RADIUS_INTERACTIVE,
+  RADIUS_STATIC,
   SPACE_8,
-  SPACE_16,
+  SPACE_12,
   SPACE_32,
-  STATUS_DOT_SIZE,
   TEXT_DIM,
   TEXT_PRIMARY,
   TEXT_SECONDARY,
   TYPE_BODY,
   TYPE_CAPTION,
-  VERIFIED,
 } from '../../ase/tokens'
 import { useDataset } from '../../ase/store'
-import { useSelection } from '../../ase/selection'
-import { formatElapsed } from '../../ase/activity'
-import { confidence } from '../../ase/folds'
-import { CONFLICT_STRATEGY_LABEL, type Conflict, type ConflictPolicy } from '../../ase/conflict'
-import type { IdentityRecord } from '../../ase/identityRecord'
+import { ROLE_LABEL, type Role } from './revisionPermissions'
+import { RevisionQueue } from './RevisionQueue'
+import { RevisionImpact } from './RevisionImpact'
+import { RevisionRecord } from './RevisionRecord'
+import { RevisionLearning } from './RevisionLearning'
+import { RevisionTimeline } from './RevisionTimeline'
 import { focusRingStyle, useFocusRing } from './focusRing'
-import { PersonBadge } from './PersonBadge'
-import { RecommendationCard, type Recommendation } from './RecommendationCard'
 
-// S9.4: this is where a human-required conflict "sits unresolved" (the
-// mountains-climbed scenario), and where every CHANGE POLICY action taken
-// elsewhere in the Control Room is recorded — "corrections a person has
-// made, and everything downstream that changed as a result," now literally
-// true rather than aspirational stub copy.
-//
-// S9.6b convention #1: a person is never named without their serial —
-// applied below wherever a conflict's `entityLabel` actually is a person
-// (some conflicts, like ambient pressure on a route, are about a place or
-// a sensor instead, and stay plain text).
+type SubTab = 'queue' | 'impact' | 'record' | 'learning' | 'timeline'
+const SUB_TABS: { id: SubTab; label: string }[] = [
+  { id: 'queue', label: 'Queue' },
+  { id: 'impact', label: 'Impact' },
+  { id: 'record', label: 'Record' },
+  { id: 'learning', label: 'Learning' },
+  { id: 'timeline', label: 'Timeline' },
+]
+const ROLES: Role[] = ['coordinator', 'medic', 'guide', 'observer']
+
+// S9.11 (complete rebuild): five tabs — Queue is the entry point; Impact is
+// scoped to whichever queue item was last selected; Record, Learning and
+// Timeline are global, like Method on Identity and Calibration on
+// Prediction. Role governs every action button across all five (S9.11
+// cross-cutting) — a role selector lives here, once, rather than each
+// subtab reinventing it.
 export function Revision() {
-  const { dataset, revisionLog, changeConflictPolicy } = useDataset()
-  const { select, selection } = useSelection()
+  const { dataset, extraQueueItems } = useDataset()
+  const [subTab, setSubTab] = useState<SubTab>('queue')
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const [role, setRole] = useState<Role>('coordinator')
 
-  const pending = dataset.conflicts.filter((c) => c.resolved === null)
-  const climberByName = new Map(Array.from(dataset.identityRecords.values()).map((r) => [r.who.fullLegalName.value, r]))
+  // S9.13: "Trust feeds Revision" — a challenged decision, a security
+  // finding, a coverage drop or a budget violation genuinely lands in this
+  // SAME queue, merged here rather than a second list RevisionQueue/
+  // RevisionImpact would have to know about separately.
+  const state = useMemo(() => (extraQueueItems.length === 0 ? dataset.revision : { ...dataset.revision, queue: [...dataset.revision.queue, ...extraQueueItems] }), [dataset.revision, extraQueueItems])
+
+  function selectItem(itemId: string, moveToImpact: boolean) {
+    setSelectedItemId(itemId)
+    if (moveToImpact) setSubTab('impact')
+  }
 
   return (
     <div style={{ padding: PAGE_GUTTER }}>
-      <p style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>NEEDS A DECISION</p>
-      <div style={{ marginTop: SPACE_16, marginBottom: SPACE_32 }}>
-        {pending.length === 0 ? (
-          <p style={{ ...TYPE_BODY, color: TEXT_DIM }}>Nothing waiting on a human right now.</p>
-        ) : (
-          pending.map((c) => (
-            <PendingRow
-              key={c.id}
-              conflict={c}
-              person={climberByName.get(c.entityLabel)}
-              selected={selection?.kind === 'conflict' && selection.conflict.id === c.id}
-              onSelect={() => select({ kind: 'conflict', conflict: c })}
-              changeConflictPolicy={changeConflictPolicy}
-            />
-          ))
-        )}
+      <div className="flex items-center justify-between">
+        <RoleSelector role={role} onChange={setRole} />
+        <SubNav value={subTab} onChange={setSubTab} />
       </div>
-
-      <p style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>RECENT CHANGES</p>
-      <div style={{ marginTop: SPACE_16 }}>
-        {revisionLog.length === 0 ? (
-          <p style={{ ...TYPE_BODY, color: TEXT_DIM }}>No corrections yet this session.</p>
-        ) : (
-          revisionLog.map((entry) => (
-            <p
-              key={entry.id}
-              style={{
-                ...TYPE_BODY,
-                color: TEXT_SECONDARY,
-                paddingTop: SPACE_8,
-                paddingBottom: SPACE_8,
-                borderBottom: `${BORDER_WIDTH}px solid ${HAIRLINE}`,
-              }}
-            >
-              <span style={{ color: TEXT_PRIMARY }}>{entry.sentence}</span>
-              {' — '}
-              <span style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>{formatElapsed(entry.at)}</span>
-            </p>
-          ))
-        )}
+      <div style={{ marginTop: SPACE_32 }} data-revision-panel={subTab}>
+        {subTab === 'queue' && <RevisionQueue state={state} role={role} onSelectItem={(id) => selectItem(id, true)} />}
+        {subTab === 'impact' &&
+          (selectedItemId ? (
+            <RevisionImpact state={state} itemId={selectedItemId} role={role} reliability={dataset.predictions.calibration.reliability} />
+          ) : (
+            <SelectAnItemFirst />
+          ))}
+        {subTab === 'record' && <RevisionRecord role={role} />}
+        {subTab === 'learning' && <RevisionLearning state={dataset.revision} role={role} />}
+        {subTab === 'timeline' && <RevisionTimeline state={dataset.revision} />}
       </div>
     </div>
   )
 }
 
-// S9.6b convention #3: every queue item leads with what ASE recommends and
-// why, so a human is confirming a judgement rather than making one from
-// scratch — the recommendation is a real preview of `conflict`'s own
-// non-human-required policy (never a canned suggestion), with its own real
-// folded confidence.
-function recommendationFor(conflict: Conflict, changeConflictPolicy: (c: Conflict, p: ConflictPolicy) => void): Recommendation | null {
-  const candidate = conflict.availablePolicies.find((p) => p.strategy !== 'human-required')
-  if (!candidate) return null
-  const preview = conflict.resolve(candidate)
-  if (!preview) return null
-  return {
-    id: `revision-rec-${conflict.id}`,
-    action: `Resolve using ${CONFLICT_STRATEGY_LABEL[candidate.strategy]}`,
-    why: `${candidate.rationale} That would set ${conflict.propertyLabel.toLowerCase()} to ${conflict.format(preview.value)}.`,
-    confidencePct: Math.round(confidence(preview) * 100),
-    ifYouDoNothing: `${conflict.entityLabel}'s ${conflict.propertyLabel.toLowerCase()} stays unresolved, and everything downstream of it stays blocked on a human decision.`,
-    doneLabel: 'DONE — POLICY CHANGED',
-    onRun: () => changeConflictPolicy(conflict, candidate),
-  }
+function SelectAnItemFirst() {
+  return <p style={{ ...TYPE_BODY, color: TEXT_DIM }}>Select an item in Queue first.</p>
 }
 
-function PendingRow({
-  conflict,
-  person,
-  selected,
-  onSelect,
-  changeConflictPolicy,
-}: {
-  conflict: Conflict
-  person: IdentityRecord | undefined
-  selected: boolean
-  onSelect: () => void
-  changeConflictPolicy: (c: Conflict, p: ConflictPolicy) => void
-}) {
-  const { focused, handlers } = useFocusRing()
-  const rec = recommendationFor(conflict, changeConflictPolicy)
-
+function RoleSelector({ role, onChange }: { role: Role; onChange: (r: Role) => void }) {
   return (
-    <div style={{ borderBottom: `${BORDER_WIDTH}px solid ${HAIRLINE}`, paddingBottom: SPACE_16, marginBottom: SPACE_16 }}>
-      <div
-        role="row"
-        tabIndex={0}
-        onClick={onSelect}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') onSelect()
-        }}
-        {...handlers}
-        className="flex cursor-pointer items-center justify-between"
+    <div className="flex items-center" style={{ gap: SPACE_8 }}>
+      <span style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>ROLE</span>
+      <select
+        value={role}
+        onChange={(e) => onChange(e.target.value as Role)}
+        aria-label="Current role"
         style={{
-          height: ROW_HEIGHT_DEFAULT,
-          borderLeft: `${ACCENT_INDICATOR_WIDTH}px solid ${selected ? VERIFIED : 'transparent'}`,
-          paddingLeft: SPACE_8,
-          ...focusRingStyle(focused),
+          ...TYPE_CAPTION,
+          textTransform: 'none',
+          letterSpacing: 'normal',
+          color: TEXT_PRIMARY,
+          background: PANEL_RAISED,
+          border: `${BORDER_WIDTH}px solid ${HAIRLINE}`,
+          borderRadius: RADIUS_INTERACTIVE,
+          padding: SPACE_8,
         }}
       >
-        <div className="flex items-center" style={{ gap: SPACE_8 }}>
-          <span
-            aria-hidden
-            style={{ width: STATUS_DOT_SIZE, height: STATUS_DOT_SIZE, borderRadius: '50%', background: HUMAN, display: 'inline-block' }}
-          />
-          {person ? (
-            <PersonBadge climberId={person.climberId} name={person.who.fullLegalName.value} serial={person.serial.value} />
-          ) : (
-            <span style={{ ...TYPE_BODY, color: TEXT_PRIMARY }}>{conflict.entityLabel}</span>
-          )}
-          <span style={{ ...TYPE_BODY, color: TEXT_DIM }}>·</span>
-          <span style={{ ...TYPE_BODY, color: TEXT_SECONDARY }}>{conflict.propertyLabel}</span>
-        </div>
-        <span style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>
-          {conflict.aOrigin} vs {conflict.bOrigin}
-        </span>
-      </div>
-      {rec ? (
-        <RecommendationCard rec={rec} />
-      ) : (
-        <p style={{ ...TYPE_CAPTION, color: TEXT_DIM, marginTop: SPACE_8, textTransform: 'none', letterSpacing: 'normal' }}>
-          No automatic resolution applies here — every available policy needs a human.
-        </p>
-      )}
+        {ROLES.map((r) => (
+          <option key={r} value={r}>
+            {ROLE_LABEL[r]}
+          </option>
+        ))}
+      </select>
     </div>
+  )
+}
+
+function SubNav({ value, onChange }: { value: SubTab; onChange: (v: SubTab) => void }) {
+  return (
+    <div
+      className="flex"
+      style={{ gap: SPACE_8, padding: SPACE_8, background: PANEL_RAISED, borderRadius: RADIUS_STATIC, border: `${BORDER_WIDTH}px solid ${HAIRLINE}` }}
+    >
+      {SUB_TABS.map((t) => (
+        <SubNavPill key={t.id} active={t.id === value} label={t.label} onClick={() => onChange(t.id)} />
+      ))}
+    </div>
+  )
+}
+
+function SubNavPill({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  const { focused, handlers } = useFocusRing()
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      {...handlers}
+      className="pressable"
+      style={{
+        ...TYPE_CAPTION,
+        textTransform: 'none',
+        letterSpacing: 'normal',
+        color: active ? TEXT_PRIMARY : TEXT_SECONDARY,
+        background: active ? HAIRLINE : 'transparent',
+        border: `${BORDER_WIDTH}px solid ${active ? TEXT_SECONDARY : 'transparent'}`,
+        borderRadius: RADIUS_INTERACTIVE,
+        padding: `${SPACE_8}px ${SPACE_12}px`,
+        ...focusRingStyle(focused),
+      }}
+    >
+      {label}
+    </button>
   )
 }

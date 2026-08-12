@@ -178,7 +178,11 @@ export function buildOntology(input: OntologyBuildInput): Ontology {
   const { sources, climbers, conflicts, findings, meanConfidencePct } = input
   const permit = sourceByName(sources, 'Permit registry')
   const roster = sourceByName(sources, 'Operator rosters')
-  const sensorMesh = sourceByName(sources, 'Sensor mesh')
+  // S9.12: the route-sensor-network facts below (freshness, route
+  // monitoring) point at the GPS tracker now that sensor mesh has split —
+  // it's the closest surviving fit for "the route sensor network itself,"
+  // as opposed to any one physiological or weather reading.
+  const sensorMesh = sourceByName(sources, 'GPS tracker')
 
   const countries = [...new Set(input.regionCountryPairs.map((r) => r.country))]
 
@@ -395,7 +399,7 @@ export function buildOntology(input: OntologyBuildInput): Ontology {
       kind: 'climber',
       property: 'Resting heart rate',
       own: true,
-      source: 'Medical logs vs Sensor mesh',
+      source: 'Manual observation vs Wearable oximeter',
       transform: 'conflict-resolved (most-recent)',
       missingPct: 0,
       traced: hrConflict?.resolved ?? null,
@@ -431,7 +435,7 @@ export function buildOntology(input: OntologyBuildInput): Ontology {
     { id: 'fact-route-name', kind: 'route', property: 'Name', own: true, source: 'Permit registry', transform: 'observed', missingPct: 0, traced: routeNameTv, conflictId: null },
     { id: 'fact-route-grade', kind: 'route', property: 'UIAA grade', own: true, source: 'Permit registry', transform: 'observed', missingPct: 0, traced: routeGradeTv, conflictId: null },
     { id: 'fact-route-rel-region', kind: 'route', property: 'Traverses → Region', own: false, source: 'Permit registry', transform: 'structural (n:1)', missingPct: 0, traced: null, conflictId: null },
-    { id: 'fact-route-rel-sensor', kind: 'route', property: 'Monitored by → Sensor', own: false, source: 'Sensor mesh', transform: 'structural (1:1)', missingPct: 0, traced: null, conflictId: null },
+    { id: 'fact-route-rel-sensor', kind: 'route', property: 'Monitored by → Sensor', own: false, source: 'GPS tracker', transform: 'structural (1:1)', missingPct: 0, traced: null, conflictId: null },
 
     // Operator
     { id: 'fact-operator-name', kind: 'operator', property: 'Name', own: true, source: 'Operator rosters', transform: 'observed', missingPct: 0, traced: operatorNameTv, conflictId: null },
@@ -440,19 +444,19 @@ export function buildOntology(input: OntologyBuildInput): Ontology {
     { id: 'fact-operator-rel-climber', kind: 'operator', property: 'Guides → Climber', own: false, source: 'Operator rosters', transform: 'structural (1:n)', missingPct: 0, traced: null, conflictId: null },
 
     // Sensor
-    { id: 'fact-sensor-freshness', kind: 'sensor', property: 'Last sync', own: true, source: 'Sensor mesh', transform: 'observed', missingPct: 0, traced: sensorFreshnessTv, conflictId: null },
+    { id: 'fact-sensor-freshness', kind: 'sensor', property: 'Last sync', own: true, source: 'GPS tracker', transform: 'observed', missingPct: 0, traced: sensorFreshnessTv, conflictId: null },
     {
       id: 'fact-sensor-pressure',
       kind: 'sensor',
       property: 'Ambient pressure',
       own: true,
-      source: 'Sensor mesh (two units)',
+      source: 'Weather feed (two units)',
       transform: 'conflict-resolved (range-merge)',
       missingPct: 0,
       traced: pressureConflict?.resolved ?? null,
       conflictId: pressureConflict?.id ?? null,
     },
-    { id: 'fact-sensor-rel-route', kind: 'sensor', property: 'Monitors → Route', own: false, source: 'Sensor mesh', transform: 'structural (1:1)', missingPct: 0, traced: null, conflictId: null },
+    { id: 'fact-sensor-rel-route', kind: 'sensor', property: 'Monitors → Route', own: false, source: 'GPS tracker', transform: 'structural (1:1)', missingPct: 0, traced: null, conflictId: null },
 
     // Region
     { id: 'fact-region-name', kind: 'region', property: 'Name', own: true, source: 'Permit registry', transform: 'observed', missingPct: 0, traced: regionNameTv, conflictId: null },

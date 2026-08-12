@@ -9,9 +9,9 @@ describe('contextEngine (S9.7 rebuild)', () => {
     const { readings } = d.contextEngine
     expect(readings.length).toBeGreaterThanOrEqual(5)
     const sources = new Set(readings.map((r) => r.source))
-    expect(sources).toEqual(new Set(['Sensor mesh', 'Weather feed', 'Medical logs', 'Permit registry', 'Operator rosters']))
+    expect(sources).toEqual(new Set(['Wearable oximeter', 'Weather feed', 'Medical logs', 'Permit registry', 'Operator rosters']))
     // FW stays unbound on the sensor-mesh reading — same demonstrated gap S9.7 has always kept.
-    const sensor = readings.find((r) => r.source === 'Sensor mesh')!
+    const sensor = readings.find((r) => r.source === 'Wearable oximeter')!
     expect(sensor.unbound.map((u) => u.key)).toEqual(['FW'])
   })
 
@@ -56,7 +56,7 @@ describe('contextEngine (S9.7 rebuild)', () => {
 
   it('per-reading coverage is real math', () => {
     const d = buildDataset(1)
-    const sensor = d.contextEngine.readings.find((r) => r.source === 'Sensor mesh')!
+    const sensor = d.contextEngine.readings.find((r) => r.source === 'Wearable oximeter')!
     const cov = readingCoverage(sensor)
     expect(cov.boundFields).toBe(sensor.bound.length)
     expect(cov.totalFields).toBe(sensor.bound.length + sensor.unbound.length)
@@ -77,7 +77,7 @@ describe('contextEngine (S9.7 rebuild)', () => {
   it('per-source coverage breaks out fields received/bound/still-unbound for each source', () => {
     const d = buildDataset(1)
     const rows = perSourceCoverage(d.contextEngine)
-    const sensorRow = rows.find((r) => r.source === 'Sensor mesh')!
+    const sensorRow = rows.find((r) => r.source === 'Wearable oximeter')!
     expect(sensorRow.stillUnbound).toEqual(['FW'])
     expect(sensorRow.pct).toBeLessThan(100)
     const weatherRow = rows.find((r) => r.source === 'Weather feed')!
@@ -88,12 +88,12 @@ describe('contextEngine (S9.7 rebuild)', () => {
   it('acceptance: adding a rule for FW moves both the per-reading and system-wide coverage figures', () => {
     const d = buildDataset(1)
     const before = d.contextEngine
-    const beforeSensor = before.readings.find((r) => r.source === 'Sensor mesh')!
+    const beforeSensor = before.readings.find((r) => r.source === 'Wearable oximeter')!
     const beforeCov = readingCoverage(beforeSensor)
     const beforeSystem = systemWideCoverage(before)
 
     const after = addHumanRule(before, 'FW', 'Sensor firmware version', 'Sensor', 'Human correction, added just now')
-    const afterSensor = after.readings.find((r) => r.source === 'Sensor mesh')!
+    const afterSensor = after.readings.find((r) => r.source === 'Wearable oximeter')!
     expect(afterSensor.unbound).toHaveLength(0)
     const fwBound = afterSensor.bound.find((b) => b.fieldKey === 'FW')!
     expect(fwBound.traced.value).toContain('Sensor firmware version')
@@ -129,7 +129,7 @@ describe('contextEngine (S9.7 rebuild)', () => {
   describe('the Nima Tamang sensor-mesh reading really shares TracedValues with reasoning.ts and Detection', () => {
     it('its SPO2_VAL raw fact is the exact node the physiological_outlier finding depends on', () => {
       const d = buildDataset(1)
-      const sensor = d.contextEngine.readings.find((r) => r.source === 'Sensor mesh')!
+      const sensor = d.contextEngine.readings.find((r) => r.source === 'Wearable oximeter')!
       const spo2Raw = sensor.rawFieldTvs.get('SPO2_VAL')!
       const finding = d.findings.find((f) => f.kind === 'physiological_outlier')!
       expect(dependents(spo2Raw.id)).toContain(finding.traced.id)
@@ -137,7 +137,7 @@ describe('contextEngine (S9.7 rebuild)', () => {
 
     it('IMPACT-style counterfactual: removing this reading\'s SPO2_VAL is a real recomputation, not a no-op fabrication', () => {
       const d = buildDataset(1)
-      const sensor = d.contextEngine.readings.find((r) => r.source === 'Sensor mesh')!
+      const sensor = d.contextEngine.readings.find((r) => r.source === 'Wearable oximeter')!
       const spo2Raw = sensor.rawFieldTvs.get('SPO2_VAL')!
       const finding = d.findings.find((f) => f.kind === 'physiological_outlier')!
       const baseline = confidence(finding.traced)

@@ -23,6 +23,8 @@ import {
 } from '../../ase/tokens'
 import { formatHistoricalMoment } from '../../ase/bitemporal'
 import { useAsOf } from '../../ase/asOfContext'
+import { useSimulationMode } from '../../ase/simulationMode'
+import { DEMO_STEPS, useDemoMode } from '../../ase/demoMode'
 import type { Instant } from '../../ase/traced'
 import { TABS, type TabId } from './tabs'
 import { focusRingStyle, useFocusRing } from './focusRing'
@@ -52,6 +54,9 @@ export interface TopBarProps {
 export function TopBar({ activeTabId, liveStatus, pendingCounts }: TopBarProps) {
   const { at } = useAsOf()
   const historical = at !== 'now'
+  const simulation = useSimulationMode()
+  const demo = useDemoMode()
+  const demoStep = demo.active ? DEMO_STEPS[demo.stepIndex] : null
 
   return (
     <div
@@ -60,8 +65,12 @@ export function TopBar({ activeTabId, liveStatus, pendingCounts }: TopBarProps) 
         height: BAR_HEIGHT,
         borderBottom: `${BORDER_WIDTH}px solid ${HAIRLINE}`,
         // Full WATCH fill, not a tint — S1d: "a historical view can never be
-        // mistaken for the present."
-        background: historical ? WATCH : PANEL,
+        // mistaken for the present." S9.12/S9.13 reuse the exact same rule
+        // for two more "not the present" states: simulating a source outage,
+        // and running the scripted demo. Same fill, same discipline — the
+        // design system stays at five semantic colours, not a new one per
+        // state that needs flagging.
+        background: historical || simulation.active || demo.active ? WATCH : PANEL,
         // The page gutter, same as every tab's own content — S1g: this was
         // already 24px (SPACE_24, numerically identical to PAGE_GUTTER), so
         // the clipped-looking "Overview" label wasn't a missing-padding bug.
@@ -75,6 +84,43 @@ export function TopBar({ activeTabId, liveStatus, pendingCounts }: TopBarProps) 
       <TabRow activeTabId={activeTabId} pendingCounts={pendingCounts} />
 
       <div className="flex shrink-0 items-center" style={{ gap: SPACE_16, marginLeft: SPACE_16 }}>
+        {demo.active && demoStep ? (
+          <div className="flex items-center" style={{ gap: SPACE_8, ...TYPE_BODY, color: TEXT_PRIMARY }}>
+            <span aria-hidden>▶</span>
+            <span>{`DEMO — step ${demoStep.n}/7: ${demoStep.title}`}</span>
+            <button type="button" onClick={demo.prev} className="pressable" style={{ ...TYPE_CAPTION, textDecoration: 'underline' }} title="Previous step">
+              PREV
+            </button>
+            <button
+              type="button"
+              onClick={() => (demo.status === 'paused' ? demo.resume() : demo.pause())}
+              className="pressable"
+              style={{ ...TYPE_CAPTION, textDecoration: 'underline' }}
+            >
+              {demo.status === 'paused' ? 'RESUME' : 'PAUSE'}
+            </button>
+            <button type="button" onClick={demo.next} className="pressable" style={{ ...TYPE_CAPTION, textDecoration: 'underline' }} title="Next step">
+              NEXT
+            </button>
+            <button type="button" onClick={demo.exit} className="pressable" style={{ ...TYPE_CAPTION, textDecoration: 'underline' }}>
+              EXIT
+            </button>
+          </div>
+        ) : (
+          simulation.active && (
+            <button
+              type="button"
+              onClick={simulation.stop}
+              className="pressable flex items-center"
+              style={{ ...TYPE_BODY, color: TEXT_PRIMARY, gap: SPACE_8 }}
+              title="Leave the simulation — nothing simulated here was ever written to the real graph"
+            >
+              <span aria-hidden>⚠</span>
+              {`SIMULATING — ${simulation.sourceName} offline`}
+              <span style={{ ...TYPE_CAPTION, textDecoration: 'underline' }}>EXIT</span>
+            </button>
+          )
+        )}
         <LivePill status={liveStatus} />
         <NowControl at={at} />
       </div>

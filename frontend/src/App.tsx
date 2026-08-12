@@ -7,6 +7,7 @@ import { Contact } from './pages/Contact'
 import { Documentation } from './pages/Documentation'
 import { AppShell } from './app/AppShell'
 import { Graph } from './pages/Graph'
+import { GraphNext } from './pages/GraphNext'
 import { Search } from './pages/Search'
 import { Dashboard } from './pages/Dashboard'
 import { ControlRoom } from './pages/ControlRoom'
@@ -18,7 +19,10 @@ import { Identity } from './components/controlRoom/Identity'
 import { Meaning } from './components/controlRoom/Meaning'
 import { Reasoning } from './components/controlRoom/Reasoning'
 import { Detection } from './components/controlRoom/Detection'
+import { Prediction } from './components/controlRoom/Prediction'
 import { Revision } from './components/controlRoom/Revision'
+import { Exposure } from './components/controlRoom/Exposure'
+import { Trust } from './components/controlRoom/Trust'
 import { Model } from './components/controlRoom/Model'
 import { DEFAULT_TAB_ID } from './components/controlRoom/tabs'
 import { DemoEnter } from './pages/DemoEnter'
@@ -50,6 +54,7 @@ function App() {
         <Route path="/app" element={<AppShell />}>
           <Route index element={<Navigate to="graph" replace />} />
           <Route path="graph" element={<Graph />} />
+          <Route path="graph-next" element={<GraphNext />} />
           <Route path="search" element={<Search />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="control-room" element={<ControlRoom />}>
@@ -61,7 +66,10 @@ function App() {
             <Route path="meaning" element={<Meaning />} />
             <Route path="reasoning" element={<Reasoning />} />
             <Route path="detection" element={<Detection />} />
+            <Route path="prediction" element={<Prediction />} />
             <Route path="revision" element={<Revision />} />
+            <Route path="exposure" element={<Exposure />} />
+            <Route path="trust" element={<Trust />} />
             <Route path=":tab" element={<TabStub />} />
           </Route>
           <Route path="control-room/findings" element={<ControlRoomFindings />} />
