@@ -1,0 +1,7 @@
+export { Exposure } from './Exposure'
+export { ExposureHealth } from './ExposureHealth'
+export { ExposureMatrix } from './ExposureMatrix'
+export { ExposureFragility } from './ExposureFragility'
+export { ExposureStaleness } from './ExposureStaleness'
+export { ExposureSimulation } from './ExposureSimulation'
+export { ExposureActivity } from './ExposureActivity'

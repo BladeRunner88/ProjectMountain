@@ -1,0 +1,502 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* shadcn */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.45rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+
+  /* Isildur — surface */
+  --color-app: #fbfbfd;
+  --color-surface: #ffffff;
+  --color-tint: #f5f5f7;
+  --color-canvas: #0a0a0c;
+
+  /* Isildur — ink */
+  --color-ink: #1d1d1f;
+  --color-ink-soft: #6e6e73;
+  --color-ink-faint: #9a9a9f;
+  --color-ink-on-canvas: #f2f2f4;
+  --color-ink-on-canvas-soft: #8a8a92;
+
+  /* Isildur — accent */
+  --color-accent: #0071e3;
+  --color-accent-ink: #ffffff;
+
+  /* Isildur — hairlines */
+  --color-hairline: rgba(0, 0, 0, 0.08);
+  --color-hairline-on-canvas: rgba(255, 255, 255, 0.1);
+
+  /* Isildur — elevation / radius */
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 32px rgba(0, 0, 0, 0.06);
+  --radius-card: 14px;
+
+  /* Isildur — type */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Inter Tight", system-ui, sans-serif;
+  --font-mono:
+    var(--font-geist-mono), "SF Mono", "JetBrains Mono", ui-monospace,
+    "Cascadia Code", monospace;
+
+  /* motion — landing/marketing */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 160ms;
+
+  /* motion — Control Room */
+  --cr-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --cr-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-inter: var(--font-inter);
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Isildur utilities: bg-app, text-ink, font-inter, rounded-card, shadow-soft */
+  --color-app: var(--color-app);
+  --color-surface: var(--color-surface);
+  --color-tint: var(--color-tint);
+  --color-canvas: var(--color-canvas);
+  --color-ink: var(--color-ink);
+  --color-ink-soft: var(--color-ink-soft);
+  --color-ink-faint: var(--color-ink-faint);
+  --color-ink-on-canvas: var(--color-ink-on-canvas);
+  --color-ink-on-canvas-soft: var(--color-ink-on-canvas-soft);
+  --color-accent: var(--color-accent);
+  --color-accent-ink: var(--color-accent-ink);
+  --color-hairline: var(--color-hairline);
+  --color-hairline-on-canvas: var(--color-hairline-on-canvas);
+  --radius-card: var(--radius-card);
+  --shadow-soft: var(--shadow-soft);
+  --ease-out: var(--ease-out);
+  --duration-fast: var(--duration-fast);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    box-sizing: border-box;
+  }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    margin: 0;
+    background: var(--color-app);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Demo graph — anomalous rope-link pulse                                 */
+/* ---------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .demo-edge-pulse {
+    animation: demo-edge-pulse 3s ease-in-out infinite;
+  }
+}
+
+@keyframes demo-edge-pulse {
+  0%,
+  100% {
+    opacity: var(--pulse-peak, 1);
+  }
+  50% {
+    opacity: calc(var(--pulse-peak, 1) * 0.55);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .demo-node-spawn {
+    animation-name: demo-node-spawn;
+    animation-duration: 800ms;
+    animation-fill-mode: both;
+  }
+}
+
+@keyframes demo-node-spawn {
+  0% {
+    transform: translate(var(--start-dx, 0px), var(--start-dy, 0px)) scale(0);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  70% {
+    transform: translate(0, 0) scale(1.12);
+    opacity: 1;
+    animation-timing-function: ease-out;
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .network-pop-a {
+    animation-name: network-pop-a;
+    animation-duration: 680ms;
+    animation-fill-mode: both;
+  }
+}
+
+@keyframes network-pop-a {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.42, 0, 0.58, 1);
+  }
+  40% {
+    opacity: 1;
+  }
+  45% {
+    transform: scale(1);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  75% {
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .network-arrival-ring {
+    animation-name: network-arrival-ring;
+    animation-duration: 520ms;
+    animation-timing-function: ease-out;
+    animation-fill-mode: both;
+  }
+}
+
+@keyframes network-arrival-ring {
+  from {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(40);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .network-country-label {
+    animation-name: network-country-label-fade;
+    animation-duration: 300ms;
+    animation-timing-function: ease-out;
+    animation-fill-mode: both;
+  }
+}
+
+@keyframes network-country-label-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .network-bud-child {
+    animation-name: network-bud-child;
+    animation-duration: 640ms;
+    animation-fill-mode: both;
+  }
+}
+
+@keyframes network-bud-child {
+  0% {
+    transform: translate(var(--from-dx, 0px), var(--from-dy, 0px)) scale(0.15);
+    fill: var(--color-from, currentColor);
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  59.375% {
+    transform: translate(0, 0) scale(0.85);
+    fill: var(--color-to, currentColor);
+    animation-timing-function: ease-out;
+  }
+  79.6875% {
+    transform: translate(0, 0) scale(1.1);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .network-parent-pop {
+    animation-timing-function: ease-out;
+    animation-fill-mode: forwards;
+  }
+}
+
+@keyframes network-parent-swell {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.14);
+  }
+}
+
+@keyframes network-parent-relax {
+  from {
+    transform: scale(1.14);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+g[data-entity-id]:focus-visible {
+  outline: 1.5px solid rgba(255, 255, 255, 0.8);
+  outline-offset: 3px;
+}
+
+@keyframes network-node-flush {
+  from {
+    fill: var(--flush-from, currentColor);
+  }
+  to {
+    fill: var(--flush-to, #f0483e);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .environment-pulse {
+    animation-name: environment-pulse;
+    animation-duration: 2400ms;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
+  }
+}
+
+@keyframes environment-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes network-edge-flush {
+  from {
+    stroke: var(--flush-from, currentColor);
+  }
+  to {
+    stroke: var(--flush-to, #f0483e);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .demo-node-flash {
+    animation: demo-node-flash 600ms ease-out;
+  }
+}
+
+@keyframes demo-node-flash {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  30% {
+    transform: scale(1.4);
+    filter: brightness(2.2);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .value-fade {
+    animation: value-fade 200ms var(--cr-ease-out);
+  }
+  .value-flash {
+    animation: value-flash 240ms var(--cr-ease-out);
+  }
+  .panel-transition {
+    transition:
+      opacity 240ms var(--cr-ease-out),
+      transform 240ms var(--cr-ease-out);
+  }
+  .pressable {
+    transition: transform 120ms var(--cr-ease-out);
+  }
+  .pressable:active {
+    transform: scale(0.97);
+  }
+  .pressable-row {
+    transition: background-color 120ms var(--cr-ease-out);
+  }
+  .pressable-row:active {
+    background-color: #161920;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .value-flash {
+    animation: value-flash 1ms linear;
+  }
+}
+
+@keyframes value-fade {
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes value-flash {
+  from {
+    background-color: color-mix(
+      in srgb,
+      var(--flash-color, transparent) 35%,
+      transparent
+    );
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .detection-map-wire-pulse {
+    animation: detection-map-wire-pulse 3s var(--cr-ease-in-out) infinite;
+  }
+}
+
+@keyframes detection-map-wire-pulse {
+  0%,
+  100% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
