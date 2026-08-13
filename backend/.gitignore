@@ -4,3 +4,4 @@ __pycache__/
 access_requests.jsonl
 data/raw/*
 !data/raw/.gitkeep
+venv/*
