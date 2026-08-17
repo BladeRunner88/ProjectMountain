@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactElement } from 'react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactElement } from 'react'
 import {
   HAIRLINE,
   PANEL_RAISED,
@@ -60,8 +60,17 @@ export function DirectManipulationSlider({
     }
   }, [])
 
-  const valueToFraction = (v: number): number => (max === min ? 0 : (v - min) / (max - min))
-  const fractionToValue = (f: number): number => min + f * (max - min)
+  // Most call sites (e.g. Scrubber) pass `onChange` as an inline arrow, so it is
+  // read through a ref rather than closed over. Otherwise every parent render
+  // during a drag would give `emitFromFraction` a new identity and tear down and
+  // restart the spring driver mid-gesture.
+  const onChangeRef = useRef(onChange)
+  useEffect(() => {
+    onChangeRef.current = onChange
+  })
+
+  const valueToFraction = useCallback((v: number): number => (max === min ? 0 : (v - min) / (max - min)), [max, min])
+  const fractionToValue = useCallback((f: number): number => min + f * (max - min), [max, min])
 
   const visualFraction = useRef(new Spring(valueToFraction(value), SPRING_SETTLE))
   const draggingRef = useRef(false)
@@ -70,16 +79,19 @@ export function DirectManipulationSlider({
   const [displayFraction, setDisplayFraction] = useState(() => valueToFraction(value))
   const [dragging, setDragging] = useState(false)
 
-  function emitFromFraction(fraction: number): void {
-    const clampedValue = Math.min(max, Math.max(min, fractionToValue(Math.min(1, Math.max(0, fraction)))))
-    onChange(Math.round(clampedValue / step) * step)
-  }
+  const emitFromFraction = useCallback(
+    (fraction: number): void => {
+      const clampedValue = Math.min(max, Math.max(min, fractionToValue(Math.min(1, Math.max(0, fraction)))))
+      onChangeRef.current(Math.round(clampedValue / step) * step)
+    },
+    [max, min, step, fractionToValue]
+  )
 
   useEffect(() => {
     if (!draggingRef.current) {
       visualFraction.current.setTarget(valueToFraction(value))
     }
-  }, [value, max, min])
+  }, [value, valueToFraction])
 
   useEffect(() => {
     const stop = driveSprings(
@@ -91,7 +103,7 @@ export function DirectManipulationSlider({
       () => true
     )
     return stop
-  }, [momentum])
+  }, [momentum, emitFromFraction])
 
   function pxToFraction(clientX: number): number {
     const rect = trackRef.current?.getBoundingClientRect()
