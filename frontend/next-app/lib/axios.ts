@@ -4,6 +4,9 @@ import axios, {
   type AxiosResponse,
 } from "axios"
 
+/** `code` set on an ApiError raised by an unauthenticated response. */
+export const ACCESS_REQUIRED_CODE = "access_required"
+
 export class ApiError extends Error {
   readonly status: number
   readonly code?: string
@@ -23,47 +26,24 @@ export class ApiError extends Error {
   }
 }
 
-type ApiSuccessEnvelope = {
-  success: true
-  data: unknown
-}
-
-type ApiErrorEnvelope = {
-  success: false
-  error: unknown
+/**
+ * True when the backend rejected the request for want of access. Callers decide
+ * what to do about it (show a prompt, link to /request-access, …) — the
+ * transport layer deliberately does not navigate on the user's behalf.
+ */
+export function isAccessRequiredError(error: unknown): error is ApiError {
+  return error instanceof ApiError && error.status === 401
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
 
-function isSuccessEnvelope(value: unknown): value is ApiSuccessEnvelope {
-  return isRecord(value) && value.success === true && "data" in value
-}
-
-function isErrorEnvelope(value: unknown): value is ApiErrorEnvelope {
-  return isRecord(value) && value.success === false && "error" in value
-}
-
-function parseEnvelopeError(error: unknown): {
-  message: string
-  code?: string
-  details?: unknown
-} {
-  if (typeof error === "string" && error.length > 0) {
-    return { message: error }
-  }
-  if (isRecord(error)) {
-    const message =
-      typeof error.message === "string" && error.message.length > 0
-        ? error.message
-        : "Request failed"
-    const code = typeof error.code === "string" ? error.code : undefined
-    return { message, code, details: error.details ?? error }
-  }
-  return { message: "Request failed", details: error }
-}
-
+/**
+ * The backend returns bare JSON (no `{ success, data }` envelope). Errors come
+ * back as FastAPI's `{ detail }`, either a string or a list of validation
+ * issues, so that is what we dig through for a human-readable message.
+ */
 function messageFromBody(body: unknown, fallback: string): string {
   if (typeof body === "string" && body.length > 0) return body
   if (!isRecord(body)) return fallback
@@ -80,13 +60,15 @@ function messageFromBody(body: unknown, fallback: string): string {
   return fallback
 }
 
-function redirectToRequestAccess(): void {
-  if (typeof window === "undefined") return
-  window.location.assign("/request-access")
-}
+/**
+ * Same-origin base path. Requests go to this app's Route Handlers under
+ * `/api/*`, which proxy to FastAPI server-side — the backend origin is never
+ * exposed to the browser.
+ */
+export const API_BASE_PATH = "/api"
 
 export function getApiBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8010"
+  return API_BASE_PATH
 }
 
 export const api: AxiosInstance = axios.create({
@@ -97,46 +79,21 @@ export const api: AxiosInstance = axios.create({
 })
 
 api.interceptors.response.use(
-  (response: AxiosResponse): AxiosResponse => {
-    const body: unknown = response.data
-    if (isErrorEnvelope(body)) {
-      const parsed = parseEnvelopeError(body.error)
-      throw new ApiError(
-        response.status,
-        parsed.message,
-        parsed.code,
-        parsed.details
-      )
-    }
-    if (isSuccessEnvelope(body)) {
-      response.data = body.data
-    }
-    return response
-  },
+  (response: AxiosResponse): AxiosResponse => response,
   (error: unknown): Promise<never> => {
     if (!axios.isAxiosError(error)) {
       return Promise.reject(error)
     }
 
     const status = error.response?.status ?? 0
-    if (status === 401) {
-      redirectToRequestAccess()
-    }
-
     const body: unknown = error.response?.data
-    if (isErrorEnvelope(body)) {
-      const parsed = parseEnvelopeError(body.error)
-      return Promise.reject(
-        new ApiError(status, parsed.message, parsed.code, parsed.details)
-      )
-    }
-
     const fallback =
       status > 0
         ? `Request failed with status ${status}`
         : "Network request failed"
     const message = messageFromBody(body, error.message || fallback)
-    return Promise.reject(new ApiError(status, message, undefined, body))
+    const code = status === 401 ? ACCESS_REQUIRED_CODE : undefined
+    return Promise.reject(new ApiError(status, message, code, body))
   }
 )
 
