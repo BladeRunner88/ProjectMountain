@@ -13,6 +13,7 @@ import {
   clearAccessCookie,
   clearStoredAccess,
   persistAccess,
+  pruneExpiredAccess,
   readStoredAccess,
   setAccessCookie,
   type AccessSummary,
@@ -77,7 +78,14 @@ export function AccessProvider({
   )
 
   useEffect(() => {
-    if (state.granted) setAccessCookie()
+    // Re-issuing the cookie also slides the stored mirror forward, so the two
+    // halves of the demo gate always expire at the same moment.
+    if (state.granted) {
+      setAccessCookie()
+      return
+    }
+    // Sweep a grant that has aged out; readStoredAccess stays read-only.
+    pruneExpiredAccess()
   }, [state.granted])
 
   const grantAccess = (summary: AccessSummary): void => {
