@@ -1,4 +1,4 @@
-import { api, ApiError } from "@/lib/axios"
+import { api, ApiError, isAccessRequiredError } from "@/lib/axios"
 
 import type {
   AccessRequestPayload,
@@ -34,6 +34,9 @@ export async function postAccessRequest(
 }
 
 export function describeAccessRequestError(err: unknown): string {
+  if (isAccessRequiredError(err)) {
+    return "This session is no longer authorised. Reload the page and try again."
+  }
   if (err instanceof ApiError) {
     if (err.status === 422) {
       return "The server rejected some of the submitted information. Please review your answers and try again."

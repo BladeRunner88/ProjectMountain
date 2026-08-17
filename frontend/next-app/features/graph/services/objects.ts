@@ -1,6 +1,6 @@
 import type { AxiosRequestConfig } from "axios"
 
-import { apiGet, ApiError } from "@/lib/axios"
+import { apiGet, ApiError, isAccessRequiredError } from "@/lib/axios"
 
 import type {
   Connection,
@@ -15,7 +15,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function parseGraphObject(value: unknown): GraphObject {
-  if (!isRecord(value) || typeof value.id !== "string" || typeof value.type !== "string") {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.type !== "string"
+  ) {
     throw new ApiError(0, "Unexpected object in list response")
   }
   const name = typeof value.name === "string" ? value.name : ""
@@ -106,7 +110,10 @@ export async function getObject(
   id: string,
   config?: AxiosRequestConfig
 ): Promise<ObjectDetail> {
-  const data = await apiGet<unknown>(`/objects/${encodeURIComponent(id)}`, config)
+  const data = await apiGet<unknown>(
+    `/objects/${encodeURIComponent(id)}`,
+    config
+  )
   return parseObjectDetail(data)
 }
 
@@ -127,6 +134,9 @@ export function linksFromDetails(details: ObjectDetail[]): GraphLink[] {
 }
 
 export function describeGraphError(error: unknown, fallback: string): string {
+  if (isAccessRequiredError(error)) {
+    return "Your access to Isildur has expired. Request access to continue."
+  }
   if (error instanceof ApiError) {
     if (error.status === 404) return "This object could not be found."
     if (error.message) return error.message
