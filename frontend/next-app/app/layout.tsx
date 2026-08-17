@@ -4,6 +4,7 @@ import type { ReactElement, ReactNode } from "react"
 
 import { Providers } from "@/app/providers"
 import { cn } from "@/lib/cn"
+import { siteDescription, siteName, siteUrl } from "@/lib/site"
 
 import "./globals.css"
 
@@ -20,8 +21,35 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Isildur",
-  description: "A data intelligence platform.",
+  metadataBase: siteUrl,
+  // NOTE: no `title.template` yet. Every child page currently hardcodes its own
+  // " — Isildur" suffix, so a template would double it. Stripping those suffixes
+  // touches pages owned by other in-flight work; see the PR body for the
+  // follow-up.
+  title: siteName,
+  description: siteDescription,
+  applicationName: siteName,
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+  },
+  openGraph: {
+    type: "website",
+    siteName,
+    title: siteName,
+    description: siteDescription,
+    url: siteUrl,
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary",
+    title: siteName,
+    description: siteDescription,
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export default function RootLayout({
