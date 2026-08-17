@@ -20,7 +20,7 @@ export default function NotFound(): ReactElement {
           <p className="mt-6 max-w-[60ch] text-[19px] leading-[1.5] font-normal text-ink-soft">
             The page you are looking for does not exist.
           </p>
-          <SquareButton to="/" className="mt-10">
+          <SquareButton href="/" className="mt-10">
             Return home
           </SquareButton>
         </div>

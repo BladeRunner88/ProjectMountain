@@ -9,7 +9,7 @@ export default function AppNotFound(): ReactElement {
       <p className="mt-1 max-w-[320px] text-center text-[13px] leading-relaxed text-ink-soft">
         This page does not exist.
       </p>
-      <SquareButton to="/app/control-room/overview" className="mt-4">
+      <SquareButton href="/app/control-room/overview" className="mt-4">
         Back to Control Room
       </SquareButton>
     </div>

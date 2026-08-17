@@ -83,11 +83,20 @@ describe("readStoredAccess", () => {
 })
 
 describe("persistAccess / clearStoredAccess", () => {
-  it("writes the summary under the documented key", () => {
+  it("writes the summary under the documented key, with an expiry", () => {
+    const before = Date.now()
     persistAccess(summary)
     const raw = window.localStorage.getItem(ACCESS_STORAGE_KEY)
     expect(raw).not.toBeNull()
-    expect(JSON.parse(raw as string)).toEqual(summary)
+
+    // The stored grant carries its own lifetime so the localStorage mirror
+    // expires alongside the access cookie rather than outliving it.
+    const stored = JSON.parse(raw as string) as {
+      summary: unknown
+      expiresAt: number
+    }
+    expect(stored.summary).toEqual(summary)
+    expect(stored.expiresAt).toBeGreaterThan(before)
   })
 
   it("removes the stored summary", () => {

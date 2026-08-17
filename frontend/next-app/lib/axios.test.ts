@@ -1,7 +1,16 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse } from "axios"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { ApiError, api, apiGet, apiPost, getApiBaseUrl } from "@/lib/axios"
+import {
+  ACCESS_REQUIRED_CODE,
+  API_BASE_PATH,
+  ApiError,
+  api,
+  apiGet,
+  apiPost,
+  getApiBaseUrl,
+  isAccessRequiredError,
+} from "@/lib/axios"
 
 const originalAdapter = api.defaults.adapter
 
@@ -73,115 +82,69 @@ describe("ApiError", () => {
 })
 
 describe("getApiBaseUrl", () => {
-  const original = process.env.NEXT_PUBLIC_API_URL
-
-  afterEach(() => {
-    if (original === undefined) delete process.env.NEXT_PUBLIC_API_URL
-    else process.env.NEXT_PUBLIC_API_URL = original
+  it("is the same-origin Route Handler path", () => {
+    expect(getApiBaseUrl()).toBe(API_BASE_PATH)
+    expect(getApiBaseUrl()).toBe("/api")
   })
 
-  it("falls back to the local backend", () => {
-    delete process.env.NEXT_PUBLIC_API_URL
-    expect(getApiBaseUrl()).toBe("http://localhost:8010")
-  })
-
-  it("prefers the configured URL", () => {
+  it("never exposes the backend origin to the browser", () => {
+    // The backend URL is a server-only concern; the browser only ever sees
+    // this app's own origin.
     process.env.NEXT_PUBLIC_API_URL = "https://api.example.com"
-    expect(getApiBaseUrl()).toBe("https://api.example.com")
+    expect(getApiBaseUrl()).toBe("/api")
+    delete process.env.NEXT_PUBLIC_API_URL
+  })
+
+  it("is the instance's configured baseURL", () => {
+    expect(api.defaults.baseURL).toBe(API_BASE_PATH)
   })
 })
 
-describe("response interceptor: success envelopes", () => {
-  it("unwraps the data field of a success envelope", async () => {
-    respondWith(200, { success: true, data: { id: 7, name: "node" } })
+describe("successful responses", () => {
+  // The backend returns bare JSON — there is no `{ success, data }` envelope
+  // to unwrap, so every 2xx body reaches the caller untouched.
+  it("returns an object body as-is", async () => {
+    respondWith(200, { id: 7, name: "node" })
     await expect(apiGet("/things")).resolves.toEqual({ id: 7, name: "node" })
   })
 
-  it("unwraps falsy envelope payloads", async () => {
-    respondWith(200, { success: true, data: null })
-    await expect(apiGet("/things")).resolves.toBeNull()
-  })
-
-  it("unwraps array payloads", async () => {
-    respondWith(200, { success: true, data: [1, 2, 3] })
+  it("returns an array body as-is", async () => {
+    respondWith(200, [1, 2, 3])
     await expect(apiGet("/things")).resolves.toEqual([1, 2, 3])
   })
 
-  it("passes through a body that is not an envelope", async () => {
-    respondWith(200, { id: 7 })
-    await expect(apiGet("/things")).resolves.toEqual({ id: 7 })
+  it("returns a null body as-is", async () => {
+    respondWith(200, null)
+    await expect(apiGet("/things")).resolves.toBeNull()
   })
 
-  it("passes through a body with success:true but no data key", async () => {
-    respondWith(200, { success: true })
-    await expect(apiGet("/things")).resolves.toEqual({ success: true })
-  })
-
-  it("unwraps envelopes on POST as well", async () => {
-    respondWith(200, { success: true, data: "created" })
-    await expect(apiPost("/things", { name: "x" })).resolves.toBe("created")
-  })
-})
-
-describe("response interceptor: error envelope on a 2xx response", () => {
-  it("throws an ApiError built from an object error", async () => {
-    respondWith(200, {
-      success: false,
-      error: { message: "Nope", code: "denied", details: { field: "name" } },
-    })
-    const error = await apiGet("/things").catch((e: unknown) => e)
-    expect(error).toBeInstanceOf(ApiError)
-    expect(error).toMatchObject({
-      status: 200,
-      message: "Nope",
-      code: "denied",
-      details: { field: "name" },
+  it("does not unwrap an envelope-shaped body", async () => {
+    respondWith(200, { success: true, data: { id: 7 } })
+    await expect(apiGet("/things")).resolves.toEqual({
+      success: true,
+      data: { id: 7 },
     })
   })
 
-  it("throws an ApiError built from a string error", async () => {
-    respondWith(200, { success: false, error: "Plain failure" })
-    const error = await apiGet("/things").catch((e: unknown) => e)
-    expect(error).toBeInstanceOf(ApiError)
-    expect((error as ApiError).message).toBe("Plain failure")
-    expect((error as ApiError).code).toBeUndefined()
-  })
-
-  it("uses a generic message when the error object has none", async () => {
-    respondWith(200, { success: false, error: { code: "weird" } })
-    const error = await apiGet("/things").catch((e: unknown) => e)
-    expect((error as ApiError).message).toBe("Request failed")
-    expect((error as ApiError).code).toBe("weird")
-  })
-
-  it("falls back to the whole error object as details", async () => {
-    respondWith(200, { success: false, error: { message: "Bad" } })
-    expect(
-      (await apiGet("/things").catch((e: unknown) => e)) as ApiError
-    ).toHaveProperty("details", { message: "Bad" })
-  })
-
-  it("uses a generic message when the error is neither string nor object", async () => {
-    respondWith(200, { success: false, error: 42 })
-    const error = await apiGet("/things").catch((e: unknown) => e)
-    expect((error as ApiError).message).toBe("Request failed")
-    expect((error as ApiError).details).toBe(42)
+  it("returns POST bodies as-is", async () => {
+    respondWith(200, { created: true })
+    await expect(apiPost("/things", { name: "x" })).resolves.toEqual({
+      created: true,
+    })
   })
 })
 
 describe("response interceptor: failed requests", () => {
-  it("maps an error envelope in a failed response", async () => {
-    failWith(422, {
-      success: false,
-      error: { message: "Invalid", code: "validation" },
-    })
+  it("keeps the status and body of a failure it cannot read a message from", async () => {
+    failWith(422, { unexpected: "shape" }, "Request failed with status code 422")
     const error = await apiGet("/things").catch((e: unknown) => e)
     expect(error).toBeInstanceOf(ApiError)
     expect(error).toMatchObject({
       status: 422,
-      message: "Invalid",
-      code: "validation",
+      message: "Request failed with status code 422",
+      details: { unexpected: "shape" },
     })
+    expect((error as ApiError).code).toBeUndefined()
   })
 
   it("reads a FastAPI string detail", async () => {
@@ -239,7 +202,20 @@ describe("response interceptor: failed requests", () => {
 })
 
 describe("401 handling", () => {
-  it("redirects to the request-access page", async () => {
+  it("tags a 401 so callers can react to it", async () => {
+    failWith(401, { detail: "Not authenticated" })
+    const error = await apiGet("/things").catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({
+      status: 401,
+      message: "Not authenticated",
+      code: ACCESS_REQUIRED_CODE,
+    })
+    expect(isAccessRequiredError(error)).toBe(true)
+  })
+
+  it("does not navigate on the caller's behalf", async () => {
     const assign = vi.fn()
     vi.spyOn(window, "location", "get").mockReturnValue({
       ...window.location,
@@ -247,22 +223,16 @@ describe("401 handling", () => {
     } as unknown as Location)
 
     failWith(401, { detail: "Not authenticated" })
-    const error = await apiGet("/things").catch((e: unknown) => e)
-
-    expect(assign).toHaveBeenCalledWith("/request-access")
-    expect((error as ApiError).status).toBe(401)
-  })
-
-  it("does not redirect on other statuses", async () => {
-    const assign = vi.fn()
-    vi.spyOn(window, "location", "get").mockReturnValue({
-      ...window.location,
-      assign,
-    } as unknown as Location)
-
-    failWith(403, { detail: "Forbidden" })
     await apiGet("/things").catch(() => undefined)
 
     expect(assign).not.toHaveBeenCalled()
+  })
+
+  it("does not tag other statuses as access errors", async () => {
+    failWith(403, { detail: "Forbidden" })
+    const error = await apiGet("/things").catch((e: unknown) => e)
+
+    expect((error as ApiError).code).toBeUndefined()
+    expect(isAccessRequiredError(error)).toBe(false)
   })
 })

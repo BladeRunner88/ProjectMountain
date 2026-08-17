@@ -1,7 +1,7 @@
 import { QueryClient, type FetchQueryOptions } from "@tanstack/react-query"
 import { z } from "zod"
 
-import { queryKeys } from "@/api/query-keys"
+import { queryKeys } from "@/lib/query-keys"
 import { searchResultsSchema } from "@/features/search/schemas/search"
 import type {
   GraphObject,
