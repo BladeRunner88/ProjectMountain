@@ -3,6 +3,7 @@ all reading from clean.* / graph.* / findings.* tables built by
 ingest_clean.py, entity_resolution.py and findings.py. Nothing here is
 hardcoded — every number is a query.
 
+  GET /check                     trivial liveness ping; touches no database
   GET /health                    entity/relationship/source/event counts, sync success
   GET /connectors                each vendor system: status, last sync, records, errors
   GET /findings                  computed operational findings
@@ -19,6 +20,7 @@ hardcoded — every number is a query.
 """
 
 import json
+import os
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -33,16 +35,40 @@ import ontology
 from sources import SOURCES
 
 ROOT = Path(__file__).parent
-DB_PATH = ROOT / "isildur.duckdb"
+DB_PATH = Path(os.environ.get("ISILDUR_DB_PATH") or ROOT / "isildur.duckdb")
 ACCESS_REQUESTS_PATH = ROOT / "access_requests.jsonl"
+
+# local prototype only; no real accounts/cloud. Still an explicit allowlist
+# rather than "*": the frontend axios client sends withCredentials, and
+# browsers refuse a wildcard origin on credentialed requests.
+CORS_ORIGINS = [
+    o.strip()
+    for o in (os.environ.get("ISILDUR_CORS_ORIGINS") or "http://localhost:3000").split(",")
+    if o.strip()
+]
 
 app = FastAPI(title="Isildur Operational Intelligence API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # local prototype only; no real accounts/cloud
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ---------------------------------------------------------------------------
+# GET /check
+# ---------------------------------------------------------------------------
+
+
+@app.get("/check")
+def check():
+    """Liveness ping. Deliberately touches nothing — no DuckDB connection, no
+    queries — so it stays cheap and answers even when the database is missing
+    or mid-rebuild. /health is the readiness counterpart: it opens the database
+    and reports real counts."""
+    return {"status": "ok"}
 
 
 class AccessRequestPayload(BaseModel):
