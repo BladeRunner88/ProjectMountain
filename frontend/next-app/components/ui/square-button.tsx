@@ -1,3 +1,4 @@
+import type { Route } from "next"
 import type { MouseEventHandler, ReactElement, ReactNode } from "react"
 import Link from "next/link"
 
@@ -27,6 +28,10 @@ const BASE =
 
 type SquareButtonProps = {
   tone?: Tone
+  /**
+   * Internal route or external URL. `isExternalHref` decides which of
+   * `next/link` and a plain anchor renders it.
+   */
   href?: string
   onClick?: MouseEventHandler<HTMLButtonElement>
   children: ReactNode
@@ -66,7 +71,7 @@ export function SquareButton({
       )
     }
     return (
-      <Link href={href} className={classes} aria-label={ariaLabel}>
+      <Link href={href as Route} className={classes} aria-label={ariaLabel}>
         {children}
       </Link>
     )

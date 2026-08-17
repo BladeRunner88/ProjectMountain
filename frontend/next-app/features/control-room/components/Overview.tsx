@@ -21,7 +21,7 @@ import {
 import { Metric, useDataset } from '@/features/ase/client'
 import type { NeedsYouRow as NeedsYouRowData, PipelineStage } from '@/features/ase/services/dataset'
 import type { TracedValue } from '@/features/ase/services/traced'
-import { tabHref } from '../types/tabs'
+import { tabHref, type TabId } from '../types/tabs'
 import { EvidenceStrip } from './EvidenceStrip'
 
 export function Overview(): ReactElement {
@@ -84,7 +84,7 @@ function Headline({
 }: {
   traced: TracedValue<number>
   label: string
-  ownerTab: string
+  ownerTab: TabId
   explainer: string
   format?: (v: number) => string
 }): ReactElement {

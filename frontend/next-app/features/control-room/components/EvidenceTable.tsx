@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactElement } from 'react'
+import type { Route } from 'next'
 import Link from 'next/link'
 import {
   ACCENT_INDICATOR_WIDTH,
@@ -38,7 +39,7 @@ export interface EvidenceRow {
   claimSortValue: string | number
   why: string | null
   format?: (value: unknown) => string
-  graphHref?: string
+  graphHref?: Route
 }
 
 type SortColumn = 'claim' | 'confidence' | 'why' | 'depends'

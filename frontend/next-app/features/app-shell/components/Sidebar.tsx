@@ -47,7 +47,7 @@ const items = [
     isActive: (pathname: string) =>
       pathname.startsWith("/app/control-room/findings"),
   },
-]
+] as const
 
 export function Sidebar() {
   const pathname = usePathname()

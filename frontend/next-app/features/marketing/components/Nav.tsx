@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import type { Route } from "next"
 import type { FocusEvent, ReactElement } from "react"
 import Link from "next/link"
 
@@ -12,6 +13,10 @@ type MenuKey = "product" | "company" | "resources"
 
 type LinkItem = {
   label: string
+  /**
+   * Internal route or external URL. `isExternalHref` decides which of
+   * `next/link` and a plain anchor renders it.
+   */
   href?: string
   disabled?: boolean
   note?: string
@@ -113,7 +118,7 @@ function MenuLink({
       )
     }
     return (
-      <Link href={item.href} onClick={onSelect} className={className}>
+      <Link href={item.href as Route} onClick={onSelect} className={className}>
         {content}
       </Link>
     )

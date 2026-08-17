@@ -1,5 +1,6 @@
 "use client"
 
+import type { Route } from "next"
 import dynamic from "next/dynamic"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
@@ -74,7 +75,10 @@ function GraphViewInner() {
       if (id) next.set("focus", id)
       else next.delete("focus")
       const qs = next.toString()
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+      // `usePathname()` is a plain string, so typedRoutes cannot check this one
+      // statically — the cast is the documented escape hatch for non-literal hrefs.
+      const href = (qs ? `${pathname}?${qs}` : pathname) as Route
+      router.replace(href, { scroll: false })
     },
     [pathname, router, searchParams]
   )

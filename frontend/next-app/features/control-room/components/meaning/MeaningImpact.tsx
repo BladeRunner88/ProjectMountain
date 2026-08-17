@@ -23,7 +23,8 @@ import { confidence, counterfactual, dependents } from '@/features/ase/services/
 import type { Dataset } from '@/features/ase/services/dataset'
 import type { Reading } from '@/features/ase/services/contextEngine'
 import type { TracedId, TracedValue } from '@/features/ase/services/traced'
-import { focusRingStyle, PersonBadge, tabHref, useFocusRing } from '@/features/control-room'
+import type { TabId } from '@/features/ase/types/tabs'
+import { focusRingStyle, PersonBadge, tabHref, type TabRoute, useFocusRing } from '@/features/control-room'
 
 interface ReasoningLink {
   question: string
@@ -31,12 +32,12 @@ interface ReasoningLink {
 }
 interface FindingLink {
   reason: string
-  ownerTab: string
+  ownerTab: TabId
 }
 interface CounterfactualTarget {
   targetTraced: TracedValue<unknown>
   describe: string
-  navigateTo: string
+  navigateTo: TabRoute
 }
 
 export function MeaningImpact({ reading, dataset }: { reading: Reading; dataset: Dataset }): ReactElement {
@@ -166,7 +167,7 @@ function WhatItContributedTo({
 }: {
   reasoningLinks: ReasoningLink[]
   findingLinks: FindingLink[]
-  onNavigate: (path: string) => void
+  onNavigate: (path: TabRoute) => void
 }): ReactElement {
   const hasAny = reasoningLinks.length > 0 || findingLinks.length > 0
   return (
@@ -179,7 +180,7 @@ function WhatItContributedTo({
           </p>
         ) : null}
         {findingLinks.map((f, i) => (
-          <ContributionRow key={`f-${i}`} text={f.reason} onClick={() => onNavigate(`/app/control-room/${f.ownerTab}`)} />
+          <ContributionRow key={`f-${i}`} text={f.reason} onClick={() => onNavigate(tabHref(f.ownerTab))} />
         ))}
         {reasoningLinks.map((r, i) => (
           <ContributionRow key={`r-${i}`} text={`"${r.question}" — via ${r.hopSummary}`} onClick={() => onNavigate(tabHref('reasoning'))} />
@@ -220,7 +221,7 @@ function IfThisReadingWereWrong({
 }: {
   cfTarget: CounterfactualTarget | null
   headlineRawTv: TracedValue<unknown> | null
-  onNavigate: (path: string) => void
+  onNavigate: (path: TabRoute) => void
 }): ReactElement {
   const { focused, handlers } = useFocusRing()
 

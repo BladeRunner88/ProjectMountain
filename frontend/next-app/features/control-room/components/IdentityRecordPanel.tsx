@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, Children, type CSSProperties, type ReactElement, type ReactNode } from 'react'
+import type { Route } from 'next'
 import Link from 'next/link'
 import {
   BADGE_PADDING_V,
@@ -247,7 +248,7 @@ function FieldRow<T>({
   )
 }
 
-function DerivedRow({ label, value, href }: { label: string; value: string | number; href?: string }): ReactElement {
+function DerivedRow({ label, value, href }: { label: string; value: string | number; href?: Route }): ReactElement {
   return (
     <div
       className="flex items-center justify-between"

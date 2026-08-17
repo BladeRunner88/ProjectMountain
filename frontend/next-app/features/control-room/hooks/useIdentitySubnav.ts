@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
+import type { Route } from 'next'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 export const IDENTITY_SUB_TABS = [
@@ -42,7 +43,10 @@ export function useIdentitySubnav(): IdentitySubnavValue {
         else params.delete('climberId')
       }
       const qs = params.toString()
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+      // `usePathname()` is a plain string, so typedRoutes cannot check this one
+      // statically — the cast is the documented escape hatch for non-literal hrefs.
+      const href = (qs ? `${pathname}?${qs}` : pathname) as Route
+      router.replace(href, { scroll: false })
     },
     [pathname, router, searchParams]
   )
