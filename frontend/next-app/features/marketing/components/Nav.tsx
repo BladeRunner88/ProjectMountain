@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import type { FocusEvent } from "react"
+import type { Route } from "next"
 import Link from "next/link"
 
 import { CloseIcon, MenuIcon } from "@/components/ui/icons"
@@ -12,7 +13,9 @@ type MenuKey = "product" | "company" | "resources"
 
 type LinkItem = {
   label: string
-  to?: string
+  /** Internal route rendered with `next/link` — type-checked against the app's routes. */
+  to?: Route
+  /** External or non-route URL rendered with a plain anchor. */
   href?: string
   disabled?: boolean
   note?: string

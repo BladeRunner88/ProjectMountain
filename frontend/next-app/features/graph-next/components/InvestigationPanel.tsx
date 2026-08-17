@@ -25,6 +25,7 @@
 // degrade rather than a second ticking clock.
 
 import { useEffect, useMemo, useSyncExternalStore, type CSSProperties, type ReactElement, type ReactNode } from 'react'
+import type { Route } from 'next'
 import Link from 'next/link'
 import { useClientNow } from '@/hooks/use-client'
 import { graphStore } from '../stores/graphStore'
@@ -111,7 +112,7 @@ function firstLastSeen(parentId: GraphId): { first: number | null; last: number 
   return { first, last }
 }
 
-function controlRoomHref(entity: DomainEntity | undefined): string {
+function controlRoomHref(entity: DomainEntity | undefined): Route {
   if (entity?.tier === 'climber') {
     const id = controlRoomClimberId(entity.id)
     return id ? `/app/control-room/identity?climberId=${id}` : '/app/control-room/identity'
@@ -477,7 +478,7 @@ function LabelsSection({ labels }: { labels: LabelChips }) {
   )
 }
 
-function ActionLink({ href, children }: { href: string; children: ReactNode }): ReactElement {
+function ActionLink({ href, children }: { href: Route; children: ReactNode }): ReactElement {
   return (
     <Link
       href={href}
@@ -489,7 +490,7 @@ function ActionLink({ href, children }: { href: string; children: ReactNode }): 
   )
 }
 
-function ActionsSection({ onFocus, controlRoomHref, caveat }: { onFocus: () => void; controlRoomHref: string; caveat?: string }): ReactElement {
+function ActionsSection({ onFocus, controlRoomHref, caveat }: { onFocus: () => void; controlRoomHref: Route; caveat?: string }): ReactElement {
   return (
     <div style={{ padding: SPACE_16 }}>
       <div className="flex" style={{ gap: SPACE_8 }}>

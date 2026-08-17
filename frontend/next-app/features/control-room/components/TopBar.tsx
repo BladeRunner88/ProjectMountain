@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type ReactElement } from 'react'
+import type { Route } from 'next'
 import Link from 'next/link'
 import {
   ACCENT_INDICATOR_WIDTH,
@@ -185,7 +186,7 @@ function TabButton({
   active,
   badge,
 }: {
-  href: string
+  href: Route
   label: string
   active: boolean
   badge?: number

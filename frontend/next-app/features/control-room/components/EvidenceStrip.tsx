@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type ReactElement } from 'react'
+import type { Route } from 'next'
 import Link from 'next/link'
 import {
   EVIDENCE_STRIP_HEIGHT,
@@ -29,7 +30,7 @@ import { tabHref } from '../types/tabs'
 import { useFocusRing } from '../hooks/useFocusRing'
 import { focusRingStyle } from '../services/focusRing'
 
-const OUTPUT_LINKS: { label: string; href: string }[] = [
+const OUTPUT_LINKS: { label: string; href: Route }[] = [
   { label: 'Connected graph', href: '/app/graph' },
   { label: 'Live dashboard', href: '/app/dashboard' },
   { label: 'Root-cause answers', href: tabHref('reasoning') },
@@ -128,7 +129,7 @@ export function EvidenceStrip({ sources }: { sources: SourceRuntime[] }): ReactE
   )
 }
 
-function OutputChip({ label, href }: { label: string; href: string }): ReactElement {
+function OutputChip({ label, href }: { label: string; href: Route }): ReactElement {
   const { focused, handlers } = useFocusRing()
   return (
     <Link

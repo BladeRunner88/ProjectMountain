@@ -78,9 +78,15 @@ export function FindingsPage(): ReactElement {
                   {flag.metricKey ? (
                     <button
                       type="button"
+                      // There is no `/app/control-room/reconciliation/[metricKey]`
+                      // route — there never was, in the Next port or the React
+                      // SPA before it, so this button 404'd silently until
+                      // typedRoutes caught it. Until that surface exists, send
+                      // the user to Model, the tab that owns facts and metrics,
+                      // carrying the same metric/entity context.
                       onClick={() =>
                         router.push(
-                          `/app/control-room/reconciliation/${flag.metricKey}?entity=${flag.entityId}&from=/app/control-room/findings`
+                          `/app/control-room/model?metric=${flag.metricKey}&entity=${flag.entityId}&from=/app/control-room/findings`
                         )
                       }
                       className="border border-ink px-3 py-1.5 text-[13px] font-medium text-ink transition-colors duration-fast ease-out hover:bg-ink hover:text-app"

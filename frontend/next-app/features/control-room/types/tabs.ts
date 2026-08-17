@@ -5,7 +5,14 @@ export { isTabId }
 
 export const CONTROL_ROOM_BASE = '/app/control-room'
 
-export function tabHref(id: TabId): string {
+/**
+ * Every Control Room tab URL, as a literal union. Narrower than next's `Route`
+ * on purpose: keeping the literal shape lets callers append a query string
+ * (`${tabHref('identity')}?sub=method`) and still satisfy typedRoutes.
+ */
+export type TabRoute = `${typeof CONTROL_ROOM_BASE}/${TabId}`
+
+export function tabHref(id: TabId): TabRoute {
   return `${CONTROL_ROOM_BASE}/${id}`
 }
 
@@ -20,7 +27,7 @@ export interface TabDef {
   hasBadge: boolean
   /** 1-9,0,- keyboard shortcut (S1d). */
   key: string
-  href: string
+  href: TabRoute
 }
 
 export const TABS: TabDef[] = [

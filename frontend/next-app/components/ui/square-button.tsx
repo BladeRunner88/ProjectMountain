@@ -1,4 +1,5 @@
 import type { MouseEventHandler, ReactNode } from "react"
+import type { Route } from "next"
 import Link from "next/link"
 
 import { cn } from "@/lib/cn"
@@ -15,7 +16,9 @@ const BASE =
 
 type SquareButtonProps = {
   tone?: Tone
-  to?: string
+  /** Internal route rendered with `next/link` — type-checked against the app's routes. */
+  to?: Route
+  /** External or non-route URL rendered with a plain anchor. */
   href?: string
   onClick?: MouseEventHandler<HTMLButtonElement>
   children: ReactNode

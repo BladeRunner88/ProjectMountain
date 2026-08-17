@@ -31,6 +31,7 @@ export {
   tabHref,
   type TabDef,
   type TabId,
+  type TabRoute,
   type Density,
   type CommandItem,
   type CommandKind,

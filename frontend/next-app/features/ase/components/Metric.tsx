@@ -29,6 +29,7 @@ import { meaningBand, meaningColor, type MeaningBand } from '../services/meaning
 import { useSelection } from '../hooks/useSelection'
 import { usePrefersReducedMotion } from '../hooks/useReducedMotion'
 import type { TracedValue } from '../services/traced'
+import type { TabId } from '../types/tabs'
 
 export interface MetricProps<T> {
   traced: TracedValue<T>
@@ -38,14 +39,15 @@ export interface MetricProps<T> {
   size?: 'display' | 'body'
   /**
    * S1f rule 3: "every number is two links" — click the number selects it,
-   * click the label navigates to the tab that owns it. Plain string (a
-   * Control Room URL segment), not the shell's TabId type — ase/ doesn't
-   * depend on components/controlRoom, that dependency only runs the other
-   * way. Omit it and the label stays invisible, exactly like before this
+   * click the label navigates to the tab that owns it. Typed as ase/'s own
+   * TabId (a Control Room URL segment) rather than a plain string, so
+   * typedRoutes can check the generated href — ase/ still doesn't depend on
+   * components/controlRoom, that dependency only runs the other way. Omit it
+   * and the label stays invisible, exactly like before this
    * block (most call sites, e.g. EvidenceTable rows, already show the claim
    * in context and don't need a second, redundant label).
    */
-  ownerTab?: string
+  ownerTab?: TabId
 }
 
 // The only legal path from a TracedValue to pixels. There is no sibling
