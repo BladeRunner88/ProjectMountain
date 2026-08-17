@@ -2,7 +2,7 @@
 
 import { useMutation, type UseMutationResult } from "@tanstack/react-query"
 
-import { queryKeys } from "@/api/query-keys"
+import { queryKeys } from "@/lib/query-keys"
 
 import { postAccessRequest } from "../services/access-request"
 import type {

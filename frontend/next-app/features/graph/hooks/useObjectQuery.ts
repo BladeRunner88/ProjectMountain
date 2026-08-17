@@ -2,7 +2,7 @@
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query"
 
-import { queryKeys } from "@/api/query-keys"
+import { queryKeys } from "@/lib/query-keys"
 
 import { getObject } from "../services/objects"
 import type { ObjectDetail } from "../types/graph"
