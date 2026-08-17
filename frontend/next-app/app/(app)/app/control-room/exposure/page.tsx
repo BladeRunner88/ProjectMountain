@@ -1,18 +1,13 @@
-"use client"
-
-import dynamic from "next/dynamic"
+import type { Metadata } from "next"
 import type { ReactElement } from "react"
 
-import { ControlRoomTabSkeleton } from "@/features/control-room/components/ControlRoomSkeleton"
+import { ExposureClient } from "./exposure-client"
 
-const Exposure = dynamic(
-  () =>
-    import("@/features/control-room/components/exposure/Exposure").then(
-      (m) => m.Exposure
-    ),
-  { ssr: false, loading: () => <ControlRoomTabSkeleton /> }
-)
+export const metadata: Metadata = {
+  title: "Exposure — Control Room — Isildur",
+  description: "What happens to what we know when a source fails.",
+}
 
 export default function ExposurePage(): ReactElement {
-  return <Exposure />
+  return <ExposureClient />
 }

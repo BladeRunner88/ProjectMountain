@@ -1,18 +1,14 @@
-"use client"
-
-import dynamic from "next/dynamic"
+import type { Metadata } from "next"
 import type { ReactElement } from "react"
 
-import { ControlRoomTabSkeleton } from "@/features/control-room/components/ControlRoomSkeleton"
+import { MeaningClient } from "./meaning-client"
 
-const Meaning = dynamic(
-  () =>
-    import("@/features/control-room/components/meaning/Meaning").then(
-      (m) => m.Meaning
-    ),
-  { ssr: false, loading: () => <ControlRoomTabSkeleton /> }
-)
+export const metadata: Metadata = {
+  title: "Meaning — Control Room — Isildur",
+  description:
+    "How raw numbers from your systems become statements about people and places.",
+}
 
 export default function MeaningPage(): ReactElement {
-  return <Meaning />
+  return <MeaningClient />
 }

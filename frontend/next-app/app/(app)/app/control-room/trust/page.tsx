@@ -1,16 +1,14 @@
-"use client"
-
-import dynamic from "next/dynamic"
+import type { Metadata } from "next"
 import type { ReactElement } from "react"
 
-import { ControlRoomTabSkeleton } from "@/features/control-room/components/ControlRoomSkeleton"
+import { TrustClient } from "./trust-client"
 
-const Trust = dynamic(
-  () =>
-    import("@/features/control-room/components/trust/Trust").then((m) => m.Trust),
-  { ssr: false, loading: () => <ControlRoomTabSkeleton /> }
-)
+export const metadata: Metadata = {
+  title: "Trust — Control Room — Isildur",
+  description:
+    "How it is built, how it is secured, how it is tested, and how it connects to everything else.",
+}
 
 export default function TrustPage(): ReactElement {
-  return <Trust />
+  return <TrustClient />
 }

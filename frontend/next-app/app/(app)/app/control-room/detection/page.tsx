@@ -1,18 +1,14 @@
-"use client"
-
-import dynamic from "next/dynamic"
+import type { Metadata } from "next"
 import type { ReactElement } from "react"
 
-import { ControlRoomTabSkeleton } from "@/features/control-room/components/ControlRoomSkeleton"
+import { DetectionClient } from "./detection-client"
 
-const Detection = dynamic(
-  () =>
-    import("@/features/control-room/components/detection").then(
-      (m) => m.Detection
-    ),
-  { ssr: false, loading: () => <ControlRoomTabSkeleton /> }
-)
+export const metadata: Metadata = {
+  title: "Detection — Control Room — Isildur",
+  description:
+    "What ASE is watching for, what is firing right now, and on whom.",
+}
 
 export default function DetectionPage(): ReactElement {
-  return <Detection />
+  return <DetectionClient />
 }

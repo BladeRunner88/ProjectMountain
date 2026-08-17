@@ -1,18 +1,14 @@
-"use client"
-
-import dynamic from "next/dynamic"
+import type { Metadata } from "next"
 import type { ReactElement } from "react"
 
-import { ControlRoomTabSkeleton } from "@/features/control-room/components/ControlRoomSkeleton"
+import { RevisionClient } from "./revision-client"
 
-const Revision = dynamic(
-  () =>
-    import("@/features/control-room/components/revision/Revision").then(
-      (m) => m.Revision
-    ),
-  { ssr: false, loading: () => <ControlRoomTabSkeleton /> }
-)
+export const metadata: Metadata = {
+  title: "Revision — Control Room — Isildur",
+  description:
+    "Everything waiting on a human, everything decided, and what each decision changed.",
+}
 
 export default function RevisionPage(): ReactElement {
-  return <Revision />
+  return <RevisionClient />
 }
