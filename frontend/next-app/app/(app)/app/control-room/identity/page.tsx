@@ -1,22 +1,14 @@
-"use client"
+import type { Metadata } from "next"
+import type { ReactElement } from "react"
 
-import dynamic from "next/dynamic"
-import { Suspense, type ReactElement } from "react"
+import { IdentityClient } from "./identity-client"
 
-import { ControlRoomTabSkeleton } from "@/features/control-room/components/ControlRoomSkeleton"
-
-const Identity = dynamic(
-  () =>
-    import("@/features/control-room/components/identity/Identity").then(
-      (m) => m.Identity
-    ),
-  { ssr: false, loading: () => <ControlRoomTabSkeleton /> }
-)
+export const metadata: Metadata = {
+  title: "Identity — Control Room — Isildur",
+  description:
+    "Every person ASE has resolved, who they are, and how it worked them out.",
+}
 
 export default function IdentityPage(): ReactElement {
-  return (
-    <Suspense fallback={<ControlRoomTabSkeleton />}>
-      <Identity />
-    </Suspense>
-  )
+  return <IdentityClient />
 }

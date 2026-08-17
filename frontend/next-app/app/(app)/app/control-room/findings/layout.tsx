@@ -1,6 +1,4 @@
-'use client'
-
-import type { ReactElement, ReactNode } from 'react'
+import type { ReactElement, ReactNode } from "react"
 
 /**
  * Old App.tsx mounted Findings as a sibling of Control Room (AppShell only).

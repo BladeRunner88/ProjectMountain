@@ -1,18 +1,14 @@
-"use client"
-
-import dynamic from "next/dynamic"
+import type { Metadata } from "next"
 import type { ReactElement } from "react"
 
-import { ControlRoomTabSkeleton } from "@/features/control-room/components/ControlRoomSkeleton"
+import { PredictionClient } from "./prediction-client"
 
-const Prediction = dynamic(
-  () =>
-    import("@/features/control-room/components/prediction").then(
-      (m) => m.Prediction
-    ),
-  { ssr: false, loading: () => <ControlRoomTabSkeleton /> }
-)
+export const metadata: Metadata = {
+  title: "Prediction — Control Room — Isildur",
+  description:
+    "How the mountain is changing this person, their body, their judgement, and what happens next.",
+}
 
 export default function PredictionPage(): ReactElement {
-  return <Prediction />
+  return <PredictionClient />
 }

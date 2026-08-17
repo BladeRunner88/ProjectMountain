@@ -1,16 +1,14 @@
-"use client"
-
-import dynamic from "next/dynamic"
+import type { Metadata } from "next"
 import type { ReactElement } from "react"
 
-import { ControlRoomTabSkeleton } from "@/features/control-room/components/ControlRoomSkeleton"
+import { OverviewClient } from "./overview-client"
 
-const Overview = dynamic(
-  () =>
-    import("@/features/control-room/components/Overview").then((m) => m.Overview),
-  { ssr: false, loading: () => <ControlRoomTabSkeleton /> }
-)
+export const metadata: Metadata = {
+  title: "Overview — Control Room — Isildur",
+  description:
+    "A single read on whether the pipeline is healthy and what ASE currently knows.",
+}
 
 export default function OverviewPage(): ReactElement {
-  return <Overview />
+  return <OverviewClient />
 }

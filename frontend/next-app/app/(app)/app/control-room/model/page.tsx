@@ -1,16 +1,14 @@
-"use client"
-
-import dynamic from "next/dynamic"
+import type { Metadata } from "next"
 import type { ReactElement } from "react"
 
-import { ControlRoomTabSkeleton } from "@/features/control-room/components/ControlRoomSkeleton"
+import { ModelClient } from "./model-client"
 
-const Model = dynamic(
-  () =>
-    import("@/features/control-room/components/model/Model").then((m) => m.Model),
-  { ssr: false, loading: () => <ControlRoomTabSkeleton /> }
-)
+export const metadata: Metadata = {
+  title: "Model — Control Room — Isildur",
+  description:
+    "What things exist in your world, what facts they carry, and how they connect.",
+}
 
 export default function ModelPage(): ReactElement {
-  return <Model />
+  return <ModelClient />
 }

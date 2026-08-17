@@ -1,18 +1,14 @@
-"use client"
-
-import dynamic from "next/dynamic"
+import type { Metadata } from "next"
 import type { ReactElement } from "react"
 
-import { ControlRoomTabSkeleton } from "@/features/control-room/components/ControlRoomSkeleton"
+import { ProcessingClient } from "./processing-client"
 
-const Processing = dynamic(
-  () =>
-    import("@/features/control-room/components/Processing").then(
-      (m) => m.Processing
-    ),
-  { ssr: false, loading: () => <ControlRoomTabSkeleton /> }
-)
+export const metadata: Metadata = {
+  title: "Processing — Control Room — Isildur",
+  description:
+    "Live throughput and health for every connected source, end to end.",
+}
 
 export default function ProcessingPage(): ReactElement {
-  return <Processing />
+  return <ProcessingClient />
 }

@@ -1,18 +1,14 @@
-"use client"
-
-import dynamic from "next/dynamic"
+import type { Metadata } from "next"
 import type { ReactElement } from "react"
 
-import { ControlRoomTabSkeleton } from "@/features/control-room/components/ControlRoomSkeleton"
+import { ReasoningClient } from "./reasoning-client"
 
-const Reasoning = dynamic(
-  () =>
-    import("@/features/control-room/components/reasoning").then(
-      (m) => m.Reasoning
-    ),
-  { ssr: false, loading: () => <ControlRoomTabSkeleton /> }
-)
+export const metadata: Metadata = {
+  title: "Reasoning — Control Room — Isildur",
+  description:
+    "How ASE traces a problem back across every system to find why, and what it ruled out.",
+}
 
 export default function ReasoningPage(): ReactElement {
-  return <Reasoning />
+  return <ReasoningClient />
 }
