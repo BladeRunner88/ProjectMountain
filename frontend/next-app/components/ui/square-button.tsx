@@ -1,7 +1,19 @@
-import type { MouseEventHandler, ReactNode } from "react"
+import type { MouseEventHandler, ReactElement, ReactNode } from "react"
 import Link from "next/link"
 
 import { cn } from "@/lib/cn"
+
+/**
+ * An href is internal — and so must go through `next/link` for client-side
+ * navigation — only when it is a router-resolvable path: "/about", "/#ase",
+ * "#top", "?q=1". Everything else leaves the router (absolute http(s) URLs,
+ * protocol-relative "//host/x", and schemes like mailto:/tel:/sms:) and must
+ * render a plain `<a>`.
+ */
+export function isExternalHref(href: string): boolean {
+  if (href.startsWith("//")) return true
+  return !/^[/#?]/.test(href)
+}
 
 type Tone = "light" | "dark"
 
@@ -15,7 +27,6 @@ const BASE =
 
 type SquareButtonProps = {
   tone?: Tone
-  to?: string
   href?: string
   onClick?: MouseEventHandler<HTMLButtonElement>
   children: ReactNode
@@ -28,7 +39,6 @@ type SquareButtonProps = {
 
 export function SquareButton({
   tone = "light",
-  to,
   href,
   onClick,
   children,
@@ -37,7 +47,7 @@ export function SquareButton({
   disabled,
   as,
   "aria-label": ariaLabel,
-}: SquareButtonProps) {
+}: SquareButtonProps): ReactElement {
   const classes = cn(BASE, TONE_CLASSES[tone], className)
 
   if (as === "span") {
@@ -47,18 +57,18 @@ export function SquareButton({
       </span>
     )
   }
-  if (to) {
+  if (href) {
+    if (isExternalHref(href)) {
+      return (
+        <a href={href} className={classes} aria-label={ariaLabel}>
+          {children}
+        </a>
+      )
+    }
     return (
-      <Link href={to} className={classes} aria-label={ariaLabel}>
+      <Link href={href} className={classes} aria-label={ariaLabel}>
         {children}
       </Link>
-    )
-  }
-  if (href) {
-    return (
-      <a href={href} className={classes} aria-label={ariaLabel}>
-        {children}
-      </a>
     )
   }
   return (

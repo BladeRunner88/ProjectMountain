@@ -30,7 +30,7 @@ export function Confirmation({
       </div>
 
       <div className="mt-16">
-        <SquareButton tone="light" to="/demo/enter">
+        <SquareButton tone="light" href="/demo/enter">
           Enter demo workspace
         </SquareButton>
       </div>

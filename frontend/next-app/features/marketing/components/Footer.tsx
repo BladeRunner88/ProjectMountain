@@ -6,7 +6,7 @@ export function Footer() {
       <div className="mx-auto flex max-w-5xl flex-col items-center px-6 text-center md:px-10">
         <span className="text-[17px] font-semibold text-ink">Isildur</span>
         <div className="mt-8">
-          <SquareButton tone="light" to="/request-access">
+          <SquareButton tone="light" href="/request-access">
             Request access
           </SquareButton>
         </div>
