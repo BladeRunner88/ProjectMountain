@@ -373,7 +373,7 @@ Or, after grant, user can go directly to `/app/graph`.
 
 ```
 Open /app/graph
-  → fullGraph() N+1 fetch
+  → GET /graph (objects + links in one request)
   → Force layout of gaming objects
 Click node / Search then Enter
   → GET /objects/{id}
@@ -869,9 +869,12 @@ N/A — no third-party calls. Access submit network failure: “Could not reach 
 - Frontend API types still say `Person | Organization | Location`.
 - Findings “View in graph” does not open a graph.
 
-### 13.8 N+1 graph load
+### 13.8 Graph load
 
-`fullGraph()` may request thousands of object-detail calls (every transaction is an object). **Reasonable inference:** this can hang or stall the Graph page on a full pipeline run. There is no pagination.
+**Resolved.** `fullGraph()` previously issued one `/objects/{id}` call per object to discover
+edges — thousands of requests that exhausted the browser's connection pool and stalled the Graph
+page. `GET /graph` now returns every object and link in one response (two DuckDB queries), and the
+client makes exactly one request. There is still no pagination: the whole graph is sent at once.
 
 ---
 
@@ -895,7 +898,7 @@ See §4. Object-level ACL does not exist. Simulated roles are cosmetic/safety-UX
 ### 14.3 Performance
 
 - Backend search loads **all** objects and links into Python, then filters (fine for this synthetic size; not a scalable design).
-- Frontend Graph N+1 fetch is the main risk.
+- Graph sends the whole graph in one response; there is no pagination.
 - Control Room confidence folds are memoised per (id, asOf) in-process.
 - Graph-next uses canvas/rAF and error boundaries so a panel crash should not kill the canvas.
 - Trust tab cites performance budgets (e.g. fold latency, WS p99 340ms) as **dataset copy**, not measurements of `api.py`.
@@ -969,7 +972,7 @@ Landing promises RBAC, full audit of every access, deploy in cloud/on-prem/air-g
 
 ### 15.5 Technical debt / risks
 
-- Graph `fullGraph()` N+1.
+- Graph has no pagination — `GET /graph` returns all ~18k objects and ~44k links in one payload.
 - `rapidfuzz` unused.
 - Object provenance map sets every property’s source to the object id (comment admits this is simplified).
 - `/stats` “entities in only one source” is a heuristic (no affiliate numeric match and no CRM email), not a general uniqueness proof.

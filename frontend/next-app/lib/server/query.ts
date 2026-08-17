@@ -37,8 +37,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * The backend returns bare JSON today, but `lib/axios.ts` also understands a
- * `{ success, data }` envelope. Mirror that so both transports agree on shape.
+ * The backend returns bare JSON. Older builds wrapped responses in a
+ * `{ success, data }` envelope, so tolerate that shape rather than failing
+ * against a stale deployment.
  */
 function unwrapEnvelope(body: unknown): unknown {
   if (!isRecord(body)) return body
@@ -180,13 +181,14 @@ export function createServerQueryClient(): QueryClient {
 }
 
 /**
- * Warm the graph route: the `/objects` list that gates first paint, plus the
- * detail for `focusId` when the URL deep-links to a node (that is the one
- * detail rendered immediately, by `SidePanel`).
+ * Warm the graph route with the detail for `focusId` when the URL deep-links to
+ * a node — that is the one panel rendered immediately, by `SidePanel`.
  *
- * Deliberately NOT every object's detail — `/objects` returns ~18k rows, so
- * fanning out a detail request per object would mean ~18k server round-trips
- * per page view. `useFullGraphQuery` keeps fetching those from the client.
+ * Deliberately NOT the graph itself. `/graph` returns ~18k objects and ~44k
+ * links; dehydrating that into the HTML produced a ~3MB document that the
+ * client then had to parse and rebuild, which stalled hydration and left the
+ * view stuck in its Suspense fallback. The client fetches it in one request
+ * instead (see `useFullGraphQuery`).
  *
  * `prefetchQuery` never rejects, so a failed prefetch simply leaves the key out
  * of the dehydrated state and the client hook fetches it as before.
@@ -195,12 +197,8 @@ export async function prefetchGraph(
   client: QueryClient,
   focusId?: string
 ): Promise<void> {
-  await Promise.all([
-    client.prefetchQuery(objectsQueryOptions()),
-    focusId
-      ? client.prefetchQuery(objectDetailQueryOptions(focusId))
-      : Promise.resolve(),
-  ])
+  if (!focusId) return
+  await client.prefetchQuery(objectDetailQueryOptions(focusId))
 }
 
 /**

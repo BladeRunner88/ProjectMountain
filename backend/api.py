@@ -418,6 +418,36 @@ def list_objects(type: Optional[str] = Query(default=None)):
     return [{"id": oid, "type": otype, **json.loads(props)} for oid, otype, props in rows]
 
 
+@app.get("/graph")
+def get_graph(type: Optional[str] = Query(default=None)):
+    """Whole graph in one round trip.
+
+    The graph view previously rebuilt this client-side by calling
+    /objects/{id} once per object, which is an N+1 that exhausts the browser's
+    connection pool on a graph this size. Two queries here replace it.
+    """
+    con = get_con()
+    if type:
+        object_rows = con.sql(
+            "SELECT id, type, properties_json FROM graph.objects WHERE type = ?", params=[type]
+        ).fetchall()
+    else:
+        object_rows = con.sql("SELECT id, type, properties_json FROM graph.objects").fetchall()
+    link_rows = con.sql("SELECT source_id, target_id, rel_type FROM graph.links").fetchall()
+    con.close()
+
+    objects = [{"id": oid, "type": otype, **json.loads(props)} for oid, otype, props in object_rows]
+    # When filtering by type, keep only links whose endpoints both survived the
+    # filter — a dangling edge would point at a node the client never received.
+    ids = {obj["id"] for obj in objects}
+    links = [
+        {"source": source, "target": target, "rel_type": rel}
+        for source, target, rel in link_rows
+        if source in ids and target in ids
+    ]
+    return {"objects": objects, "links": links}
+
+
 @app.get("/objects/{object_id}")
 def get_object(object_id: str):
     con = get_con()

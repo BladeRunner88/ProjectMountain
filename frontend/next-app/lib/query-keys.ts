@@ -3,6 +3,9 @@ export const queryKeys = {
     all: ["objects"] as const,
     detail: (id: string): readonly ["objects", string] => ["objects", id],
   },
+  graph: {
+    all: ["graph"] as const,
+  },
   search: {
     q: (query: string): readonly ["search", string] => ["search", query],
   },

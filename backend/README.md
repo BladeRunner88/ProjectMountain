@@ -34,6 +34,7 @@ GET /correlate?at=&window=     everything from every source in a time window
 GET /sources                   vendor systems: owner, format, counts, field mappings
 GET /objects?type=
 GET /objects/{id}               properties, connections, raw records, provenance
+GET /graph?type=                every object and link in one response, for the graph view
 GET /search?q=
 GET /stats                     pipeline and normalization metrics
 GET /lineage/{id}

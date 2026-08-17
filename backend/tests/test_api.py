@@ -254,6 +254,48 @@ def test_get_object_404():
     assert client.get("/objects/does-not-exist").status_code == 404
 
 
+# --- GET /graph -----------------------------------------------------------
+
+
+def test_graph_returns_objects_and_links():
+    r = client.get("/graph")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["objects"]
+    assert body["links"]
+    assert all("id" in o and "type" in o for o in body["objects"])
+    assert all(
+        set(link) == {"source", "target", "rel_type"} for link in body["links"]
+    )
+
+
+def test_graph_matches_the_objects_listing():
+    graph = client.get("/graph").json()
+    listed = client.get("/objects").json()
+    assert {o["id"] for o in graph["objects"]} == {o["id"] for o in listed}
+
+
+def test_graph_links_only_reference_returned_objects():
+    graph = client.get("/graph").json()
+    ids = {o["id"] for o in graph["objects"]}
+    assert all(
+        link["source"] in ids and link["target"] in ids for link in graph["links"]
+    )
+
+
+def test_graph_filtered_by_type_drops_dangling_links():
+    otype = client.get("/objects").json()[0]["type"]
+    graph = client.get("/graph", params={"type": otype}).json()
+    ids = {o["id"] for o in graph["objects"]}
+    assert ids
+    assert {o["type"] for o in graph["objects"]} == {otype}
+    # Edges to filtered-out nodes must not survive, or the client would render
+    # links pointing at nodes it never received.
+    assert all(
+        link["source"] in ids and link["target"] in ids for link in graph["links"]
+    )
+
+
 # --- GET /search -----------------------------------------------------------
 
 

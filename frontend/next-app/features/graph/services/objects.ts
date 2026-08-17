@@ -4,6 +4,7 @@ import { apiGet, ApiError, isAccessRequiredError } from "@/lib/axios"
 
 import type {
   Connection,
+  FullGraphData,
   GraphLink,
   GraphObject,
   ObjectDetail,
@@ -104,6 +105,46 @@ export async function getObjects(
     throw new ApiError(0, "Unexpected objects list response")
   }
   return data.map(parseGraphObject)
+}
+
+function parseGraphLink(value: unknown): GraphLink {
+  if (
+    !isRecord(value) ||
+    typeof value.source !== "string" ||
+    typeof value.target !== "string" ||
+    typeof value.rel_type !== "string"
+  ) {
+    throw new ApiError(0, "Unexpected link in graph response")
+  }
+  return {
+    source: value.source,
+    target: value.target,
+    rel_type: value.rel_type,
+  }
+}
+
+/**
+ * Objects and links in a single request. Replaces the old approach of listing
+ * objects and then fetching every object's detail to discover its edges, which
+ * issued one request per node and exhausted the browser's connection pool.
+ */
+export async function getFullGraph(
+  type?: string,
+  config?: AxiosRequestConfig
+): Promise<FullGraphData> {
+  const path = type ? `/graph?type=${encodeURIComponent(type)}` : "/graph"
+  const data = await apiGet<unknown>(path, config)
+  if (
+    !isRecord(data) ||
+    !Array.isArray(data.objects) ||
+    !Array.isArray(data.links)
+  ) {
+    throw new ApiError(0, "Unexpected graph response")
+  }
+  return {
+    objects: data.objects.map(parseGraphObject),
+    links: data.links.map(parseGraphLink),
+  }
 }
 
 export async function getObject(

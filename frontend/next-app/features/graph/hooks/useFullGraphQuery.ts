@@ -1,29 +1,25 @@
 "use client"
 
-import { useQueries, type UseQueryOptions } from "@tanstack/react-query"
+import { useQuery, type UseQueryOptions } from "@tanstack/react-query"
 
 import { queryKeys } from "@/lib/query-keys"
 
-import { getObject, linksFromDetails } from "../services/objects"
-import type { FullGraphData, ObjectDetail } from "../types/graph"
-import { useObjectsQuery } from "./useObjectsQuery"
+import { getFullGraph } from "../services/objects"
+import type { FullGraphData } from "../types/graph"
 
 /**
- * Shared shape for a single object-detail query. The key comes from
- * `queryKeys` so it cannot drift from the server prefetch in
- * `lib/server/query.ts`.
+ * Shared shape for the whole-graph query. The key comes from `queryKeys` so it
+ * cannot drift from the server prefetch in `lib/server/query.ts`.
  */
-export function objectDetailQueryOptions(
-  id: string
-): UseQueryOptions<
-  ObjectDetail,
+export function fullGraphQueryOptions(): UseQueryOptions<
+  FullGraphData,
   Error,
-  ObjectDetail,
-  readonly ["objects", string]
+  FullGraphData,
+  readonly ["graph"]
 > {
   return {
-    queryKey: queryKeys.objects.detail(id),
-    queryFn: ({ signal }) => getObject(id, { signal }),
+    queryKey: queryKeys.graph.all,
+    queryFn: ({ signal }) => getFullGraph(undefined, { signal }),
   }
 }
 
@@ -34,46 +30,15 @@ export function useFullGraphQuery(): {
   error: Error | null
   refetch: () => void
 } {
-  const objectsQuery = useObjectsQuery()
-  const objects = objectsQuery.data ?? []
-
-  const detailQueries = useQueries({
-    queries: objects.map((object) => ({
-      ...objectDetailQueryOptions(object.id),
-      enabled: objectsQuery.isSuccess,
-    })),
-  })
-
-  const firstDetailError =
-    detailQueries.find((query) => query.error)?.error ?? null
-  const detailsReady =
-    objectsQuery.isSuccess &&
-    (objects.length === 0 ||
-      (detailQueries.length === objects.length &&
-        detailQueries.every((query) => query.isSuccess && query.data)))
-  const detailsPending =
-    objectsQuery.isSuccess &&
-    objects.length > 0 &&
-    detailQueries.some((query) => query.isPending)
-
-  const details = detailsReady
-    ? detailQueries.flatMap((query) => (query.data ? [query.data] : []))
-    : []
-
-  const refetch = (): void => {
-    void objectsQuery.refetch()
-    for (const query of detailQueries) {
-      void query.refetch()
-    }
-  }
+  const query = useQuery(fullGraphQueryOptions())
 
   return {
-    data: detailsReady
-      ? { objects, links: linksFromDetails(details) }
-      : undefined,
-    isPending: objectsQuery.isPending || detailsPending,
-    isError: objectsQuery.isError || firstDetailError !== null,
-    error: objectsQuery.error ?? firstDetailError,
-    refetch,
+    data: query.data,
+    isPending: query.isPending,
+    isError: query.isError,
+    error: query.error,
+    refetch: (): void => {
+      void query.refetch()
+    },
   }
 }
