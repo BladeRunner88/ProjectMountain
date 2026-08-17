@@ -1,12 +1,31 @@
 "use client"
 
-import { useQueries } from "@tanstack/react-query"
+import { useQueries, type UseQueryOptions } from "@tanstack/react-query"
 
 import { queryKeys } from "@/api/query-keys"
 
 import { getObject, linksFromDetails } from "../services/objects"
-import type { FullGraphData } from "../types/graph"
+import type { FullGraphData, ObjectDetail } from "../types/graph"
 import { useObjectsQuery } from "./useObjectsQuery"
+
+/**
+ * Shared shape for a single object-detail query. The key comes from
+ * `queryKeys` so it cannot drift from the server prefetch in
+ * `lib/server/query.ts`.
+ */
+export function objectDetailQueryOptions(
+  id: string
+): UseQueryOptions<
+  ObjectDetail,
+  Error,
+  ObjectDetail,
+  readonly ["objects", string]
+> {
+  return {
+    queryKey: queryKeys.objects.detail(id),
+    queryFn: ({ signal }) => getObject(id, { signal }),
+  }
+}
 
 export function useFullGraphQuery(): {
   data: FullGraphData | undefined
@@ -20,9 +39,7 @@ export function useFullGraphQuery(): {
 
   const detailQueries = useQueries({
     queries: objects.map((object) => ({
-      queryKey: queryKeys.objects.detail(object.id),
-      queryFn: ({ signal }: { signal: AbortSignal }) =>
-        getObject(object.id, { signal }),
+      ...objectDetailQueryOptions(object.id),
       enabled: objectsQuery.isSuccess,
     })),
   })
@@ -51,7 +68,9 @@ export function useFullGraphQuery(): {
   }
 
   return {
-    data: detailsReady ? { objects, links: linksFromDetails(details) } : undefined,
+    data: detailsReady
+      ? { objects, links: linksFromDetails(details) }
+      : undefined,
     isPending: objectsQuery.isPending || detailsPending,
     isError: objectsQuery.isError || firstDetailError !== null,
     error: objectsQuery.error ?? firstDetailError,
