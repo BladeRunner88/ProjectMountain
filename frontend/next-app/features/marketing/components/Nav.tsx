@@ -1,18 +1,17 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import type { FocusEvent } from "react"
+import type { FocusEvent, ReactElement } from "react"
 import Link from "next/link"
 
 import { CloseIcon, MenuIcon } from "@/components/ui/icons"
-import { SquareButton } from "@/components/ui/square-button"
+import { isExternalHref, SquareButton } from "@/components/ui/square-button"
 import { cn } from "@/lib/cn"
 
 type MenuKey = "product" | "company" | "resources"
 
 type LinkItem = {
   label: string
-  to?: string
   href?: string
   disabled?: boolean
   note?: string
@@ -44,8 +43,8 @@ const MENUS: Menu[] = [
       {
         heading: "Get started",
         links: [
-          { label: "Request a demo", to: "/request-access" },
-          { label: "How it works", to: "/how-it-works" },
+          { label: "Request a demo", href: "/request-access" },
+          { label: "How it works", href: "/how-it-works" },
         ],
       },
     ],
@@ -57,9 +56,9 @@ const MENUS: Menu[] = [
       {
         heading: "Company",
         links: [
-          { label: "About", to: "/about" },
+          { label: "About", href: "/about" },
           { label: "Transforming lives", href: "/#transforming-lives" },
-          { label: "Contact", to: "/contact" },
+          { label: "Contact", href: "/contact" },
         ],
       },
     ],
@@ -71,8 +70,8 @@ const MENUS: Menu[] = [
       {
         heading: "Resources",
         links: [
-          { label: "How it works", to: "/how-it-works" },
-          { label: "Documentation", to: "/documentation" },
+          { label: "How it works", href: "/how-it-works" },
+          { label: "Documentation", href: "/documentation" },
         ],
       },
     ],
@@ -85,7 +84,7 @@ function MenuLink({
 }: {
   item: LinkItem
   onSelect: () => void
-}) {
+}): ReactElement | null {
   if (item.disabled) {
     return (
       <div className="flex items-baseline gap-2 py-1.5 text-[17px] text-ink-faint">
@@ -105,18 +104,18 @@ function MenuLink({
     </>
   )
 
-  if (item.to) {
+  if (item.href) {
+    if (isExternalHref(item.href)) {
+      return (
+        <a href={item.href} onClick={onSelect} className={className}>
+          {content}
+        </a>
+      )
+    }
     return (
-      <Link href={item.to} onClick={onSelect} className={className}>
+      <Link href={item.href} onClick={onSelect} className={className}>
         {content}
       </Link>
-    )
-  }
-  if (item.href) {
-    return (
-      <a href={item.href} onClick={onSelect} className={className}>
-        {content}
-      </a>
     )
   }
   return null
@@ -177,7 +176,7 @@ function MobileMenu({ onClose }: { onClose: () => void }) {
         ))}
 
         <div className="mt-4" onClick={onClose}>
-          <SquareButton tone="light" to="/request-access" className="w-full">
+          <SquareButton tone="light" href="/request-access" className="w-full">
             Get Started
           </SquareButton>
         </div>
@@ -283,7 +282,7 @@ export function Nav() {
           </nav>
 
           <div className="hidden md:block">
-            <SquareButton tone="light" to="/request-access">
+            <SquareButton tone="light" href="/request-access">
               Get Started
             </SquareButton>
           </div>

@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import type { ReactElement } from "react"
+import Image from "next/image"
 
 import { SquareButton } from "@/components/ui/square-button"
 import { cn } from "@/lib/cn"
@@ -75,19 +77,24 @@ function ArrowIcon({ direction }: { direction: "left" | "right" }) {
   )
 }
 
-function ShowcaseVisual({ tab }: { tab: Tab }) {
+function ShowcaseVisual({ tab }: { tab: Tab }): ReactElement {
   const [failed, setFailed] = useState(false)
 
   if (failed) {
     return <div className="h-full w-full bg-white/[0.03]" />
   }
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- optional local assets; onError fallback
-    <img
+    // `fill` needs no intrinsic dimensions, which suits these optional assets.
+    // The wrapper is `relative` and sizes itself (`aspect-[16/10]` on mobile,
+    // grid stretch against the text column from `md` up), so the image is
+    // absolutely positioned inside an already-sized box and never shifts layout.
+    <Image
       src={tab.image}
       alt={`${tab.label} product screenshot`}
+      fill
+      sizes="(min-width: 768px) 66vw, 100vw"
       onError={() => setFailed(true)}
-      className="h-full w-full object-cover"
+      className="object-cover"
     />
   )
 }
@@ -153,7 +160,7 @@ export function ShowcasePanel() {
             <p className="text-[15px] leading-[1.6] text-ink-on-canvas-soft">
               {tab.description}
             </p>
-            <SquareButton tone="dark" to="/how-it-works" className="w-fit">
+            <SquareButton tone="dark" href="/how-it-works" className="w-fit">
               Learn more
             </SquareButton>
           </div>
