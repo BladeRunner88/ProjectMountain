@@ -24,6 +24,7 @@ on them — they're the shared domain model, not a pipeline-only concern.
 `api.py` is a read-only FastAPI layer over the DuckDB tables the pipeline produces:
 
 ```
+GET /check                     liveness ping: {"status": "ok"}, opens no database
 GET /health                    entity/relationship/source/event counts, sync success rate
 GET /connectors                each vendor system: status, last sync, records, errors
 GET /findings                  computed operational findings
@@ -36,6 +37,31 @@ GET /objects/{id}               properties, connections, raw records, provenance
 GET /search?q=
 GET /stats                     pipeline and normalization metrics
 GET /lineage/{id}
+
+POST /access-requests           onboarding form submission, appended to access_requests.jsonl
+```
+
+`/check` and `/health` are deliberately different: `/check` is liveness — it opens no
+DuckDB connection, so it answers even while the database is being rebuilt — and `/health`
+is readiness, opening the database and returning real counts (it fails loudly if the
+pipeline has not been run).
+
+Everything except `POST /access-requests` is read-only; the API only ever opens the
+database with `duckdb.connect(..., read_only=True)`, so concurrent readers are safe.
+
+### Configuration
+
+| Env var | Default | Does |
+|---|---|---|
+| `ISILDUR_CORS_ORIGINS` | `http://localhost:3000` | Comma-separated browser-origin allowlist. |
+| `ISILDUR_DB_PATH` | `./isildur.duckdb` | Path to the DuckDB file to serve. |
+
+CORS is an explicit allowlist with `allow_credentials=True` rather than `allow_origins=["*"]`:
+the frontend axios client sends `withCredentials`, and browsers reject a wildcard origin on
+credentialed requests. Point it at whatever port the frontend runs on:
+
+```bash
+ISILDUR_CORS_ORIGINS=http://localhost:3000,http://localhost:3001 .venv/bin/uvicorn api:app --port 8010
 ```
 
 ## Setup
@@ -50,6 +76,20 @@ python3 -m venv .venv
 .venv/bin/python pipeline/findings.py
 
 .venv/bin/uvicorn api:app --port 8010
+```
+
+## Tests
+
+`tests/test_api.py` covers every route — happy path plus the 404 path for the `{id}`-style
+routes — plus the CORS allowlist. It runs against the real `isildur.duckdb` read-only, so
+it is safe to run while a dev server is up, and it skips itself if the database has not
+been built yet.
+
+```bash
+.venv/bin/pytest tests/ -v
+
+# or against a database somewhere else
+ISILDUR_DB_PATH=/path/to/isildur.duckdb .venv/bin/pytest tests/ -v
 ```
 
 `isildur.duckdb` and `data/raw/*` are generated artifacts and are gitignored — regenerate

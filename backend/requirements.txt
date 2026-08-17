@@ -3,3 +3,5 @@ rapidfuzz
 fastapi
 uvicorn[standard]
 openpyxl
+pytest
+httpx
