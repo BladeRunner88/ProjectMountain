@@ -52,7 +52,7 @@ function App() {
       <Route path="/documentation" element={<Documentation />} />
       <Route element={<RequireAccess />}>
         <Route path="/app" element={<AppShell />}>
-          <Route index element={<Navigate to="graph" replace />} />
+          <Route index element={<Navigate to="graph-next" replace />} />
           <Route path="graph" element={<Graph />} />
           <Route path="graph-next" element={<GraphNext />} />
           <Route path="search" element={<Search />} />

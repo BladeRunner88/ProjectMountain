@@ -1,58 +1,53 @@
 import { describe, expect, it } from 'vitest'
-import { computeQuadraticCurve, quadraticPointAt, taperedRibbonPoints } from './edgeGeometry'
+import { crossCurve, parentChildCurve, quadraticPointAt, siblingCurve } from './edgeGeometry'
 
-describe('computeQuadraticCurve (S8.5)', () => {
-  it('bows the control point perpendicular to the chord by 8-18% of its length', () => {
-    const a = { x: 0, y: 0 }
-    const b = { x: 100, y: 0 }
-    const c = computeQuadraticCurve('edge-1', a, b)
-    // midpoint of the chord is (50,0); the control point's distance from
-    // that midpoint, along the perpendicular (y-axis here), is the bow
-    const bow = Math.abs(c.cy - 0)
-    expect(bow).toBeGreaterThanOrEqual(100 * 0.08 - 1e-6)
-    expect(bow).toBeLessThanOrEqual(100 * 0.18 + 1e-6)
-    // control point stays near the chord's midpoint on the x-axis
-    expect(c.cx).toBeCloseTo(50, 0)
+const A = { x: 0, y: 0 }
+const B = { x: 100, y: 0 }
+
+function bowMagnitude(curve: ReturnType<typeof parentChildCurve>): number {
+  const mid = quadraticPointAt(curve, 0.5)
+  const chordMidX = (curve.x1 + curve.x2) / 2
+  const chordMidY = (curve.y1 + curve.y2) / 2
+  return Math.hypot(mid.x - chordMidX, mid.y - chordMidY)
+}
+
+describe('edge curves — never straight', () => {
+  it('parent-child, sibling, and cross curves all bow away from the straight chord', () => {
+    expect(bowMagnitude(parentChildCurve('e1', A, B))).toBeGreaterThan(0)
+    expect(bowMagnitude(siblingCurve('e1', A, B))).toBeGreaterThan(0)
+    expect(bowMagnitude(crossCurve('e1', A, B))).toBeGreaterThan(0)
   })
 
-  it('is deterministic per edge key: the same key and endpoints always bow the same way', () => {
-    const a = { x: 10, y: 20 }
-    const b = { x: 210, y: 220 }
-    const c1 = computeQuadraticCurve('edge-x', a, b)
-    const c2 = computeQuadraticCurve('edge-x', a, b)
+  it('cross curves bow noticeably WIDER than parent-child, which bows wider than sibling', () => {
+    const chordLength = 100
+    const crossBow = bowMagnitude(crossCurve('same-key', A, B))
+    const parentBow = bowMagnitude(parentChildCurve('same-key', A, B))
+    const siblingBow = bowMagnitude(siblingCurve('same-key', A, B))
+    expect(crossBow).toBeGreaterThan(parentBow)
+    expect(parentBow).toBeGreaterThan(siblingBow)
+    // sanity: none of them are absurd relative to the chord itself
+    expect(crossBow).toBeLessThan(chordLength)
+  })
+
+  it('is deterministic: the same edge key always bows the same way', () => {
+    const c1 = parentChildCurve('climber:climber-7', A, B)
+    const c2 = parentChildCurve('climber:climber-7', A, B)
     expect(c1).toEqual(c2)
   })
 
-  it('different edge keys can bow to different sides (not every edge curves the same direction)', () => {
-    const a = { x: 0, y: 0 }
-    const b = { x: 100, y: 0 }
+  it('different edge keys can bow to different sides (not all the same direction)', () => {
     const sides = new Set<number>()
     for (let i = 0; i < 20; i++) {
-      const c = computeQuadraticCurve(`edge-${i}`, a, b)
-      sides.add(Math.sign(c.cy))
+      const c = parentChildCurve(`edge-${i}`, A, B)
+      const mid = quadraticPointAt(c, 0.5)
+      sides.add(Math.sign(Math.round(mid.y * 100)))
     }
     expect(sides.size).toBeGreaterThan(1)
   })
 
-  it('quadraticPointAt(0) is the start point and quadraticPointAt(1) is the end point', () => {
-    const a = { x: 5, y: 7 }
-    const b = { x: 95, y: 55 }
-    const c = computeQuadraticCurve('edge-2', a, b)
-    expect(quadraticPointAt(c, 0)).toEqual(a)
-    expect(quadraticPointAt(c, 1)).toEqual(b)
-  })
-})
-
-describe('taperedRibbonPoints (S8.5)', () => {
-  it('returns a closed polygon (2*(segments+1) points) with every coordinate finite', () => {
-    const a = { x: 0, y: 0 }
-    const b = { x: 40, y: 30 }
-    const c = computeQuadraticCurve('edge-3', a, b)
-    const poly = taperedRibbonPoints(c, 0.6, 0.2, 4)
-    expect(poly).toHaveLength(2 * 5)
-    for (const p of poly) {
-      expect(Number.isFinite(p.x)).toBe(true)
-      expect(Number.isFinite(p.y)).toBe(true)
-    }
+  it('quadraticPointAt(0) and (1) land exactly on the endpoints', () => {
+    const c = parentChildCurve('e', A, B)
+    expect(quadraticPointAt(c, 0)).toEqual(A)
+    expect(quadraticPointAt(c, 1)).toEqual(B)
   })
 })

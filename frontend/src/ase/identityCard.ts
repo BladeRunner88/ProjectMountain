@@ -62,8 +62,12 @@ const ACCLIMATISATION = [
   'Acclimatisation behind schedule — held an extra rotation at Camp I.',
 ]
 const FIX_SOURCES = ['GPS tracker', 'Satellite beacon', 'Manual check-in']
-const MOVEMENT_CAMPS = ['Base Camp', 'Camp I', 'Camp II', 'Camp III', 'Camp IV', 'Summit']
-const MOVEMENT_ALTITUDES_M = [5364, 5943, 6400, 7162, 7900, 8849]
+// Exported (8.13.2): Strata's layer stack is generated from this SAME real
+// array — the one place the expedition's camp/altitude sequence exists —
+// rather than a second, hand-typed copy that could silently drift from
+// what each climber's own trail actually walks.
+export const MOVEMENT_CAMPS = ['Base Camp', 'Camp I', 'Camp II', 'Camp III', 'Camp IV', 'Summit']
+export const MOVEMENT_ALTITUDES_M = [5364, 5943, 6400, 7162, 7900, 8849]
 
 export interface Associate {
   id: string

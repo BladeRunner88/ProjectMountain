@@ -1,0 +1,401 @@
+/* Graph interaction states — hover/focus pseudo-classes, which plain inline
+   styles can't express. Kept separate from tokens.css (that file is
+   definitions only); every value here still references a token via var(),
+   so scripts/check-graph-tokens.mjs scans this file normally and finds
+   nothing to flag. */
+
+/* "I should be able to move the map when I hold on it" — the Strata canvas
+   was already pointer-drag pannable; the real gap was that there was no
+   visual sign a hold-and-drag does anything. `:active` (native, needs no
+   JS drag-state) shows the "hand closed" cursor for exactly as long as the
+   mouse is actually held down. Individual nodes/leaves set their own
+   inline `cursor: pointer` (they're clickable, not draggable), which
+   correctly wins over this on the exact pixels they cover. */
+.graph-strata-canvas-draggable {
+  cursor: grab;
+}
+.graph-strata-canvas-draggable:active {
+  cursor: grabbing;
+}
+
+/* "when I select the left hand side thing it should hover with a black
+   inversed button" — every row in the Country/Status/Region/Route/
+   Expedition/Climber drill-down browsers (DrillNav.tsx), same treatment
+   throughout. `!important` is deliberate: these rows have real per-row
+   colour set inline (a status dot, a muted count) that a plain :hover
+   class can't outrank by specificity alone — inverting on hover has to
+   actually win. */
+.graph-drill-row {
+  transition:
+    background-color 100ms ease-out,
+    color 100ms ease-out;
+}
+.graph-drill-row:hover {
+  background: var(--text-primary) !important;
+}
+.graph-drill-row:hover,
+.graph-drill-row:hover * {
+  color: var(--bg-primary) !important;
+}
+
+.graph-pill {
+  transition:
+    background-color 120ms ease-out,
+    border-color 120ms ease-out;
+}
+.graph-pill:hover:not(.graph-pill-active) {
+  background: var(--bg-tertiary);
+}
+
+.graph-search-input {
+  transition:
+    border-color 120ms ease-out,
+    box-shadow 120ms ease-out;
+}
+.graph-search-input:focus {
+  border-color: var(--accent-blue);
+  box-shadow: var(--shadow-soft);
+  outline: none;
+}
+
+/* 8.6: parent-child edges — "hover thickens to 2.5px and brightens." A
+   wider invisible hit-stroke sits under the visible one (SVG only hit-
+   tests the painted stroke width, and 1.5px is too thin a target to
+   reliably hover), sharing the same :hover trigger via the group. */
+.graph-edge-parent-child {
+  transition:
+    stroke-width 120ms ease-out,
+    filter 120ms ease-out;
+}
+.graph-edge-group:hover .graph-edge-parent-child {
+  stroke-width: 2.5px;
+  filter: brightness(1.35);
+}
+
+/* Climber labels: hidden by default (tier 'child' — "rendered ONLY on
+   hover or at zoom > 1.2x"). .graph-zoomed-in is toggled imperatively by
+   GraphCanvas.tsx when the pan/zoom transform crosses the 1.2x threshold —
+   kept as a single class toggle on one ancestor, not per-node React state,
+   so crossing the threshold never costs a re-render of 50 climber nodes. */
+.graph-child-label {
+  opacity: 0;
+  transition:
+    opacity 150ms ease-out,
+    font-size 150ms ease-out;
+}
+.graph-node-group:hover .graph-child-label,
+.graph-zoomed-in .graph-child-label {
+  opacity: 1;
+}
+/* 8.10 HOVER: "enlarges if shown" — zoomed-in-revealed labels stay their
+   normal size (that reveal is a zoom-level fact, not a hover one); only
+   actually hovering the node itself enlarges its label. */
+.graph-node-group:hover .graph-child-label {
+  font-size: var(--child-label-hover-font-size);
+}
+
+/* 8.10 KEYBOARD: the focus ring is deliberately NOT the selection ring —
+   dashed vs. solid, a neutral ink colour vs. accent-blue — so Tab-focus
+   and click-selection are never visually confusable, even though both
+   can be showing on the graph at once (Tab to a node without pressing
+   Enter yet). */
+.graph-node-group:focus-visible {
+  outline: 2px dashed var(--text-primary);
+  outline-offset: 4px;
+}
+
+/* 8.13.2: Strata's respiration — "breathing, not throbbing." One keyframe
+   consumed by every layer regardless of stress tier: --strata-amplitude
+   (2px calm, 4px stressed — StrataCanvas.tsx sets it inline per layer) and
+   animation-duration (the real stress-tier cycle time, also inline) do the
+   differentiating, so a single definition serves all tiers rather than a
+   near-duplicate keyframe per tier. transform-origin: bottom anchors the
+   layer's floor so growth reads as "expanding upward," never a slide.
+   translateY/scaleY only — GPU compositing, never a layout property. */
+.graph-strata-layer {
+  transform-origin: bottom center;
+  animation-name: strata-breathe;
+  animation-timing-function: cubic-bezier(0.445, 0.05, 0.55, 0.95); /* sine in-out */
+  animation-iteration-count: infinite;
+}
+@keyframes strata-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scaleY(1);
+  }
+  50% {
+    transform: translateY(calc(var(--strata-amplitude, 2px) * -1)) scaleY(1.006);
+  }
+}
+
+/* A REQUIRES-DESCENT layer's tint wash — visible only on the expansion
+   half of ITS OWN breathing cycle (never a flat, always-on tint), and its
+   very first appearance fades in over 2s rather than snapping to full
+   strength the instant a layer becomes stressed. */
+.graph-strata-stress-wash {
+  animation-name: strata-stress-wash;
+  animation-timing-function: ease-in;
+  animation-iteration-count: infinite;
+  opacity: 0;
+  transition: opacity 2000ms ease-in;
+}
+@keyframes strata-stress-wash {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 8.13.2 climber cells: a cell-level opacity pulse, distinct from the
+   LAYER's own scaleY/translateY breathing above — "cycle time encodes
+   stress" applied one level down, one shared keyframe read against a
+   per-cell --cell-pulse-min custom property (graph/strataVisuals.ts's
+   CELL_PULSE_BY_STATUS sets both this and animation-duration inline, the
+   same "one keyframe, tokens differentiate" shape strata-breathe uses). */
+.graph-strata-cell-pulse {
+  animation-name: strata-cell-pulse;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+@keyframes strata-cell-pulse {
+  0%,
+  100% {
+    opacity: var(--cell-pulse-min, 0.85);
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Vertical drift — "±3px over roughly 10 seconds, independent phase per
+   cell." Retired with the 8.13-ui node redesign — every leaf is now a
+   flat, uniform square (see StrataCanvas.tsx's StrataCell), and constant
+   idle motion on every cell at once read as visual noise rather than
+   "alive," working against the same redesign's "clean, high quality"
+   goal. */
+
+/* Spasm — REQUIRES DESCENT only, JS-triggered (StrataCanvas.tsx schedules
+   an irregular 8-12s interval; a fixed CSS cycle would read as rhythmic,
+   which the spec explicitly rules out — "rhythm reads as animation;
+   irregularity reads as distress"). This class just plays the 300ms
+   scale spike once when JS adds it, then JS removes it. */
+.graph-strata-cell-spasm {
+  animation: strata-cell-spasm 300ms ease-in-out 1;
+}
+@keyframes strata-cell-spasm {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+/* 8.13.3: the Global Dashboard's LIVE indicator dot — "displaced from the
+   old bottom bar." A gentle, continuous opacity pulse, colour set inline
+   (green/amber) from real source health. */
+.graph-live-dot {
+  animation: graph-live-pulse 2s ease-in-out infinite;
+}
+@keyframes graph-live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* 8.13.3: "connected cells — rope partner, team members — pulse once" on
+   hover. A single-play scale bump, distinct from the continuous per-status
+   pulse — React adding this class fresh on each new hover replays it. */
+.graph-strata-cell-connected-pulse {
+  animation: strata-connected-pulse 500ms ease-out 1;
+}
+@keyframes strata-connected-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* 8.13.4 ENTRY: cells flatten + colour-shift (desaturate) on first paint,
+   then settle to their real shape/colour over 800ms with the spec's own
+   cubic-bezier(0.4,0,0.2,1) — StrataCanvas.tsx flips `entering` false on
+   the next animation frame after mount (not a timer: the 800ms pacing
+   comes from this transition's own duration, not from JS), so this only
+   ever plays once per Strata mount, matching "entry from Network/Terrain."
+   The wrapper sits ABOVE the drift/pulse/spasm groups so organelles (which
+   live inside those) ride along without re-rendering, per the spec's own
+   instruction. */
+.graph-strata-cell-enter-wrap {
+  transition:
+    transform 800ms cubic-bezier(0.4, 0, 0.2, 1),
+    filter 800ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.graph-strata-cell-entering {
+  transform: scaleY(0.25) translateY(10px);
+  filter: grayscale(0.85);
+}
+
+/* Layer boundaries "materialise, wiping in from the bottom over 600ms" —
+   the clip shrinks from fully-hidden (clipped from the top down) to fully
+   visible, so the reveal reads as sweeping up from the bottom edge. */
+.graph-strata-boundary-enter-wrap {
+  transition: clip-path 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.graph-strata-boundary-entering {
+  clip-path: inset(100% -20% -20% -20%);
+}
+
+/* NEW CLIMBER: "cell spawns at the layer centre, drifts to its
+   force-directed position over 600ms." StrataCanvas.tsx sets the starting
+   offset inline (the real distance from the layer's centre to the cell's
+   real seeded position) and this class removal (one tick after mount)
+   animates it back to (0,0). */
+.graph-strata-cell-spawn-wrap {
+  transition: transform 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* "Receiving layer flashes white, 200ms" on a real new-climber arrival —
+   a white overlay path (same fill shape as the layer, rendered on top)
+   fading out, rather than animating the layer's own `fill` — the layer's
+   real fill colour is a dynamically-computed per-layer value with no
+   "inherit" to return to. */
+.graph-strata-layer-flash {
+  animation: strata-layer-flash 200ms ease-out 1;
+}
+@keyframes strata-layer-flash {
+  0% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* CLIMBER REMOVED: "cell shrinks to 0 over 300ms, fading over the
+   overlapping final 200ms" — scale finishes first, opacity's transition
+   is delayed so it only starts once the shrink is most of the way through
+   (300ms - 200ms = 100ms in), giving the two an overlapping tail rather
+   than two clocks racing independently. */
+.graph-strata-cell-removing {
+  transition:
+    transform 300ms ease-in,
+    opacity 200ms ease-in 100ms;
+  transform: scale(0);
+  opacity: 0;
+}
+
+/* STATUS CHANGE: every leaf is now one uniform flat square (8.13-ui), so a
+   status change is a real, direct colour transition — no cross-fade hack
+   needed for "different shape, same subject" the way the old per-status
+   shape variety required. */
+.graph-strata-cell-body {
+  transition:
+    fill 300ms ease-out,
+    stroke 300ms ease-out,
+    stroke-width 300ms ease-out,
+    stroke-opacity 300ms ease-out;
+}
+
+/* 8.13.4: layer pulse amplitude ramps smoothly (never snaps) when a cell
+   inside it newly becomes REQUIRES DESCENT — registering the custom
+   property is what makes the browser interpolate its VALUE at all;
+   without this a custom property just switches discretely between
+   keyframe evaluations. */
+@property --strata-amplitude {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 2px;
+}
+.graph-strata-layer {
+  transition: --strata-amplitude 2s ease-out;
+}
+
+/* 8.13-V.2 THE DESCENT TREE: "a nutrient pulse travels root -> leaves every
+   4s, one branch at a time... this is the only motion on the edges." A
+   dash-offset sweep — --nutrient-pulse-start is the real chord distance
+   for THIS specific edge (set inline per instance, since every branch is a
+   different length), so the visible 40px segment always starts fully
+   before the path and ends fully past it regardless of how long the real
+   branch is. */
+@property --nutrient-pulse-start {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 300px;
+}
+@keyframes strata-nutrient-pulse {
+  from {
+    stroke-dashoffset: var(--nutrient-pulse-start);
+  }
+  to {
+    stroke-dashoffset: -40px;
+  }
+}
+.graph-strata-nutrient-pulse {
+  animation: strata-nutrient-pulse 1.2s linear 1;
+}
+
+/* prefers-reduced-motion: replace the pulse, don't just delete it — the
+   cycle-time-encodes-stress signal has to survive some other way, so
+   StrataCanvas.tsx switches to a static stress label + boundary
+   stroke-weight encoding instead (graph/strataVisuals.ts's
+   STRESS_TIER_STROKE_WIDTH) whenever this query matches. This block is the
+   defence-in-depth CSS half of that; the JS half decides what to render. */
+@media (prefers-reduced-motion: reduce) {
+  .graph-strata-layer {
+    animation: none;
+    transform: none;
+    transition: none;
+  }
+  .graph-strata-stress-wash {
+    animation: none;
+    transition: none;
+    opacity: 0;
+  }
+  .graph-strata-cell-pulse,
+  .graph-strata-cell-spasm {
+    animation: none;
+    transform: none;
+  }
+  .graph-strata-cell-enter-wrap,
+  .graph-strata-boundary-enter-wrap,
+  .graph-strata-cell-spawn-wrap {
+    transition: none;
+  }
+  .graph-strata-cell-entering {
+    transform: none;
+    filter: none;
+  }
+  .graph-strata-boundary-entering {
+    clip-path: none;
+  }
+  .graph-strata-cell-removing {
+    transition: none;
+    transform: scale(0);
+    opacity: 0;
+  }
+  .graph-strata-layer-flash {
+    animation: none;
+  }
+}
+
+/* 8.6: "a subtle pulse travels parent -> child every 3s, like nutrient
+   flow." Respects prefers-reduced-motion — the SMIL <animateMotion> nodes
+   themselves are only rendered when motion is allowed (GraphCanvas.tsx),
+   this class just governs the pulse dot's own static appearance either
+   way so it never shows as a stray fixed dot when motion is off. */
+.graph-edge-pulse {
+  opacity: 0.85;
+}

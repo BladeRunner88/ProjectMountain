@@ -1,0 +1,81 @@
+/* Graph design tokens — the ONE place a hex colour, an rgb()/rgba() literal,
+   or a raw px font-size may appear anywhere under src/graph/,
+   src/components/graph/, or src/pages/GraphNext.tsx. Enforced by
+   scripts/check-graph-tokens.mjs (wired into `npm run lint`), the exact
+   same "one file may hold the literal, everywhere else references it"
+   shape src/ase/folds.ts already holds for Confidence.
+
+   Scoped under .graph-root, never on :root — the rest of the app keeps its
+   current dark treatment; only the graph is white. These custom properties
+   must never leak into or override src/ase/tokens.ts's own dark palette. */
+
+.graph-root {
+  /* surface — reconciled to the UI redesign spec's exact palette (2026-08). */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+
+  /* border */
+  --border-light: #e5e7eb;
+  --border-medium: #d1d5db;
+
+  /* ink */
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+
+  /* accent — blue/green/amber/red taken verbatim from the spec's own
+     :root palette. Cyan and purple aren't in the spec (it has no "parent
+     tier" or "cross-connection edge" concept of its own) — real,
+     needed distinctions this app already makes that the spec's generic
+     palette doesn't have to; left as they were. */
+  --accent-blue: #2563eb;
+  --accent-cyan: #00bcd4;
+  --accent-green: #10b981;
+  --accent-amber: #f59e0b;
+  /* 8.13.2: retinted #ff9800 (Material orange) -> #f97316 (Tailwind
+     orange-500), reconciling IMPAIRED/anomaly to the SAME palette family
+     every other accent here already is (blue-600/emerald-500/amber-500/
+     red-500) — "running two colour families in one canvas is what makes a
+     build look assembled rather than designed," per the Strata spec's own
+     reasoning for why it added this token in the first place. */
+  --accent-orange: #f97316;
+  --accent-red: #ef4444;
+  --accent-purple: #9c27b0;
+
+  /* 8.13.2: UNKNOWN-status cell fill (no prediction on record — a real,
+     common case, not an error state) and Strata's own layer-boundary/wash
+     tokens. --cell-vesicle intentionally shares --text-tertiary's value —
+     same "same value, different semantic name" precedent as
+     BADGE_TEXT_COLOR mirroring --bg-primary in tokens.ts. */
+  --cell-vesicle: #9ca3af;
+  --strata-boundary: #9ca3af;
+  --strata-boundary-hover: #4b5563;
+  --strata-tint-select: rgba(37, 99, 235, 0.06);
+  --strata-tint-stress: rgba(239, 68, 68, 0.05);
+  /* 8.13.5 RESPONSIVE: the mobile full-screen panel modal's own backdrop. */
+  --overlay-backdrop: rgba(0, 0, 0, 0.35);
+
+  /* elevation — matches the spec's own box-shadow examples
+     (0 1px 4px/0 4px 12px rgba(0,0,0,0.04-0.06)), pure black instead of
+     the previous grey-tinted shadow. */
+  --shadow-soft: 0 1px 4px rgba(0, 0, 0, 0.04);
+  --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.06);
+  /* 8.6: SVG shapes don't take box-shadow — the `filter` property needs a
+     drop-shadow(...) function, a different syntax than the box-shadow
+     value above, so it can't just reference --shadow-soft/--shadow-medium
+     directly. Same numbers, reformatted for that one use. */
+  --shadow-soft-filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.04));
+  --shadow-medium-filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.06));
+
+  /* 8.10: hover/select interaction — the one CSS-file value that can't
+     live as a bare JS number the way GraphCanvas.tsx's own font-size
+     constants do (a plain px string needs a token here, same reasoning
+     as every other literal this file holds). */
+  --child-label-hover-font-size: 12px;
+  /* 8.13.5 RESPONSIVE: the mobile panel modal's close (x) glyph. */
+  --modal-close-font-size: 18px;
+
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}

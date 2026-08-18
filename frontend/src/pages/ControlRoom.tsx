@@ -3,7 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { CANVAS } from '../ase/tokens'
 import { SelectionProvider, useSelection } from '../ase/selection'
 import { HoverProvider } from '../ase/hover'
-import { DatasetProvider, useDataset } from '../ase/store'
+import { useDataset } from '../ase/store'
 import { AsOfProvider } from '../ase/asOfContext'
 import { SimulationModeProvider } from '../ase/simulationMode'
 import { DemoModeProvider } from '../ase/demoMode'
@@ -23,16 +23,14 @@ export function ControlRoom() {
     <SelectionProvider>
       <HoverProvider>
         <InspectorProvider>
-          <DatasetProvider>
-            <AsOfProvider>
-              <SimulationModeProvider>
-                <DemoModeProvider>
-                  <DemoRunner />
-                  <ControlRoomShell />
-                </DemoModeProvider>
-              </SimulationModeProvider>
-            </AsOfProvider>
-          </DatasetProvider>
+          <AsOfProvider>
+            <SimulationModeProvider>
+              <DemoModeProvider>
+                <DemoRunner />
+                <ControlRoomShell />
+              </DemoModeProvider>
+            </SimulationModeProvider>
+          </AsOfProvider>
         </InspectorProvider>
       </HoverProvider>
     </SelectionProvider>

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint && node scripts/check-confidence-casts.mjs",
+    "lint": "oxlint && node scripts/check-confidence-casts.mjs && node scripts/check-graph-tokens.mjs",
     "test": "vitest run",
     "preview": "vite preview"
   },

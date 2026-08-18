@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import {
   ACCENT_INDICATOR_WIDTH,
   ANOMALY,
@@ -9,18 +9,23 @@ import {
   NOMINAL,
   PAGE_GUTTER,
   PANEL,
+  PANEL_RAISED,
+  RADIUS_INTERACTIVE,
   SPACE_8,
   SPACE_12,
   SPACE_16,
   STATUS_DOT_SIZE,
   TAB_GAP,
+  TEXT_DIM,
   TEXT_PRIMARY,
   TEXT_SECONDARY,
   TYPE_BODY,
   TYPE_CAPTION,
   VERIFIED,
   WATCH,
+  Z_SCRUBBER,
 } from '../../ase/tokens'
+import { MenuIcon } from '../icons'
 import { formatHistoricalMoment } from '../../ase/bitemporal'
 import { useAsOf } from '../../ase/asOfContext'
 import { useSimulationMode } from '../../ase/simulationMode'
@@ -123,7 +128,92 @@ export function TopBar({ activeTabId, liveStatus, pendingCounts }: TopBarProps) 
         )}
         <LivePill status={liveStatus} />
         <NowControl at={at} />
+        <NavMenu />
       </div>
+    </div>
+  )
+}
+
+// 8.13-ui: the old AppShell Sidebar is gone everywhere — this is Control
+// Room's own equivalent of the "GO TO" menu the redesigned Graph and the
+// generic app Topbar both carry, kept inside the existing 48px bar per
+// S1d's "ONE BAR. NOT TWO." Same PANEL_RAISED/HAIRLINE/no-shadow treatment
+// as Scrubber.tsx, the only other popover this shell already has.
+const NAV_LINKS = [
+  { to: '/app/graph-next', label: 'Graph' },
+  { to: '/app/search', label: 'Search' },
+  { to: '/app/dashboard', label: 'Dashboard' },
+  { to: '/app/control-room/findings', label: 'Findings' },
+]
+
+function NavMenu() {
+  const { pathname } = useLocation()
+  const { focused, handlers } = useFocusRing()
+  const [open, setOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('keydown', onEscape)
+    return () => document.removeEventListener('keydown', onEscape)
+  }, [open])
+
+  return (
+    <div ref={menuRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        {...handlers}
+        aria-label="Menu"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="pressable flex items-center"
+        style={{ color: TEXT_SECONDARY, ...focusRingStyle(focused) }}
+      >
+        <MenuIcon className="h-4 w-4" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0" style={{ zIndex: Z_SCRUBBER - 1 }} onClick={() => setOpen(false)} aria-hidden />
+          <div
+            role="menu"
+            style={{
+              position: 'absolute',
+              top: BAR_HEIGHT - SPACE_16,
+              right: 0,
+              width: 180,
+              zIndex: Z_SCRUBBER,
+              background: PANEL_RAISED,
+              border: `${BORDER_WIDTH}px solid ${HAIRLINE}`,
+              borderRadius: RADIUS_INTERACTIVE,
+              padding: SPACE_8,
+            }}
+          >
+            <p style={{ ...TYPE_CAPTION, color: TEXT_DIM, padding: `${SPACE_8}px ${SPACE_8}px 4px`, textTransform: 'uppercase' }}>Go to</p>
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                onClick={() => setOpen(false)}
+                style={{
+                  ...TYPE_BODY,
+                  display: 'block',
+                  padding: `${SPACE_8}px`,
+                  color: pathname.startsWith(link.to) ? TEXT_PRIMARY : TEXT_SECONDARY,
+                  fontWeight: pathname.startsWith(link.to) ? 600 : 400,
+                  borderRadius: RADIUS_INTERACTIVE,
+                  textDecoration: 'none',
+                }}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }

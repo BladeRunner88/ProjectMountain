@@ -1,137 +1,108 @@
-// S8.6: THE LEVEL GRAPH. Same data as NETWORK, read as hierarchy instead of
-// connection — six fixed horizontal bands (country..sensor), each entity
-// positioned horizontally by its PARENT's x, so a subtree stays vertically
-// aligned and the whole thing reads as a family tree. This is the standard
-// "tidy tree" / dendrogram technique: every leaf gets a sequential x slot in
-// a stable traversal order, and every non-leaf's x is the average of its
-// children's — computed bottom-up, once per dataset version.
+// 8.13.2: Strata's layer stack — generated from the expedition's real camp
+// sequence (ase/identityCard.ts's MOVEMENT_CAMPS/MOVEMENT_ALTITUDES_M, the
+// same array every climber's own trail already walks), never hardcoded to
+// five. "A mining operation might have three, a space mission twelve" —
+// buildStrataLayers is generic over N and is unit-tested at N=3/6/12 to
+// prove it never assumes the current expedition's count.
 //
-// Sub-nodes are never part of this layout at all (S8.6: "3,000 points in a
-// 60px band is noise") — only the 127 domain entities.
+// The real data gives one ALTITUDE POINT per camp (a climber's logged
+// position when at that camp), not a floor/ceiling range — Strata needs
+// bands, not points, to draw a stack. Each band's floor/ceiling is derived
+// as the midpoint to its neighbours (the same binning a histogram does to
+// turn samples into bars), disclosed here rather than silently presented
+// as if the backend carried real band boundaries.
 
-import type { DomainDataset, DomainEntity, EntityTier } from './domain'
-import type { GraphId, Point } from './types'
-
-export const BAND_HEIGHT = 60
-export const BAND_ORDER: EntityTier[] = ['country', 'region', 'route', 'operator', 'climber', 'sensor']
-export const BAND_LABEL: Record<EntityTier, string> = {
-  country: 'COUNTRIES',
-  region: 'REGIONS',
-  route: 'ROUTES',
-  operator: 'OPERATORS',
-  climber: 'CLIMBERS',
-  sensor: 'SENSORS',
+export interface StrataLayer {
+  index: number
+  name: string
+  /** Real altitude point this layer is centred on, e.g. from MOVEMENT_ALTITUDES_M. */
+  altitudeM: number
+  /** Derived (midpoint-to-neighbour) lower bound, for both binning and visual height. */
+  floorM: number
+  /** Derived (midpoint-to-neighbour) upper bound, for visual height. Binning treats the topmost layer as open-ended regardless of this number. */
+  ceilingM: number
+  /** True only for the last (highest) layer — "Summit Push 7,800m+" has no real ceiling; anything at or above floorM belongs here. */
+  isOpenEnded: boolean
 }
 
-// "country" -> "countries" isn't a naive +s — the count line ("30 operators
-// · 3 in anomaly") needs a real plural, not BAND_LABEL's fixed all-caps form.
-const TIER_PLURAL: Record<EntityTier, string> = { country: 'countries', region: 'regions', route: 'routes', operator: 'operators', climber: 'climbers', sensor: 'sensors' }
-const TIER_SINGULAR: Record<EntityTier, string> = { country: 'country', region: 'region', route: 'route', operator: 'operator', climber: 'climber', sensor: 'sensor' }
-export function pluralizeTier(tier: EntityTier, count: number): string {
-  return count === 1 ? TIER_SINGULAR[tier] : TIER_PLURAL[tier]
-}
-export const BAND_INDEX: Record<EntityTier, number> = { country: 0, region: 1, route: 2, operator: 3, climber: 4, sensor: 5 }
-export const STRATA_TOTAL_HEIGHT = BAND_ORDER.length * BAND_HEIGHT
-
-const SIZE_BASE_PX = 3
-const SIZE_PER_CHILD_PX = 1.1
-const SIZE_MAX_PX = 11
-
-export interface StrataLayout {
-  positions: ReadonlyMap<GraphId, Point>
-  /** direct domain-entity child count — what drives node size ("an operator with 4 climbers is larger than one with 1"). */
-  childCount: ReadonlyMap<GraphId, number>
-  radius: ReadonlyMap<GraphId, number>
-}
-
-let cachedVersion: number | null = null
-let cachedWidth: number | null = null
-let cachedResult: StrataLayout | null = null
-
-export function computeStrataLayout(dataset: DomainDataset, width: number): StrataLayout {
-  if (cachedVersion === dataset.version && cachedWidth === width && cachedResult) return cachedResult
-
-  const childrenOf = new Map<GraphId, DomainEntity[]>()
-  for (const e of dataset.domainEntities) {
-    if (e.parentId === null) continue
-    const list = childrenOf.get(e.parentId)
-    if (list) list.push(e)
-    else childrenOf.set(e.parentId, [e])
+export function buildStrataLayers(names: readonly string[], altitudesM: readonly number[]): StrataLayer[] {
+  if (names.length !== altitudesM.length) {
+    throw new Error(`buildStrataLayers: names (${names.length}) and altitudesM (${altitudesM.length}) length mismatch`)
   }
-
-  const leafSlot = new Map<GraphId, number>()
-  const xSlot = new Map<GraphId, number>()
-  let nextLeaf = 0
-
-  function assign(entity: DomainEntity): number {
-    const children = childrenOf.get(entity.id)
-    if (!children || children.length === 0) {
-      const slot = nextLeaf++
-      leafSlot.set(entity.id, slot)
-      xSlot.set(entity.id, slot)
-      return slot
-    }
-    const childSlots = children.map(assign)
-    const mean = childSlots.reduce((a, b) => a + b, 0) / childSlots.length
-    xSlot.set(entity.id, mean)
-    return mean
-  }
-
-  const countries = dataset.domainEntities.filter((e) => e.tier === 'country')
-  for (const c of countries) assign(c)
-  const totalLeaves = Math.max(1, nextLeaf)
-
-  const positions = new Map<GraphId, Point>()
-  const childCount = new Map<GraphId, number>()
-  for (const e of dataset.domainEntities) {
-    const slot = xSlot.get(e.id) ?? 0
-    const x = ((slot + 0.5) / totalLeaves) * width
-    const y = BAND_INDEX[e.tier] * BAND_HEIGHT + BAND_HEIGHT / 2
-    positions.set(e.id, { x, y })
-    childCount.set(e.id, (childrenOf.get(e.id) ?? []).length)
-  }
-
-  const radius = new Map<GraphId, number>()
-  for (const [id, count] of childCount) {
-    radius.set(id, Math.min(SIZE_MAX_PX, SIZE_BASE_PX + count * SIZE_PER_CHILD_PX))
-  }
-
-  const result: StrataLayout = { positions, childCount, radius }
-  cachedVersion = dataset.version
-  cachedWidth = width
-  cachedResult = result
-  return result
-}
-
-export function resetStrataLayoutCache(): void {
-  cachedVersion = null
-  cachedWidth = null
-  cachedResult = null
-}
-
-export interface BandStats {
-  tier: EntityTier
-  total: number
-  anomalyCount: number
-}
-
-export function computeBandStats(dataset: DomainDataset): BandStats[] {
-  return BAND_ORDER.map((tier) => {
-    const entities = dataset.domainEntities.filter((e) => e.tier === tier)
-    return { tier, total: entities.length, anomalyCount: entities.filter((e) => e.status === 'anomaly').length }
+  if (names.length === 0) return []
+  return names.map((name, i) => {
+    const floorM = i === 0 ? altitudesM[0] : Math.round((altitudesM[i - 1] + altitudesM[i]) / 2)
+    const prevGap = altitudesM[i] - (altitudesM[i - 1] ?? altitudesM[i] - 1)
+    const ceilingM = i === names.length - 1 ? altitudesM[i] + prevGap : Math.round((altitudesM[i] + altitudesM[i + 1]) / 2)
+    return { index: i, name, altitudeM: altitudesM[i], floorM, ceilingM: Math.max(ceilingM, floorM + 1), isOpenEnded: i === names.length - 1 }
   })
 }
 
-/** A per-band histogram of how entities cluster horizontally — `bins` buckets across the band's width, each a 0..1 density relative to the band's busiest bucket. */
-export function computeDensityStrip(dataset: DomainDataset, layout: StrataLayout, tier: EntityTier, width: number, bins = 40): number[] {
-  const counts = new Array(bins).fill(0)
-  const entities = dataset.domainEntities.filter((e) => e.tier === tier)
-  for (const e of entities) {
-    const p = layout.positions.get(e.id)
-    if (!p) continue
-    const bin = Math.min(bins - 1, Math.max(0, Math.floor((p.x / width) * bins)))
-    counts[bin]++
+/** Finds which real layer a climber's real altitude reading falls into — the topmost layer is open-ended (>= its floor), every other layer is [floor, ceiling). Null only when altitudeM itself is missing (never fabricated as a layer). Generic over T so a caller passing its own richer LaidOutLayer[] (StrataCanvas.tsx's own yTop/yBottom-augmented layers) gets that same richer type back, not a widened StrataLayer. */
+export function layerForAltitude<T extends StrataLayer>(altitudeM: number | null, layers: readonly T[]): T | null {
+  if (altitudeM === null || layers.length === 0) return null
+  for (const layer of layers) {
+    if (layer.isOpenEnded ? altitudeM >= layer.floorM : altitudeM >= layer.floorM && altitudeM < layer.ceilingM) return layer
   }
-  const max = Math.max(1, ...counts)
-  return counts.map((c) => c / max)
+  // Below the lowest floor (shouldn't happen with real trail data, but
+  // real GPS jitter could in principle place a reading slightly under
+  // Base Camp's own point) — bins into the lowest layer rather than
+  // dropping the climber from the view entirely.
+  return layers[0] ?? null
+}
+
+/** Total real altitude span the generated stack covers — drives proportional layer heights (equal bands would be the chart answer; this keeps real tissue uneven). */
+export function totalSpanM(layers: readonly StrataLayer[]): number {
+  if (layers.length === 0) return 0
+  return layers[layers.length - 1].ceilingM - layers[0].floorM
+}
+
+/** 8.13-V.1 ALTITUDE GUTTER: "a continuous vertical altitude scale... tick marks every 500m." The real span the generated stack covers, sampled at round 500m marks (not one per band) — generic over stepM so a route with a genuinely different cadence isn't hardcoded to 500. Always includes the floor and ceiling of the real span, even when they don't fall on a round step, so the top and bottom of the stack are never left untocked. */
+export function altitudeTicks(floorM: number, ceilingM: number, stepM = 500): number[] {
+  if (ceilingM <= floorM) return [floorM]
+  const ticks: number[] = []
+  const first = Math.ceil(floorM / stepM) * stepM
+  for (let m = first; m <= ceilingM; m += stepM) ticks.push(m)
+  if (ticks[0] !== floorM) ticks.unshift(floorM)
+  if (ticks[ticks.length - 1] !== ceilingM) ticks.push(ceilingM)
+  return ticks
+}
+
+/** True if a real altitude reading falls within this ONE layer's own [floor, ceiling) band (or >= floor when open-ended) — the single-layer version of layerForAltitude's membership test, for callers (8.13.3's Layer Detail panel) that already know which layer they care about and don't need the full stack to resolve it. */
+export function altitudeInLayer(altitudeM: number | null, layer: StrataLayer): boolean {
+  if (altitudeM === null) return false
+  return layer.isOpenEnded ? altitudeM >= layer.floorM : altitudeM >= layer.floorM && altitudeM < layer.ceilingM
+}
+
+export interface VerticalBand {
+  yTop: number
+  yBottom: number
+}
+
+/**
+ * 8.13.3: "the layer expands vertically 20%, pushing adjacent layers rather
+ * than overlapping them." Bands are ordered index 0 = lowest real altitude
+ * (Base Camp) through the highest (Summit) — in StrataCanvas.tsx's world
+ * space that means index 0 sits at the LARGEST y (screen bottom) and the
+ * highest layer sits near y=0 (screen top), since altitude and y are
+ * inversely related there.
+ *
+ * The expanded layer keeps its own yTop fixed and grows yBottom by
+ * `expansionFraction` of its rest height — anchored at the top, like a
+ * probe pressing down from above. That growth eats into the space of every
+ * layer with a SMALLER index (physically below it on screen, closer to
+ * Base Camp), so those shift further down by the same extra amount,
+ * keeping their own height unchanged. Layers with a LARGER index
+ * (physically above, closer to the summit) are untouched — the expansion
+ * never reaches upward past its own top edge. Returns the bands unchanged
+ * when nothing is expanded.
+ */
+export function expandedLayerBounds<T extends VerticalBand>(bands: readonly T[], expandedIndex: number | null, expansionFraction = 0.2): T[] {
+  if (expandedIndex === null || !bands[expandedIndex]) return [...bands]
+  const extra = (bands[expandedIndex].yBottom - bands[expandedIndex].yTop) * expansionFraction
+  return bands.map((b, i) => {
+    if (i > expandedIndex) return b
+    if (i === expandedIndex) return { ...b, yBottom: b.yBottom + extra }
+    return { ...b, yTop: b.yTop + extra, yBottom: b.yBottom + extra }
+  })
 }
