@@ -1,7 +1,22 @@
-duckdb
-rapidfuzz
-fastapi
-uvicorn[standard]
-openpyxl
-pytest
-httpx
+# Pinned lockfile. There is no uv in this repo (AGENTS.md 4.1 assumes uv + uv.lock), so
+# this file is the lockfile of record. pyproject.toml carries the unpinned declarations.
+# Regenerate with:  venv/bin/pip freeze
+#
+# Runtime
+duckdb==1.5.5
+duckdb_engine==0.17.0
+SQLAlchemy==2.0.52
+alembic==1.19.1
+fastapi==0.141.1
+uvicorn[standard]==0.52.1
+pydantic==2.13.4
+pydantic-settings==2.15.0
+openpyxl==3.1.5
+rapidfuzz==3.14.5
+
+# Dev / test
+pytest==9.1.1
+pytest-cov==7.1.0
+httpx==0.28.1
+ruff==0.16.3
+mypy==2.3.1

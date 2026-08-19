@@ -6,7 +6,71 @@ cross-source operational findings, and serves all of it read-only over HTTP.
 
 ## Pipeline
 
-Run in order — each stage reads the previous stage's output from `isildur.duckdb`:
+```bash
+venv/bin/python -m app.pipeline.run --stage all --scale full
+venv/bin/python -m app.pipeline.run --stage all --scale small   # ~1s, for tests
+```
+
+Four stages, run in order, each reading what the previous one wrote. Every execution is
+recorded in `app.pipeline_runs`, so the API can report when the warehouse was built and
+whether the build succeeded rather than inferring it from row counts.
+
+| Stage | Does |
+|---|---|
+| `generate` | Synthesizes six vendor exports (json, xml, csv, csv, xlsx, csv) with deliberate cross-source mess: different field names, disposition vocabularies, units, timezones, and no shared id scheme. |
+| `ingest` | Maps each vendor's fields to a shared vocabulary, converts units and timestamps to one basis, and records which conversions required an assumption. Keeps provenance on every row. |
+| `resolve` | Groups the register rows into the machines they describe and builds `graph.objects` / `graph.links` per `domains/ontology/catalog.py`, using derivable-but-not-identical keys — normalised names, masked-suffix, numeric-core, and one genuinely shared historian tag. |
+| `findings` | Computes five cross-source finding types directly from the normalised data. Every number is a real computation. |
+
+**The pipeline writes where the API is not reading.** `ISILDUR_PIPELINE_OUTPUT_PATH` is the
+build target; `ISILDUR_WAREHOUSE_DB_PATH` is what the API serves. Keeping them separate
+means a rebuild can never overwrite the database currently being served — point both at
+the same file to serve the new one.
+
+The window is anchored to a fixed date rather than `date.today()`, so the same seed
+produces the same warehouse on any day and on any machine.
+
+### The seeded incidents
+
+Four things are deliberately wrong in the generated world, and the findings engine has to
+find them from the data alone:
+
+| Incident | What it looks like | Found as |
+|---|---|---|
+| One plant's metrology lab release rate collapses for five days | Nothing about the rows changes shape | `RATE_SHIFT` |
+| One supplier's parts run all day with no historian cycles | Neither feed is broken on its own | `SOURCE_DIVERGENCE` |
+| One supplier's telemetry stops for seven hours | A gap far longer than that supplier's own normal | `SILENT_SOURCE` |
+| Work orders are raised shortly before a production spike | Two events near each other | `CO_OCCURRENCE` — reported as co-occurrence, never as cause |
+
+These need production volume to be detectable: at `--scale small` the median gap between
+cycles is eleven hours, so a seven-hour silence genuinely is not remarkable and the
+detector is right not to fire. The findings tests therefore run at full scale and are
+marked `slow`; the structural tests run at small scale in about a second.
+
+### Deprecated names
+
+The API was built against a previous demonstration domain — an online gaming operator —
+and several field and metric names come from it. Renaming them outright would break any
+client on the old contract, so the truthful names sit beside them, both are populated, and
+the old ones are marked deprecated in the OpenAPI schema. They go away with the legacy
+mount.
+
+| Old | Now | Where |
+|---|---|---|
+| `deposits`, `withdrawals` | `released`, `scrapped` | `/metrics/{name}` |
+| `sessions`, `rounds` | `runs`, `cycles` | `/metrics/{name}` |
+| `market` | `plant` | `/metrics` query and response |
+| `currency`, `usd_total` | `unit`, `quantity_kg` | `/metrics` composition |
+| `transactions`, `rounds`, `sessions`, `campaign_sends` | `batches`, `cycles`, `runs`, `work_orders` | `/correlate`, finding context |
+
+A request for a deprecated metric name gets that name back in `metric`, and the name that
+actually answered in `canonical_metric`.
+
+### The legacy gaming pipeline
+
+`ontology.py`, `sources.py` and `pipeline/*.py` at the backend root are the previous
+demonstration domain. They are no longer served — the API reads `data/warehouse.duckdb` —
+and they still build `isildur.duckdb` if run:
 
 | Stage | File | Does |
 |---|---|---|
@@ -18,6 +82,75 @@ Run in order — each stage reads the previous stage's output from `isildur.duck
 `ontology.py` (object types, relationship types) and `sources.py` (the vendor-source
 provenance manifest) live at the package root because both the pipeline and the API depend
 on them — they're the shared domain model, not a pipeline-only concern.
+
+## Layout
+
+The service is domain-driven (see `AGENTS.md` §4.1). `api.py` is now a compatibility shim
+that re-exports the assembled app, so `uvicorn api:app` keeps working.
+
+```
+backend/
+  pyproject.toml        deps, ruff, mypy, pytest, [tool.fastapi]
+  requirements.txt      == pins; this repo has no uv, so this is the lockfile of record
+  .env.example          every variable the backend reads
+  src/app/
+    main.py             FastAPI instance, lifespan, CORS, error translation, both mounts
+    api/                router assembly (versioned + legacy), shared dependency aliases
+    core/               settings, logging, domain exception base classes, pagination
+    db/                 engines and sessions, write-retry helper
+      warehouse/        SQLAlchemy Core tables for the pipeline-owned schemas
+    domains/<name>/     router (HTTP) -> service (rules) -> repository (queries)
+  tests/{unit,integration,contract}/
+```
+
+Layering runs one way only: a router never writes a query, a service never imports
+fastapi or raises `HTTPException`, a repository never commits.
+
+### Two database files
+
+DuckDB locks a read-write file to one process, so the pipeline and the API cannot both
+hold one open for writing:
+
+| File | Owner | The API opens it |
+|---|---|---|
+| `isildur.duckdb` (`ISILDUR_WAREHOUSE_DB_PATH`) | the pipeline | read-only, always |
+| `data/app.duckdb` (`ISILDUR_APP_DB_PATH`) | the API | read-write |
+
+One consequence worth knowing before you debug it: anything opening the warehouse inside
+the API process must pass the *same* DuckDB configuration the engine used, or DuckDB
+refuses the second connection outright.
+
+### Migrations
+
+Alembic owns the `app` schema and nothing else. The pipeline-owned schemas are excluded by
+`src/app/db/alembic_filter.py`; without that filter every autogenerate would propose
+dropping the entire warehouse.
+
+```bash
+venv/bin/alembic upgrade head
+venv/bin/alembic revision --autogenerate -m "what changed"   # then read and edit it
+```
+
+Two DuckDB facts that cost time if you learn them the hard way:
+
+- **The catalog is named after the file stem.** `data/app.duckdb` gives a catalog called
+  `app`, which is ambiguous with the `app` schema inside it and makes every qualified
+  reference fail to bind. Hence `isildur_app.duckdb`.
+- **duckdb-engine returns schema names catalog-qualified** (`isildur_app.app`), so
+  Alembic's `compare_metadata` under `include_schemas` never looks inside `app` and
+  reports every existing table as newly added. Drift is checked by reflecting column
+  names instead — see `tests/integration/test_migrations.py`.
+
+Back up the file before any production migration. It is one file, `cp` is a complete
+backup while the app is stopped, and there is no `pg_dump` and no point-in-time recovery.
+
+### Two mounts, one implementation
+
+Every route is served twice — under `/api/v1` and at its original root path. Both mounts
+include the same router objects, so there is no second implementation to drift. The
+legacy paths are hidden from the OpenAPI schema and answer with a `Deprecation: true`
+header; they exist so the frontend can move to the prefix in one change rather than a
+flag day.
 
 ## API
 
@@ -87,11 +220,24 @@ it is safe to run while a dev server is up, and it skips itself if the database 
 been built yet.
 
 ```bash
-.venv/bin/pytest tests/ -v
+venv/bin/pytest -q
 
 # or against a database somewhere else
-ISILDUR_DB_PATH=/path/to/isildur.duckdb .venv/bin/pytest tests/ -v
+ISILDUR_DB_PATH=/path/to/isildur.duckdb venv/bin/pytest -q
 ```
+
+The full gate, all of which must pass before a change is done:
+
+```bash
+venv/bin/ruff format --check src api.py tests
+venv/bin/ruff check src api.py tests
+venv/bin/mypy
+venv/bin/pytest -q --cov=src --cov-report=term-missing
+```
+
+`tests/test_api.py` is the pre-refactor route-surface suite, kept byte-identical on
+purpose: it is the evidence that splitting `api.py` into domains changed no behaviour.
+It is excluded from `ruff` for the same reason.
 
 `isildur.duckdb` and `data/raw/*` are generated artifacts and are gitignored — regenerate
 them by running the pipeline above.

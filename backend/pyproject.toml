@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "isildur-backend"
+version = "0.2.0"
+description = "Isildur / ASE — ontology-backed data intelligence API over DuckDB"
+requires-python = ">=3.11"
+dependencies = [
+  "duckdb",
+  "duckdb-engine",
+  "sqlalchemy>=2.0",
+  "alembic",
+  "fastapi",
+  "uvicorn[standard]",
+  "pydantic>=2",
+  "pydantic-settings",
+  "openpyxl",
+  "rapidfuzz",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov", "httpx", "ruff", "mypy"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+app = ["py.typed"]
+
+[tool.fastapi]
+app = "app.main:app"
+
+# Python 3.11 is what backend/venv actually runs. AGENTS.md 9 says py312; installing a
+# new interpreter is a dependency change (0 rule 4), so the target is pinned to reality.
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+# The pre-refactor route-surface suite. It is the proof that the domain port changed no
+# behaviour, so it is kept byte-identical — reformatting it would destroy that evidence.
+# It moves into tests/contract/ and joins the gates once the port is signed off.
+extend-exclude = ["tests/test_api.py"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "TCH", "RUF", "S", "ASYNC"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+# S311: the pipeline's whole purpose is reproducible synthetic data. `secrets` would
+#   defeat that — the seed IS the contract, and nothing here protects anything.
+# S608: the pipeline composes DDL and table names from module constants and never from
+#   request input. It is an offline batch job with no HTTP surface. The rule stays in
+#   force everywhere the API can be reached, which is where it matters: on DuckDB an
+#   injected COPY or read_csv is arbitrary filesystem access as the API process.
+"src/app/pipeline/*" = ["S311", "S608"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
+mypy_path = "src"
+packages = ["app"]
+
+# Neither package ships type information. `types-openpyxl` would fix openpyxl, but
+# adding it is a dependency change and openpyxl is used in exactly one module.
+[[tool.mypy.overrides]]
+module = ["duckdb_engine.*", "openpyxl.*"]
+ignore_missing_imports = true
+
+# asyncio_mode is deliberately absent: it needs pytest-asyncio, which is not installed and
+# not authorised. This stack is all `def` (AGENTS.md 4.2), so the sync TestClient is correct.
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+  "slow: builds the full-scale warehouse (~20s). The findings detectors need production volume to have anything to detect.",
+]
