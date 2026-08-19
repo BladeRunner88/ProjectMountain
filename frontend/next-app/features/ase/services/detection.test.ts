@@ -11,6 +11,7 @@ import {
   simulateThreshold,
 } from "./detection"
 import { testWorld } from "../testing/world"
+import { nodesOfTier } from "@/features/ase/types/world"
 
 describe("detection (S9.9)", () => {
   it("NO CODE: every rule condition is a plain sentence, never a predicate or field name", () => {
@@ -54,7 +55,7 @@ describe("detection (S9.9)", () => {
     expect(firingCount(engine, "rule-dangerous-vibration")).toBe(3)
     expect(firingCount(engine, "rule-high-vibration")).toBe(2)
     expect(firingCount(engine, "rule-climbing-too-fast")).toBe(2) // 3 real, 1 suppressed
-    expect(firingCount(engine, "rule-not-enough-guides")).toBe(1)
+    expect(firingCount(engine, "rule-not-enough-operators")).toBe(1)
     expect(firingCount(engine, "rule-sensor-quiet")).toBe(0)
     expect(firingCount(engine, "rule-effectiveness-collapse")).toBe(1)
     expect(firingCount(engine, "rule-workOrder-expired")).toBe(0)
@@ -64,13 +65,25 @@ describe("detection (S9.9)", () => {
     expect(firingCount(engine, "rule-slow-processing")).toBe(0)
   })
 
-  it("the map tree covers all 113 entities plus 14 sensors, five tiers", () => {
-    const d = buildDataset(testWorld(), 1)
+  it("the map tree covers every entity across five tiers", () => {
+    // Counted from the world, not from the old fixed pools: countries were
+    // hardcoded at 5 and operators at 30 invented company names.
+    const world = testWorld()
+    const d = buildDataset(world, 1)
     const { mapNodes } = d.detectionEngine
     const byTier = (t: string) => mapNodes.filter((n) => n.tier === t).length
-    expect(byTier("country")).toBe(5)
-    expect(byTier("plantLine")).toBe(14)
-    expect(byTier("operator")).toBe(30)
+    const lines = nodesOfTier(world, "line")
+    const countries = new Set(
+      lines.map(
+        (line) => world.nodes.find((node) => node.id === line.parentId)?.country
+      )
+    )
+
+    expect(byTier("country")).toBe(countries.size)
+    expect(byTier("plantLine")).toBe(lines.length)
+    expect(byTier("operator")).toBe(
+      Math.max(world.operators.length, lines.length)
+    )
     expect(byTier("machine")).toBe(50)
     expect(byTier("sensor")).toBe(14)
   })

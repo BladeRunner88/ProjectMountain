@@ -85,8 +85,9 @@ on them — they're the shared domain model, not a pipeline-only concern.
 
 ## Layout
 
-The service is domain-driven (see `AGENTS.md` §4.1). `api.py` is now a compatibility shim
-that re-exports the assembled app, so `uvicorn api:app` keeps working.
+The service is domain-driven (see `AGENTS.md` §4.1) and served entirely under `/api/v1`.
+The `api.py` shim and the unprefixed legacy mount that carried the frontend through the
+migration were both removed in Phase 7.
 
 ```
 backend/
@@ -154,7 +155,7 @@ flag day.
 
 ## API
 
-`api.py` is a read-only FastAPI layer over the DuckDB tables the pipeline produces:
+The API is a FastAPI layer over the DuckDB tables the pipeline produces:
 
 ```
 GET /check                     liveness ping: {"status": "ok"}, opens no database
@@ -195,7 +196,7 @@ the frontend axios client sends `withCredentials`, and browsers reject a wildcar
 credentialed requests. Point it at whatever port the frontend runs on:
 
 ```bash
-ISILDUR_CORS_ORIGINS=http://localhost:3000,http://localhost:3001 .venv/bin/uvicorn api:app --port 8010
+ISILDUR_CORS_ORIGINS=http://localhost:3000,http://localhost:3001 venv/bin/uvicorn app.main:app --port 8010
 ```
 
 ## Setup
@@ -209,7 +210,7 @@ python3 -m venv .venv
 .venv/bin/python pipeline/entity_resolution.py
 .venv/bin/python pipeline/findings.py
 
-.venv/bin/uvicorn api:app --port 8010
+venv/bin/uvicorn app.main:app --port 8010
 ```
 
 ## Tests
@@ -229,14 +230,17 @@ ISILDUR_DB_PATH=/path/to/isildur.duckdb venv/bin/pytest -q
 The full gate, all of which must pass before a change is done:
 
 ```bash
-venv/bin/ruff format --check src api.py tests
-venv/bin/ruff check src api.py tests
+venv/bin/ruff format --check src alembic tests
+venv/bin/ruff check src alembic tests
 venv/bin/mypy
 venv/bin/pytest -q --cov=src --cov-report=term-missing
 ```
 
-`tests/test_api.py` is the pre-refactor route-surface suite, kept byte-identical on
-purpose: it is the evidence that splitting `api.py` into domains changed no behaviour.
+`tests/test_api.py` is the pre-refactor route-surface suite. It passed byte-identical
+through the domain split, the ontology change and the move to SQLAlchemy — which is what
+made it the safety net for all of it. Phase 7 changed exactly two things in it: the
+import, now that `api.py` is gone, and the `/api/v1` prefix, now that the unprefixed
+mount has been removed. Every assertion is untouched.
 It is excluded from `ruff` for the same reason.
 
 `isildur.duckdb` and `data/raw/*` are generated artifacts and are gitignored — regenerate

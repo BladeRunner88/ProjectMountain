@@ -1,8 +1,8 @@
 """Router assembly.
 
-Every domain router is registered exactly once, here. `api_router` mounts them under the
-configured prefix; `app.api.legacy` mounts the same objects unprefixed. One
-implementation, two paths, no drift.
+Every domain router is registered exactly once, here, and mounted under the configured
+prefix. The unprefixed legacy mount that ran alongside it through the cutover has been
+removed, so this is the only surface.
 """
 
 from fastapi import APIRouter
@@ -46,13 +46,6 @@ DOMAIN_ROUTERS: tuple[APIRouter, ...] = (
     telemetry_router,
     hierarchy_router,
     detection_router,
-)
-
-
-# Write endpoints added in Phase 6. Kept out of DOMAIN_ROUTERS deliberately: that tuple
-# is also mounted unprefixed by `app.api.legacy`, and the legacy surface exists only to
-# keep the pre-migration frontend working. Nothing new should ever appear on it.
-VERSIONED_ONLY_ROUTERS: tuple[APIRouter, ...] = (
     finding_review_router,
     detection_tuning_router,
     revision_router,
@@ -64,6 +57,6 @@ VERSIONED_ONLY_ROUTERS: tuple[APIRouter, ...] = (
 def build_api_router() -> APIRouter:
     """The documented, versioned surface."""
     router = APIRouter(prefix=get_settings().api_prefix)
-    for domain_router in (*DOMAIN_ROUTERS, *VERSIONED_ONLY_ROUTERS):
+    for domain_router in DOMAIN_ROUTERS:
         router.include_router(domain_router)
     return router

@@ -5,22 +5,15 @@ from datetime import UTC, datetime
 from sqlalchemy.orm import Session
 
 from app.db.retry import with_write_retry
-from app.domains.access.archive import AccessRequestArchive
 from app.domains.access.models import AccessRequest
 from app.domains.access.repository import AccessRequestRepository
 from app.domains.access.schemas import AccessRequestPayload, AccessRequestReceipt
 
 
 class AccessRequestService:
-    def __init__(
-        self,
-        session: Session,
-        repository: AccessRequestRepository,
-        archive: AccessRequestArchive,
-    ) -> None:
+    def __init__(self, session: Session, repository: AccessRequestRepository) -> None:
         self._session = session
         self._repository = repository
-        self._archive = archive
 
     def submit(self, payload: AccessRequestPayload) -> AccessRequestReceipt:
         submitted_at = datetime.now(UTC)
@@ -32,13 +25,10 @@ class AccessRequestService:
             return request
 
         # Safe to replay: it builds a fresh row and commits, with no side effect inside.
+        # The JSONL archive that used to be appended here is gone -- it was a transitional
+        # double-write kept only until the table could be verified as the store of record.
         request = with_write_retry(_persist)
-
-        stamp = _wire_stamp(submitted_at)
-        # Deliberately outside the retried block. Appending is not idempotent, so a
-        # replay would write the submission to the archive twice.
-        self._archive.append({"id": str(request.id), "submitted_at": stamp, **payload.model_dump()})
-        return AccessRequestReceipt(id=str(request.id), submitted_at=stamp)
+        return AccessRequestReceipt(id=str(request.id), submitted_at=_wire_stamp(submitted_at))
 
 
 def _wire_stamp(moment: datetime) -> str:

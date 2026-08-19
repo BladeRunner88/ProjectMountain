@@ -36,7 +36,7 @@ backend/
     ingest_clean.py       2. ingest + normalize (field mapping, currency, timezone, status vocab)
     entity_resolution.py  3. resolve records into canonical objects + typed links
     findings.py           4. compute operational findings across sources
-  api.py              read-only FastAPI surface over the resolved graph
+  src/app/            domain-driven FastAPI surface over the resolved graph
 ```
 
 The frontend is a Next.js App Router project. Routing lives in `app/`; everything else is
@@ -84,7 +84,7 @@ venv/bin/python pipeline/generate_data.py
 venv/bin/python pipeline/ingest_clean.py
 venv/bin/python pipeline/entity_resolution.py
 venv/bin/python pipeline/findings.py
-venv/bin/uvicorn api:app --port 8010
+venv/bin/uvicorn app.main:app --port 8010
 ```
 
 The four pipeline stages must run in order and only need re-running when you want fresh

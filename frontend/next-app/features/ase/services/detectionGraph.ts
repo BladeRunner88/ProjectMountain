@@ -19,18 +19,18 @@
 // rule-facing ports move, and only because two literal readings of this
 // spec conflict and one of them has to give.
 
-import type { Instant } from './traced'
-import { confidence } from './folds'
+import type { Instant } from "./traced"
+import { confidence } from "./folds"
 import type {
   Detection,
   DetectionEngineState,
   DetectionRule,
   MapNode,
   Severity,
-} from './detection'
-import type { NodeStatus } from './nodeLanguage'
+} from "./detection"
+import type { NodeStatus } from "./nodeLanguage"
 
-export type PortSide = 'left' | 'right'
+export type PortSide = "left" | "right"
 
 export interface PortInstance {
   id: string
@@ -40,7 +40,8 @@ export interface PortInstance {
   live: { valueText: string; ageAt: Instant; confidencePct: number } | null
 }
 
-export type GraphNodeKind = 'country' | 'line' | 'operator' | 'machine' | 'sensor' | 'rule'
+export type GraphNodeKind =
+  "country" | "line" | "operator" | "machine" | "sensor" | "rule"
 
 export interface GraphNode {
   id: string
@@ -59,7 +60,7 @@ export interface GraphNode {
   summaryMemberIds: string[]
 }
 
-export type WireKind = 'structure' | 'detection' | 'anomaly' | 'past'
+export type WireKind = "structure" | "detection" | "anomaly" | "past"
 
 export interface GraphWire {
   id: string
@@ -68,7 +69,7 @@ export interface GraphWire {
   toId: string
   toPortId: string | null
   kind: WireKind
-  colorToken: 'structure' | 'anomaly' | 'watch' | Severity
+  colorToken: "structure" | "anomaly" | "watch" | Severity
 }
 
 export interface DetectionGraph {
@@ -76,52 +77,90 @@ export interface DetectionGraph {
   wires: GraphWire[]
 }
 
-const ENTITY_PORTS: Record<Exclude<GraphNodeKind, 'rule'>, { in: string[]; out: string[]; watched: string[] }> = {
+const ENTITY_PORTS: Record<
+  Exclude<GraphNodeKind, "rule">,
+  { in: string[]; out: string[]; watched: string[] }
+> = {
   country: { in: [], out: [], watched: [] },
-  line: { in: ['Country'], out: ['Parties on line', 'Conditions'], watched: [] },
-  operator: { in: ['Line'], out: ['Guides active', 'Register'], watched: [] },
-  machine: { in: ['Line', 'Operator', 'Rope partner'], out: [], watched: ['Effectiveness', 'Vibration', 'Station', 'RampUp rate', 'Position'] },
-  sensor: { in: ['Line'], out: [], watched: ['Vibration', 'Spindle temp', 'Effectiveness', 'Battery', 'Last reading'] },
+  line: {
+    in: ["Country"],
+    out: ["Parties on line", "Conditions"],
+    watched: [],
+  },
+  operator: {
+    in: ["Line"],
+    out: ["Operators active", "Register"],
+    watched: [],
+  },
+  machine: {
+    in: ["Line", "Operator", "Rope partner"],
+    out: [],
+    watched: [
+      "Effectiveness",
+      "Vibration",
+      "Station",
+      "RampUp rate",
+      "Position",
+    ],
+  },
+  sensor: {
+    in: ["Line"],
+    out: [],
+    watched: [
+      "Vibration",
+      "Spindle temp",
+      "Effectiveness",
+      "Battery",
+      "Last reading",
+    ],
+  },
 }
 
 /** Which watched-value port label a rule's own condition reads — the wire target. Rules that watch a kind of value not modelled as a port (workOrders, system) wire nowhere; List/Detections already cover them fully. */
 const RULE_WATCHED_PORT: Record<string, string> = {
-  'rule-low-oee': 'Effectiveness',
-  'rule-high-vibration': 'Vibration',
-  'rule-climbing-too-fast': 'RampUp rate',
-  'rule-rope-partner-lost': 'Rope partner',
-  'rule-pressure-mismatch': 'Station',
-  'rule-dangerous-vibration': 'Vibration',
-  'rule-effectiveness-collapse': 'Effectiveness',
-  'rule-low-battery': 'Battery',
-  'rule-sensor-quiet': 'Last reading',
-  'rule-not-enough-guides': 'Guides active',
+  "rule-low-oee": "Effectiveness",
+  "rule-high-vibration": "Vibration",
+  "rule-climbing-too-fast": "RampUp rate",
+  "rule-rope-partner-lost": "Rope partner",
+  "rule-pressure-mismatch": "Station",
+  "rule-dangerous-vibration": "Vibration",
+  "rule-effectiveness-collapse": "Effectiveness",
+  "rule-low-battery": "Battery",
+  "rule-sensor-quiet": "Last reading",
+  "rule-not-enough-operators": "Operators active",
 }
 
-function portsFor(kind: Exclude<GraphNodeKind, 'rule'>): PortInstance[] {
+function portsFor(kind: Exclude<GraphNodeKind, "rule">): PortInstance[] {
   const def = ENTITY_PORTS[kind]
   const ports: PortInstance[] = []
-  for (const label of def.in) ports.push({ id: `in:${label}`, label, side: 'left', live: null })
-  for (const label of def.watched) ports.push({ id: `watch:${label}`, label, side: 'left', live: null })
-  for (const label of def.out) ports.push({ id: `out:${label}`, label, side: 'right', live: null })
+  for (const label of def.in)
+    ports.push({ id: `in:${label}`, label, side: "left", live: null })
+  for (const label of def.watched)
+    ports.push({ id: `watch:${label}`, label, side: "left", live: null })
+  for (const label of def.out)
+    ports.push({ id: `out:${label}`, label, side: "right", live: null })
   return ports
 }
 
 function formatDetectionValue(rule: DetectionRule, value: number): string {
   const rounded = Math.round(value * 10) / 10
-  return rule.thresholdUnit === '%' ? `${rounded}%` : `${rounded} ${rule.thresholdUnit}`
+  return rule.thresholdUnit === "%"
+    ? `${rounded}%`
+    : `${rounded} ${rule.thresholdUnit}`
 }
 
 /** ase/detection.ts's tree tier is `'plantLine'` (it renders one card for a line inside its plant) — this graph's own vocabulary just calls that tier `'line'`. */
-function tierToKind(tier: MapNode['tier']): Exclude<GraphNodeKind, 'rule'> {
-  return tier === 'plantLine' ? 'line' : tier
+function tierToKind(tier: MapNode["tier"]): Exclude<GraphNodeKind, "rule"> {
+  return tier === "plantLine" ? "line" : tier
 }
 
 /** Builds the port-graph for the Map tab from the same engine state List/Detections/Tuning read — nothing here is a second dataset, only a second SHAPE drawn over the first. */
-export function buildDetectionGraph(engine: DetectionEngineState): DetectionGraph {
+export function buildDetectionGraph(
+  engine: DetectionEngineState
+): DetectionGraph {
   const detectionsByNodeId = new Map<string, Detection[]>()
   for (const d of engine.detections) {
-    if (d.suppressed || d.subject.kind === 'system') continue
+    if (d.suppressed || d.subject.kind === "system") continue
     const list = detectionsByNodeId.get(d.subject.nodeId) ?? []
     list.push(d)
     detectionsByNodeId.set(d.subject.nodeId, list)
@@ -137,13 +176,17 @@ export function buildDetectionGraph(engine: DetectionEngineState): DetectionGrap
       if (!rule || !portLabel) continue
       const port = ports.find((p) => p.label === portLabel)
       if (!port) continue
-      port.live = { valueText: formatDetectionValue(rule, d.valueTraced.value), ageAt: d.detectedAt, confidencePct: Math.round(confidence(d.valueTraced) * 100) }
+      port.live = {
+        valueText: formatDetectionValue(rule, d.valueTraced.value),
+        ageAt: d.detectedAt,
+        confidencePct: Math.round(confidence(d.valueTraced) * 100),
+      }
     }
     return {
       id: n.id,
       kind,
       label: n.label,
-      serialTail: n.serial ? n.serial.replace(/\D/g, '').slice(-4) : null,
+      serialTail: n.serial ? n.serial.replace(/\D/g, "").slice(-4) : null,
       parentId: n.parentId,
       ports,
       firingRuleIds: n.firingRuleIds,
@@ -160,16 +203,20 @@ export function buildDetectionGraph(engine: DetectionEngineState): DetectionGrap
   const ruleNodes: GraphNode[] = []
   for (const rule of engine.rules) {
     const watchedLabel = RULE_WATCHED_PORT[rule.id]
-    const firingDetections = engine.detections.filter((d) => d.ruleId === rule.id && !d.suppressed)
+    const firingDetections = engine.detections.filter(
+      (d) => d.ruleId === rule.id && !d.suppressed
+    )
     ruleNodes.push({
       id: `rule:${rule.id}`,
-      kind: 'rule',
+      kind: "rule",
       label: rule.label,
       serialTail: null,
       parentId: null,
-      ports: [{ id: 'out:Firing on', label: 'Firing on', side: 'right', live: null }],
+      ports: [
+        { id: "out:Firing on", label: "Firing on", side: "right", live: null },
+      ],
       firingRuleIds: [],
-      status: firingDetections.length > 0 ? 'anomaly' : 'nominal',
+      status: firingDetections.length > 0 ? "anomaly" : "nominal",
       severity: rule.severity,
       machineId: null,
       isSummary: false,
@@ -178,18 +225,18 @@ export function buildDetectionGraph(engine: DetectionEngineState): DetectionGrap
     if (!watchedLabel) continue
     for (const d of firingDetections) {
       const subject = d.subject
-      if (subject.kind === 'system') continue
+      if (subject.kind === "system") continue
       const targetNode = nodes.find((n) => n.id === subject.nodeId)
       const targetPort = targetNode?.ports.find((p) => p.label === watchedLabel)
       if (!targetNode || !targetPort) continue
       ruleWires.push({
         id: `wire:${rule.id}:${d.id}`,
         fromId: `rule:${rule.id}`,
-        fromPortId: 'out:Firing on',
+        fromPortId: "out:Firing on",
         toId: targetNode.id,
         toPortId: targetPort.id,
-        kind: targetNode.status === 'anomaly' ? 'anomaly' : 'detection',
-        colorToken: targetNode.status === 'anomaly' ? 'anomaly' : rule.severity,
+        kind: targetNode.status === "anomaly" ? "anomaly" : "detection",
+        colorToken: targetNode.status === "anomaly" ? "anomaly" : rule.severity,
       })
     }
   }
@@ -210,33 +257,50 @@ export function buildDetectionGraph(engine: DetectionEngineState): DetectionGrap
       fromPortId: null,
       toId: n.id,
       toPortId: null,
-      kind: n.status === 'anomaly' ? 'anomaly' : 'structure',
-      colorToken: n.status === 'anomaly' ? 'anomaly' : n.status === 'watch' ? 'watch' : 'structure',
+      kind: n.status === "anomaly" ? "anomaly" : "structure",
+      colorToken:
+        n.status === "anomaly"
+          ? "anomaly"
+          : n.status === "watch"
+            ? "watch"
+            : "structure",
     })
   }
 
-  return { nodes: [...ruleNodes, ...nodes], wires: [...structureWires, ...ruleWires] }
+  return {
+    nodes: [...ruleNodes, ...nodes],
+    wires: [...structureWires, ...ruleWires],
+  }
 }
 
-const COLLAPSIBLE_KINDS = new Set<GraphNodeKind>(['operator', 'machine'])
+const COLLAPSIBLE_KINDS = new Set<GraphNodeKind>(["operator", "machine"])
 
 /**
  * Folds every non-anomalous node in `collapsedKinds` into one summary node
- * per parent — "Khumbu Vertical · 4 machines · 1 firing." Anomalous nodes
+ * per parent — "Press shop 1 · 4 machines · 1 firing." Anomalous nodes
  * are NEVER folded in, regardless of collapse state (spec's own line:
  * "trouble is never hidden inside a summary") — they keep rendering as
  * individual nodes, wired normally, right alongside the summary that
  * covers their nominal siblings. `manuallyExpandedIds` lets a click expand
  * one specific summary without turning off collapsing everywhere.
  */
-export function applyCollapse(graph: DetectionGraph, collapsedKinds: Set<GraphNodeKind>, manuallyExpandedIds: Set<string>): DetectionGraph {
+export function applyCollapse(
+  graph: DetectionGraph,
+  collapsedKinds: Set<GraphNodeKind>,
+  manuallyExpandedIds: Set<string>
+): DetectionGraph {
   const foldTargetOf = new Map<string, string>() // real node id -> summary node id it was folded into
   const summaries = new Map<string, GraphNode>() // summary node id -> the summary node
 
   for (const n of graph.nodes) {
-    if (!COLLAPSIBLE_KINDS.has(n.kind) || !collapsedKinds.has(n.kind) || n.status === 'anomaly') continue
+    if (
+      !COLLAPSIBLE_KINDS.has(n.kind) ||
+      !collapsedKinds.has(n.kind) ||
+      n.status === "anomaly"
+    )
+      continue
     if (n.parentId && manuallyExpandedIds.has(n.parentId)) continue
-    const summaryId = `summary:${n.parentId ?? 'root'}:${n.kind}`
+    const summaryId = `summary:${n.parentId ?? "root"}:${n.kind}`
     foldTargetOf.set(n.id, summaryId)
     const existing = summaries.get(summaryId)
     if (existing) {
@@ -246,12 +310,12 @@ export function applyCollapse(graph: DetectionGraph, collapsedKinds: Set<GraphNo
       summaries.set(summaryId, {
         id: summaryId,
         kind: n.kind,
-        label: `${parent?.label ?? ''} · ${n.kind}s`,
+        label: `${parent?.label ?? ""} · ${n.kind}s`,
         serialTail: null,
         parentId: n.parentId,
         ports: [],
         firingRuleIds: [],
-        status: 'nominal',
+        status: "nominal",
         severity: null,
         machineId: null,
         isSummary: true,
@@ -261,7 +325,7 @@ export function applyCollapse(graph: DetectionGraph, collapsedKinds: Set<GraphNo
   }
 
   for (const summary of summaries.values()) {
-    summary.label = `${graph.nodes.find((p) => p.id === summary.parentId)?.label ?? ''} · ${summary.summaryMemberIds.length} ${summary.kind}${summary.summaryMemberIds.length === 1 ? '' : 's'}`
+    summary.label = `${graph.nodes.find((p) => p.id === summary.parentId)?.label ?? ""} · ${summary.summaryMemberIds.length} ${summary.kind}${summary.summaryMemberIds.length === 1 ? "" : "s"}`
   }
 
   const keptNodes = graph.nodes.filter((n) => !foldTargetOf.has(n.id))
@@ -279,7 +343,13 @@ export function applyCollapse(graph: DetectionGraph, collapsedKinds: Set<GraphNo
     const key = `${fromId}->${toId}->${w.kind}`
     if (seenWireIds.has(key)) continue // several real wires collapsing onto the same summary edge
     seenWireIds.add(key)
-    wires.push({ ...w, fromId, toId, fromPortId: foldTargetOf.has(w.fromId) ? null : w.fromPortId, toPortId: foldTargetOf.has(w.toId) ? null : w.toPortId })
+    wires.push({
+      ...w,
+      fromId,
+      toId,
+      fromPortId: foldTargetOf.has(w.fromId) ? null : w.fromPortId,
+      toPortId: foldTargetOf.has(w.toId) ? null : w.toPortId,
+    })
   }
 
   return { nodes, wires }
@@ -298,7 +368,11 @@ export function ancestorsOf(graph: DetectionGraph, nodeId: string): string[] {
 }
 
 /** `nodeId` plus everything within `hops` steps along structural OR wire edges — the FOCUS view's neighbourhood. */
-export function neighborhood(graph: DetectionGraph, nodeId: string, hops: number): Set<string> {
+export function neighborhood(
+  graph: DetectionGraph,
+  nodeId: string,
+  hops: number
+): Set<string> {
   const adjacency = new Map<string, Set<string>>()
   function link(a: string, b: string) {
     if (!adjacency.has(a)) adjacency.set(a, new Set())

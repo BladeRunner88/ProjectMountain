@@ -8,7 +8,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.legacy import build_legacy_router
 from app.api.router import build_api_router
 from app.core.config import get_settings
 from app.core.exceptions import (
@@ -78,5 +77,6 @@ async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
     )
 
 
+# One surface. The unprefixed mount that carried the pre-migration frontend through the
+# cutover is gone; every path is /api/v1.
 app.include_router(build_api_router())
-app.include_router(build_legacy_router())

@@ -120,13 +120,13 @@ export function IdentityRecordPanel({ machineId }: { machineId: string }): React
         <ContactBlock heading="Emergency contact" contact={record.contacts.emergencyContact} />
         <ContactBlock heading="Second contact" contact={record.contacts.secondContact} />
         <FieldRow label="Operator" traced={record.contacts.operatorName} />
-        <FieldRow label="Lead guide" traced={record.contacts.leadGuide} />
-        <FieldRow label="Lead guide phone" traced={record.contacts.leadGuidePhone} />
+        <FieldRow label="Lead guide" traced={record.contacts.leadSupervisor} />
+        <FieldRow label="Lead guide phone" traced={record.contacts.leadSupervisorPhone} />
         <FieldRow label="Operator phone" traced={record.contacts.operatorPhone} />
-        {record.contacts.ropePartnerSerials.map((tv, i) => (
+        {record.contacts.pairedMachineSerials.map((tv, i) => (
           <FieldRow key={i} label="Rope partner (by serial)" traced={tv} />
         ))}
-        <FieldRow label="Embassy / consulate" traced={record.contacts.embassy} />
+        <FieldRow label="VendorContact / consulate" traced={record.contacts.vendorContact} />
       </Section>
 
       <Section heading="Derived, not entered">
@@ -387,14 +387,14 @@ function ServiceDossierSection({
           </Section>
 
           <Section heading="Who was with them">
-            {serviceDossier.whoWasWithThem.ropeTeamSerials.map((tv, i) => (
+            {serviceDossier.whoWasWithThem.cellMachineSerials.map((tv, i) => (
               <FieldRow key={i} label="Rope team (by serial)" traced={tv} />
             ))}
-            <FieldRow label="Party manifest" traced={serviceDossier.whoWasWithThem.partyManifest} />
-            <FieldRow label="Lead guide" traced={serviceDossier.whoWasWithThem.leadGuide} />
+            <FieldRow label="Party manifest" traced={serviceDossier.whoWasWithThem.shiftManifest} />
+            <FieldRow label="Lead guide" traced={serviceDossier.whoWasWithThem.leadSupervisor} />
             <FieldRow label="Last with, when and where" traced={serviceDossier.whoWasWithThem.lastWithWhenAndWhere} />
-            <FieldRow label="Tent assignment" traced={serviceDossier.whoWasWithThem.tentAssignment} />
-            <FieldRow label="Support staff" traced={serviceDossier.whoWasWithThem.supportStaff} />
+            <FieldRow label="Tent assignment" traced={serviceDossier.whoWasWithThem.bayAssignment} />
+            <FieldRow label="Support staff" traced={serviceDossier.whoWasWithThem.supportTechnicians} />
           </Section>
 
           <Section heading="Photographs and family">

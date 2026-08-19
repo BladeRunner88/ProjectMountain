@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class FindingWindow(BaseModel):
@@ -42,21 +42,12 @@ class Finding(BaseModel):
 
 
 class WindowContext(BaseModel):
-    """Everything every source recorded inside a window, so a reader can judge the finding.
-
-    Carries both the current and the gaming-era list names — see
-    `app.domains.correlate.schemas` for why the old ones still exist.
-    """
+    """Everything every source recorded inside a window, so a reader can judge the finding."""
 
     batches: list[dict[str, Any]]
     cycles: list[dict[str, Any]]
     runs: list[dict[str, Any]]
     work_orders: list[dict[str, Any]]
-
-    transactions: list[dict[str, Any]] = Field(deprecated=True, description="Use `batches`.")
-    rounds: list[dict[str, Any]] = Field(deprecated=True, description="Use `cycles`.")
-    sessions: list[dict[str, Any]] = Field(deprecated=True, description="Use `runs`.")
-    campaign_sends: list[dict[str, Any]] = Field(deprecated=True, description="Use `work_orders`.")
 
 
 class FindingDetail(Finding):

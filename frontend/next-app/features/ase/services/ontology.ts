@@ -204,13 +204,13 @@ export function buildOntology(input: OntologyBuildInput): Ontology {
       kind: "country",
       label: "Countries",
       count: countries.length,
-      line: "The nations these campaigns operate in — Nepal, Pakistan, China (Tibet), the United States, Switzerland.",
+      line: `The nations these plants operate in — ${countries.join(", ")}.`,
     },
     {
       kind: "plant",
       label: "Plants",
       count: input.plantCountryPairs.length,
-      line: "A named massif or park inside one country — Khumbu, Denali, the Matterhorn group and the rest.",
+      line: "A named production line inside one plant.",
     },
     {
       kind: "line",
@@ -254,10 +254,14 @@ export function buildOntology(input: OntologyBuildInput): Ontology {
   const countryCodeTv = observed(
     workOrder.def.id,
     "country:iso_3166_alpha2",
-    examplePlant.country === "Nepal" ? "NP" : "XX",
+    // First two letters of the country's own name, upper-cased. Not a real
+    // ISO 3166 lookup, and it does not pretend to be — it replaces a single
+    // hardcoded country test that returned "XX" for every country the
+    // warehouse actually reports.
+    examplePlant.country.slice(0, 2).toUpperCase(),
     workOrder.reliability
   )
-  const exampleLine = input.lineNames[11] ?? input.lineNames[0] // Hörnli Ridge
+  const exampleLine = input.lineNames[11] ?? input.lineNames[0]
   const lineNameTv = observed(
     workOrder.def.id,
     "line:name",
@@ -270,7 +274,7 @@ export function buildOntology(input: OntologyBuildInput): Ontology {
     "AD",
     workOrder.reliability
   )
-  const exampleOperator = input.lineOperatorNames[0][0] // Khumbu Vertical
+  const exampleOperator = input.lineOperatorNames[0][0]
   const operatorNameTv = observed(
     register.def.id,
     "operator:name",

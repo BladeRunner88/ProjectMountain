@@ -68,12 +68,12 @@ export function buildDviForm(record: IdentityRecord, serviceDossier: ServiceDoss
       lastConfirmedSighting: v(serviceDossier.secondary.lastConfirmedSighting),
     },
     whoWasWithThem: {
-      ropeTeamSerials: serviceDossier.whoWasWithThem.ropeTeamSerials.map((tv) => v(tv)),
-      partyManifest: v(serviceDossier.whoWasWithThem.partyManifest),
-      leadGuide: v(serviceDossier.whoWasWithThem.leadGuide),
+      cellMachineSerials: serviceDossier.whoWasWithThem.cellMachineSerials.map((tv) => v(tv)),
+      shiftManifest: v(serviceDossier.whoWasWithThem.shiftManifest),
+      leadSupervisor: v(serviceDossier.whoWasWithThem.leadSupervisor),
       lastWithWhenAndWhere: v(serviceDossier.whoWasWithThem.lastWithWhenAndWhere),
-      tentAssignment: v(serviceDossier.whoWasWithThem.tentAssignment),
-      supportStaff: v(serviceDossier.whoWasWithThem.supportStaff),
+      bayAssignment: v(serviceDossier.whoWasWithThem.bayAssignment),
+      supportTechnicians: v(serviceDossier.whoWasWithThem.supportTechnicians),
     },
     photographsAndFamily: {
       photographReference: v(serviceDossier.photoAndFamily.photographReference),

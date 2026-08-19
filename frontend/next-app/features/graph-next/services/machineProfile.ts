@@ -13,35 +13,26 @@ import type { DomainDataset } from "../types/domain"
 import type { MachinePlacement, LineProfile } from "./terrainProfile"
 import type { GraphId } from "../types/graph"
 
-const ORIGIN_COUNTRY_POOL = [
-  "Nepal",
-  "India",
-  "Pakistan",
-  "China",
-  "Japan",
-  "South Korea",
-  "United States",
-  "Canada",
-  "United Kingdom",
-  "France",
-  "Germany",
-  "Switzerland",
-  "Spain",
-  "Italy",
-  "Poland",
-  "Kazakhstan",
-]
+/**
+ * A machine's coordinates, derived from the country's name rather than looked
+ * up in a table of five specific countries.
+ *
+ * `COUNTRY_BASE_COORD` used to key on five countries the warehouse does not
+ * report, so every one missed and every machine on the map fell back to
+ * (0, 0) — the Gulf of Guinea. Same dead-lookup bug the country colour table
+ * had. Derived coordinates are not real geography, but they are stable per
+ * country and they put each country's machines together, which is all the map
+ * actually renders.
+ */
+const LAT_SPAN = 120
+const LAT_OFFSET = -60
+const LON_SPAN = 360
+const LON_OFFSET = -180
 
-// Real-ish base coordinates for each campaign country's own high peaks —
-// machines are then jittered from here along their actual line position
-// (progress/lateral, reused from MachinePlacement) so nearby machines land
-// near each other, not scattered at random.
-const COUNTRY_BASE_COORD: Record<string, [number, number]> = {
-  Nepal: [27.9881, 86.925],
-  Pakistan: [35.8825, 76.5133],
-  "China (Tibet)": [28.15, 86.85],
-  "United States": [63.0692, -151.007],
-  Switzerland: [45.9763, 7.6586],
+function baseCoordFor(country: string): [number, number] {
+  const lat = LAT_OFFSET + (Math.abs(seedFromString(country, 6101)) % LAT_SPAN)
+  const lon = LON_OFFSET + (Math.abs(seedFromString(country, 6102)) % LON_SPAN)
+  return [lat, lon]
 }
 
 export interface MachineProfile {
@@ -85,9 +76,7 @@ export function buildMachineProfiles(
     const birthDay = randInt(rand, 1, 28)
     const dateOfBirthIso = `${birthYear}-${String(birthMonth).padStart(2, "0")}-${String(birthDay).padStart(2, "0")}`
 
-    const [baseLat, baseLon] = COUNTRY_BASE_COORD[lineProfile.countryLabel] ?? [
-      0, 0,
-    ]
+    const [baseLat, baseLon] = baseCoordFor(lineProfile.countryLabel)
     const lat = baseLat + placement.lateral * 0.01 + (rand() - 0.5) * 0.002
     const lon =
       baseLon + (placement.progress - 0.5) * 0.02 + (rand() - 0.5) * 0.002
@@ -100,8 +89,9 @@ export function buildMachineProfiles(
       station: placement.station,
       linePrefix:
         LINE_PREFIX_POOL[Math.floor(rand() * LINE_PREFIX_POOL.length)],
-      originCountry:
-        ORIGIN_COUNTRY_POOL[Math.floor(rand() * ORIGIN_COUNTRY_POOL.length)],
+      // The country the machine's own plant sits in, not a draw from a pool of
+      // sixteen unrelated nationalities.
+      originCountry: lineProfile.countryLabel,
       dateOfBirthIso,
       ageYears,
       targetsCompleted: randInt(rand, 0, 14),

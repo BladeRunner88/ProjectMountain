@@ -1,12 +1,9 @@
 """Wire contract for the time-window correlation view.
 
-Two names for each list, and that needs explaining. The original names come from the
-gaming demonstration domain this API was built against — `transactions`, `rounds`,
-`sessions`, `campaign_sends`. The data is now manufacturing, so those names describe
-nothing that exists: a "transaction" is an inspected batch, a "session" is a production
-run. Renaming them outright would break any client on the old contract, so the truthful
-names are added beside them and both carry the same rows. The gaming-era names are
-deprecated and go away with the legacy mount.
+The gaming-era list names (`transactions`, `rounds`, `sessions`, `campaign_sends`) are
+gone. They described nothing that exists in a manufacturing world -- a "transaction" was
+an inspected batch, a "session" a production run -- and were carried alongside the
+truthful names only so a client on the old contract would not break mid-migration.
 """
 
 from typing import Any
@@ -30,8 +27,3 @@ class CorrelateResponse(BaseModel):
     cycles: list[dict[str, Any]] = Field(description="Machine cycles in the window")
     runs: list[dict[str, Any]] = Field(description="Production runs in the window")
     work_orders: list[dict[str, Any]] = Field(description="Work orders scheduled in the window")
-
-    transactions: list[dict[str, Any]] = Field(deprecated=True, description="Use `batches`.")
-    rounds: list[dict[str, Any]] = Field(deprecated=True, description="Use `cycles`.")
-    sessions: list[dict[str, Any]] = Field(deprecated=True, description="Use `runs`.")
-    campaign_sends: list[dict[str, Any]] = Field(deprecated=True, description="Use `work_orders`.")

@@ -88,11 +88,11 @@ export function IdentityDecisionTab({
     recommendations.push({
       id: 'rec-escalate',
       action: 'Escalate to operator',
-      why: `${name}'s readings are outside their own baseline. ${record.contacts.leadGuide.value} and ${record.contacts.operatorName.value} have not yet been notified.`,
+      why: `${name}'s readings are outside their own baseline. ${record.contacts.leadSupervisor.value} and ${record.contacts.operatorName.value} have not yet been notified.`,
       confidencePct: 91,
       ifYouDoNothing: 'No one on the mountain is alerted to the anomaly.',
       onRun: () => {
-        logRevision(`${name}: escalated to ${record.contacts.leadGuide.value} at ${record.contacts.operatorName.value}.`)
+        logRevision(`${name}: escalated to ${record.contacts.leadSupervisor.value} at ${record.contacts.operatorName.value}.`)
         logAccess('Coordinator', `Escalated ${name}'s anomaly to the operator`, 'Anomaly status')
       },
     })
@@ -276,20 +276,20 @@ function AllActions({
           }}
         />
         <ActionRow
-          label="Notify embassy"
-          detail={`${record.contacts.embassy.value}. Requires nothing. Writes to the audit chain.`}
+          label="Notify vendorContact"
+          detail={`${record.contacts.vendorContact.value}. Requires nothing. Writes to the audit chain.`}
           buttonLabel="NOTIFY"
           onRun={() => {
-            logRevision(`${name}: embassy notified — ${record.contacts.embassy.value}.`)
-            logAccess('Coordinator', `Notified the embassy of record for ${name}`, 'Consular notification')
+            logRevision(`${name}: vendorContact notified — ${record.contacts.vendorContact.value}.`)
+            logAccess('Coordinator', `Notified the vendorContact of record for ${name}`, 'Consular notification')
           }}
         />
         <ActionRow
           label="Escalate to operator"
-          detail={`${record.contacts.leadGuide.value}, ${record.contacts.operatorName.value}. Requires nothing. Writes to Revision and the audit chain.`}
+          detail={`${record.contacts.leadSupervisor.value}, ${record.contacts.operatorName.value}. Requires nothing. Writes to Revision and the audit chain.`}
           buttonLabel="ESCALATE"
           onRun={() => {
-            logRevision(`${name}: escalated to ${record.contacts.leadGuide.value} at ${record.contacts.operatorName.value}.`)
+            logRevision(`${name}: escalated to ${record.contacts.leadSupervisor.value} at ${record.contacts.operatorName.value}.`)
             logAccess('Coordinator', `Escalated ${name} to the operator`, 'Operator escalation')
           }}
         />

@@ -189,7 +189,7 @@ export function builtInRules(): DetectionRule[] {
       patternLeadMinutes: null,
     },
     {
-      id: 'rule-not-enough-guides',
+      id: 'rule-not-enough-operators',
       label: 'Not enough guides',
       watches: 'operators',
       conditionSentence: 'fewer guides than parties',

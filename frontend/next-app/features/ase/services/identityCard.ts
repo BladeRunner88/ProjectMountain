@@ -199,7 +199,7 @@ export interface IdentityCardInput {
   id: string
   name: string
   operatorName: string
-  leadGuideName: string
+  leadSupervisorName: string
   lineName: string
   registryCountry: string
   ropePartnerId: string | null
@@ -410,7 +410,7 @@ export function buildIdentityCards(
     })
     associates.push({
       id: "assoc-lead-guide",
-      label: c.leadGuideName,
+      label: c.leadSupervisorName,
       kind: "lead_guide",
       status: "nominal",
       strength: 0.5,

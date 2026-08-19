@@ -28,15 +28,16 @@ import type { Conflict } from "./conflict"
 import type { Rng } from "./rng"
 
 // -- the serial's registry map (S9.5b) ---------------------------------
-// AAA reuses the country dialling code so the serial is human-readable on
-// a radio — this is domain content (which countries, which codes), so it
-// lives here, not in the domain-agnostic serial.ts.
-export const REGISTRY_CODE: Record<string, string> = {
-  Nepal: "977",
-  Pakistan: "092",
-  "China (Tibet)": "086",
-  "United States": "001",
-  Switzerland: "041",
+// AAA is a three-digit registry code derived from the country's own name, so a
+// serial stays human-readable and stable without the code table having to name
+// any country in particular. It was a fixed map of five countries, none of
+// which the warehouse reports — every real country missed it.
+export function registryCode(country: string): string {
+  let hash = 0
+  for (let i = 0; i < country.length; i++) {
+    hash = (Math.imul(hash, 31) + country.charCodeAt(i)) | 0
+  }
+  return String(Math.abs(hash) % 1000).padStart(3, "0")
 }
 
 function hashHex(s: string): string {
@@ -93,11 +94,11 @@ export interface IdentityRecord {
     emergencyContact: ContactInfo
     secondContact: ContactInfo
     operatorName: TracedValue<string>
-    leadGuide: TracedValue<string>
-    leadGuidePhone: TracedValue<string>
+    leadSupervisor: TracedValue<string>
+    leadSupervisorPhone: TracedValue<string>
     operatorPhone: TracedValue<string>
-    ropePartnerSerials: TracedValue<string>[]
-    embassy: TracedValue<string>
+    pairedMachineSerials: TracedValue<string>[]
+    vendorContact: TracedValue<string>
   }
   derived: {
     sourceRecordsMerged: TracedValue<number>
@@ -135,12 +136,12 @@ export interface ServiceDossierRecord {
     lastConfirmedSighting: TracedValue<string>
   }
   whoWasWithThem: {
-    ropeTeamSerials: TracedValue<string>[]
-    partyManifest: TracedValue<string>
-    leadGuide: TracedValue<string>
+    cellMachineSerials: TracedValue<string>[]
+    shiftManifest: TracedValue<string>
+    leadSupervisor: TracedValue<string>
     lastWithWhenAndWhere: TracedValue<string>
-    tentAssignment: TracedValue<string>
-    supportStaff: TracedValue<string>
+    bayAssignment: TracedValue<string>
+    supportTechnicians: TracedValue<string>
   }
   photoAndFamily: {
     photographReference: TracedValue<string>
@@ -252,7 +253,7 @@ export interface MachineIdentityInput {
   countryOfOrigin: string
   registryCountry: string
   operatorName: string
-  leadGuideName: string
+  leadSupervisorName: string
   ropePartnerId: string | null
   partyMemberNames: string[]
   findingKind: string | null
@@ -301,7 +302,7 @@ export function buildIdentityRecords(
   let forcedCollisionUsed = false
 
   for (const c of machines) {
-    const aaa = REGISTRY_CODE[c.registryCountry] ?? "000"
+    const aaa = registryCode(c.registryCountry)
     let given = c.name.value.split(" ")[0]
     // Must reflect the REAL value this machine's dob TracedValue will carry
     // (their override, if they have one) — recording the discarded random
@@ -494,13 +495,15 @@ export function buildIdentityRecords(
           rng,
           workOrderSourceId,
           workOrderReliability,
-          `${c.id}:emergency`
+          `${c.id}:emergency`,
+          c.registryCountry
         ),
         secondContact: buildContact(
           rng,
           workOrderSourceId,
           workOrderReliability,
-          `${c.id}:second`
+          `${c.id}:second`,
+          c.registryCountry
         ),
         operatorName: observed(
           workOrderSourceId,
@@ -508,13 +511,13 @@ export function buildIdentityRecords(
           c.operatorName,
           workOrderReliability
         ),
-        leadGuide: observed(
+        leadSupervisor: observed(
           workOrderSourceId,
           `${c.id}:lead_guide`,
-          c.leadGuideName,
+          c.leadSupervisorName,
           workOrderReliability
         ),
-        leadGuidePhone: observed(
+        leadSupervisorPhone: observed(
           workOrderSourceId,
           `${c.id}:lead_guide_phone`,
           generatePhone(rng),
@@ -526,11 +529,11 @@ export function buildIdentityRecords(
           generatePhone(rng),
           workOrderReliability
         ),
-        ropePartnerSerials: [], // filled in a second pass once every serial is known
-        embassy: observed(
+        pairedMachineSerials: [], // filled in a second pass once every serial is known
+        vendorContact: observed(
           workOrderSourceId,
-          `${c.id}:embassy`,
-          `${c.countryOfOrigin} Embassy or Consulate, nearest to ${c.registryCountry}`,
+          `${c.id}:vendorContact`,
+          `${c.countryOfOrigin} VendorContact or Consulate, nearest to ${c.registryCountry}`,
           workOrderReliability
         ),
       },
@@ -668,7 +671,7 @@ export function buildIdentityRecords(
         lastConfirmedSighting: observed(
           workOrderSourceId,
           `${c.id}:last_confirmed_sighting`,
-          `Seen by ${c.leadGuideName} at ${c.currentStationOverride ?? "their last recorded station"}`,
+          `Seen by ${c.leadSupervisorName} at ${c.currentStationOverride ?? "their last recorded station"}`,
           workOrderReliability,
           {
             recordedAt: hoursAgo(rng.float(0.2, 8)),
@@ -676,28 +679,28 @@ export function buildIdentityRecords(
         ),
       },
       whoWasWithThem: {
-        ropeTeamSerials: [],
-        partyManifest: observed(
+        cellMachineSerials: [],
+        shiftManifest: observed(
           workOrderSourceId,
           `${c.id}:party_manifest`,
           c.partyMemberNames.join(", ") ||
             "Solo workOrder — no other party members on this workOrder.",
           workOrderReliability
         ),
-        leadGuide: record.contacts.leadGuide,
+        leadSupervisor: record.contacts.leadSupervisor,
         lastWithWhenAndWhere: observed(
           workOrderSourceId,
           `${c.id}:last_with`,
-          `${c.leadGuideName}, ${formatElapsedHours(rng.float(0.2, 8))} ago, ${c.currentStationOverride ?? "last recorded station"}`,
+          `${c.leadSupervisorName}, ${formatElapsedHours(rng.float(0.2, 8))} ago, ${c.currentStationOverride ?? "last recorded station"}`,
           workOrderReliability
         ),
-        tentAssignment: observed(
+        bayAssignment: observed(
           workOrderSourceId,
           `${c.id}:tent_assignment`,
           `${c.currentStationOverride ?? rng.pick(STATIONS)}, Tent ${rng.int(1, 12)}`,
           workOrderReliability
         ),
-        supportStaff: observed(
+        supportTechnicians: observed(
           workOrderSourceId,
           `${c.id}:support_staff`,
           `${rng.int(0, 3)} porter(s) assigned to this party.`,
@@ -733,8 +736,8 @@ export function buildIdentityRecords(
       partnerSerial,
       workOrderReliability
     )
-    record.contacts.ropePartnerSerials = [partnerTv]
-    serviceDossier.whoWasWithThem.ropeTeamSerials = [partnerTv]
+    record.contacts.pairedMachineSerials = [partnerTv]
+    serviceDossier.whoWasWithThem.cellMachineSerials = [partnerTv]
   }
 
   return {
@@ -749,7 +752,9 @@ function buildContact(
   rng: Rng,
   sourceId: SourceId,
   reliability: Confidence,
-  prefix: string
+  prefix: string,
+  /** The country this machine's plant sits in. */
+  countryLabel: string
 ): ContactInfo {
   const first = rng.pick([
     "Anna",
@@ -788,14 +793,9 @@ function buildContact(
     country: observed(
       sourceId,
       `${prefix}_country`,
-      rng.pick([
-        "United States",
-        "United Kingdom",
-        "Nepal",
-        "France",
-        "Germany",
-        "India",
-      ]),
+      // The country the machine's own plant sits in, rather than a draw from a
+      // pool of unrelated nationalities.
+      countryLabel,
       reliability
     ),
   }

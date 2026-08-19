@@ -5,14 +5,9 @@ which plant it was scoped to, because the reconciled total is a conversion and t
 must be able to audit it. A count metric has neither, so it does not carry a `plant` key
 at all rather than a permanently-null one.
 
-Several fields carry a second, gaming-era name. This API was built against a payments
-demonstration domain, so a mass in kilograms arrived in a field called `usd_total` and a
-plant in one called `market`. The truthful names sit beside them, both are populated, and
-the old ones are marked deprecated rather than removed.
-
-They are declared as ordinary fields rather than `computed_field(deprecated=True)`:
-Pydantic emits a DeprecationWarning every time it serialises one of those, which would
-mean a warning per field per response.
+The gaming-era aliases (`usd_total` for a mass in kilograms, `market` for a plant,
+`currency` for a unit, `provider` for a station) are gone. They existed so the frontend
+could keep reading the old names through the ontology change; nothing reads them now.
 """
 
 from pydantic import BaseModel, Field
@@ -26,11 +21,6 @@ class UnitComponent(BaseModel):
     raw_total: float
     quantity_kg: float
 
-    currency: str = Field(deprecated=True, description="Alias for `unit`.")
-    usd_total: float = Field(
-        deprecated=True, description="Alias for `quantity_kg`. The value is a mass."
-    )
-
 
 class StationComposition(BaseModel):
     """One inspection station's share of a quantity metric."""
@@ -38,9 +28,6 @@ class StationComposition(BaseModel):
     station: str
     components: list[UnitComponent]
     quantity_kg: float
-
-    provider: str = Field(deprecated=True, description="Alias for `station`.")
-    usd_total: float = Field(deprecated=True, description="Alias for `quantity_kg`.")
 
 
 class QuantityMetric(BaseModel):
@@ -52,8 +39,6 @@ class QuantityMetric(BaseModel):
     unit: str
     reconciled_total: float
     sources: list[StationComposition]
-
-    market: str | None = Field(deprecated=True, description="Alias for `plant`.")
 
 
 class SourceCount(BaseModel):

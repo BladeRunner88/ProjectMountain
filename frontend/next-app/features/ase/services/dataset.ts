@@ -100,7 +100,8 @@ import {
   type TracedValue,
 } from "./traced"
 import type { TabId } from "../types/tabs"
-import type { AseWorld, WorldStage } from "../types/world"
+import { nodesOfTier } from "../types/world"
+import type { AseWorld, WorldNode, WorldStage } from "../types/world"
 
 const SEED = 20260804
 
@@ -284,58 +285,56 @@ export interface PlantDef {
   country: string
 }
 
-export const PLANTS: PlantDef[] = [
-  { name: "Khumbu", country: "Nepal" },
-  { name: "Annapurna", country: "Nepal" },
-  { name: "Manaslu", country: "Nepal" },
-  { name: "Langtang", country: "Nepal" },
-  { name: "Baltoro", country: "Pakistan" },
-  { name: "Nanga Parbat", country: "Pakistan" },
-  { name: "Gasherbrum", country: "Pakistan" },
-  { name: "North Col", country: "China (Tibet)" },
-  { name: "Cho Oyu", country: "China (Tibet)" },
-  { name: "Denali", country: "United States" },
-  { name: "Rainier", country: "United States" },
-  { name: "Matterhorn", country: "Switzerland" },
-  { name: "Eiger", country: "Switzerland" },
-  { name: "Monte Rosa", country: "Switzerland" },
-]
+/**
+ * The reference names below used to be three hardcoded pools naming places
+ * and companies the warehouse has never held. They are
+ * derived from the warehouse world now, which is the whole point of the
+ * migration: the Control Room's analytics still compute a great deal on top,
+ * but the entities they are ABOUT come from the backend.
+ *
+ * Each is indexed by line, because that is how the callers below use them:
+ * `PLANTS[lineIdx]` means "the plant this line sits in", not "the lineIdx-th
+ * plant". Six plants hold fourteen lines, so entries repeat — which is a fact
+ * about the factory, not a defect in the derivation.
+ */
+function linesOf(world: AseWorld): WorldNode[] {
+  return nodesOfTier(world, "line")
+}
 
-// One line per plant, real standard-line names.
-export const LINE_NAMES: string[] = [
-  "South Col Line",
-  "Northwest Face Line",
-  "Normal Line (Northeast Face)",
-  "Southeast Ridge",
-  "Abruzzi Spur",
-  "Kinshofer Line",
-  "Southwest Ridge",
-  "North Ridge Line",
-  "Northwest Ridge Line",
-  "West Buttress",
-  "Disappointment Cleaver",
-  "Hörnli Ridge",
-  "Mittellegi Ridge",
-  "Margherita Hut Line",
-]
+function plantsByLine(world: AseWorld): PlantDef[] {
+  const byId = new Map(world.nodes.map((node) => [node.id, node]))
+  return linesOf(world).map((line) => {
+    const plant = line.parentId ? byId.get(line.parentId) : undefined
+    return {
+      name: plant?.label ?? line.plant ?? "Unknown plant",
+      country: plant?.country ?? line.country ?? "Unknown",
+    }
+  })
+}
 
-// 2-3 operators per line, 30 total. Plant-flavoured, plausible names.
-export const LINE_OPERATORS: string[][] = [
-  ["Khumbu Vertical", "Sagarmatha Collective", "Eight-Thousander Union"],
-  ["Annapurna Circuit Guides", "Thin Air Research"],
-  ["Manaslu Alpine Co", "Gorkha Target Partners"],
-  ["Langtang Ridge Outfitters", "Helambu RampUps"],
-  ["Baltoro Yard Guides", "Karakoram Traverse", "Alpine Meridian"],
-  ["Diamir Face Campaigns", "Nanga Parbat Alpine Co"],
-  ["Gasherbrum Collective", "Concordia RampUps"],
-  ["North Col Traverse", "Rongbuk Campaigns"],
-  ["Cho Oyu Guiding Co", "Nangpa La Partners"],
-  ["Denali Mountaineering Co", "West Buttress Guides"],
-  ["Rainier Alpine Guides", "Cascade Target Partners"],
-  ["Hörnli Alpine Guides", "Zermatt RampUps"],
-  ["Eiger Traverse Co", "Grindelwald Alpine Partners"],
-  ["Monte Rosa Guiding Collective", "Gorner Ridge Partners"],
-]
+function lineNamesOf(world: AseWorld): string[] {
+  return linesOf(world).map((line) => line.label)
+}
+
+/**
+ * Real operators, grouped per line. The warehouse records sixty of them across
+ * fourteen lines; they are dealt out in order rather than assigned randomly, so
+ * the same world always produces the same grouping and two builds can be
+ * compared.
+ */
+function lineOperatorsOf(world: AseWorld): string[][] {
+  const lines = linesOf(world)
+  const names = world.operators.map((operator) => operator.name)
+  if (lines.length === 0) return []
+  const grouped: string[][] = lines.map(() => [])
+  names.forEach((name, index) => {
+    grouped[index % lines.length]!.push(name)
+  })
+  // Every line needs at least one operator: the callers index [0] on each.
+  return grouped.map((group, index) =>
+    group.length > 0 ? group : [`${lines[index]!.label} operator`]
+  )
+}
 
 const MACHINE_COUNT = 50
 
@@ -365,6 +364,11 @@ export function buildDataset(
 ): Dataset {
   clearRegistry()
   const rng = new Rng(seed)
+
+  // Reference names, derived from the warehouse rather than from a name pool.
+  const PLANTS = plantsByLine(world)
+  const LINE_NAMES = lineNamesOf(world)
+  const LINE_OPERATORS = lineOperatorsOf(world)
 
   // S3: real bitemporal spread, not everything stamped "now" at build time —
   // otherwise there's nothing on the last-24h timeline for the scrubber to
@@ -918,7 +922,7 @@ export function buildDataset(
   const nationalityA = observed(
     workOrder.def.id,
     "nationality",
-    "Nepal",
+    PLANTS[0]?.country ?? "Unknown",
     workOrder.reliability
   )
   const nationalityB = observed(
@@ -1111,7 +1115,7 @@ export function buildDataset(
   }
 
   // 5. Ambient pressure — two sensors on one line, 9 hPa apart.
-  const pressureLineIndex = 9 // Denali
+  const pressureLineIndex = 9
   const pressurePlant = PLANTS[pressureLineIndex].name
   const pressureLine = LINE_NAMES[pressureLineIndex]
   const pressureLabel = `${pressureLine} (${pressurePlant})`
@@ -1199,7 +1203,7 @@ export function buildDataset(
   // Real people, from the asset register. These were drawn from
   // nationality-grouped name pools; the plant employs actual named operators
   // and the warehouse records who they are.
-  const operatorLeadGuideNames = operatorNames.map((_, index) => {
+  const operatorLeadSupervisorNames = operatorNames.map((_, index) => {
     const operator =
       world.operators[index % Math.max(world.operators.length, 1)]
     return operator?.name ?? `Unassigned operator ${index + 1}`
@@ -1234,7 +1238,7 @@ export function buildDataset(
       countryOfOrigin: machineCountries[i],
       registryCountry,
       operatorName: operatorNames[opIdx],
-      leadGuideName: operatorLeadGuideNames[opIdx],
+      leadSupervisorName: operatorLeadSupervisorNames[opIdx],
       ropePartnerId: partnerIdx !== undefined ? machines[partnerIdx].id : null,
       partyMemberNames: (machinesByOperator.get(opIdx) ?? [])
         .filter((idx) => idx !== i)
@@ -1273,7 +1277,7 @@ export function buildDataset(
       id: c.id,
       name: c.name.value,
       operatorName: operatorNames[opIdx],
-      leadGuideName: operatorLeadGuideNames[opIdx],
+      leadSupervisorName: operatorLeadSupervisorNames[opIdx],
       lineName: LINE_NAMES[lineIdx],
       registryCountry: PLANTS[lineIdx].country,
       ropePartnerId: partnerIdx !== undefined ? machines[partnerIdx].id : null,
@@ -1311,13 +1315,16 @@ export function buildDataset(
 
   // -- reasoning engine (S9.8) inputs, built early because the context ------
   // -- engine's own readings (below) need `toAffectedPerson` too -----------
-  // The Khumbu / Everest Base Station line continues S9.7's sensor 4 example.
+  // The worked scenario runs on the world's first line, whatever it is named.
+  // It used to be hardcoded to a fixed place name, which meant the narrative
+  // described somewhere the warehouse had never heard of.
   // "Eleven machines above Station II" and the four flagged for low
   // effectiveness are a deliberately-selected real cohort for this worked
   // scenario (their own randomly-assigned Identity-tab trail position is a
   // separate, independent fact — this is the Reasoning tab's own worked
   // example, same as S9.6's the worked-example machine cluster is Identity's).
-  const khumbuOperatorNames = LINE_OPERATORS[0]
+  const workedLineOperatorNames = LINE_OPERATORS[0]
+  const workedLineName = LINE_NAMES[0] ?? "the first line"
   const reasoningAffectedIndices = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
   const reasoningLowOxygenIndices = [1, 3, 5, 7]
   function toAffectedPerson(machineIdx: number) {
@@ -1383,7 +1390,7 @@ export function buildDataset(
     `${workOrderRecord.contacts.operatorName.value} · ${workOrderCard.footer.station.value}`
   )
 
-  const meaningOperatorIdx = 0 // LINE_OPERATORS[0][0] — the same Khumbu operator S9.8's worked scenario uses
+  const meaningOperatorIdx = 0 // LINE_OPERATORS[0][0] — the same operator the worked scenario uses
   const meaningOperatorName = operatorNames[meaningOperatorIdx]
   const meaningOperatorMachineCount = machineOperatorIndex.filter(
     (idx) => idx === meaningOperatorIdx
@@ -1441,7 +1448,12 @@ export function buildDataset(
     ["ALLERGIES", fieldTv(service, "ALLERGIES", serviceRaw.ALLERGIES, 22)],
     [
       "BASELINE_VIBRATION_MM_S",
-      fieldTv(service, "BASELINE_VIBRATION_MM_S", serviceRaw.BASELINE_VIBRATION_MM_S, 22),
+      fieldTv(
+        service,
+        "BASELINE_VIBRATION_MM_S",
+        serviceRaw.BASELINE_VIBRATION_MM_S,
+        22
+      ),
     ],
     ["OEE_BASELINE_PCT", nimaOeeBaseline!],
   ])
@@ -1486,7 +1498,7 @@ export function buildDataset(
     {
       id: "reading-weather-ebc",
       source: weatherFeed.def.name,
-      about: { kind: "line", label: "Everest Base Station line" },
+      about: { kind: "line", label: workedLineName },
       arrivedAt: secondsAgo(9),
       takenAt: null,
       raw: weatherRaw,
@@ -1546,7 +1558,8 @@ export function buildDataset(
         id: register.def.id,
         reliability: register.reliability,
       },
-      operatorNames: khumbuOperatorNames,
+      operatorNames: workedLineOperatorNames,
+      lineName: workedLineName,
       affected: reasoningAffected,
       lowOxygenAffected: reasoningLowOxygenAffected,
       independentlyConfirmedIds: reasoningIndependentlyConfirmedIds,
@@ -1660,7 +1673,7 @@ export function buildDataset(
   const vibrationRule = rule("rule-dangerous-vibration")
   const pulseRule = rule("rule-high-vibration")
   const fastRule = rule("rule-climbing-too-fast")
-  const guidesRule = rule("rule-not-enough-guides")
+  const staffingRule = rule("rule-not-enough-operators")
   const visRule = rule("rule-effectiveness-collapse")
   const battRule = rule("rule-low-battery")
   const pressureRule = rule("rule-pressure-mismatch")
@@ -1719,7 +1732,7 @@ export function buildDataset(
       reliability: sensorMesh.reliability,
       rawField: `${machines[7].id}:oee_pct`,
     },
-    // Dangerous vibration — sensor 1 (Khumbu/EBC) reuses S9.8's exact 78 kph.
+    // Dangerous vibration — sensor 1 on the worked line reuses S9.8's exact reading.
     {
       ruleId: vibrationRule.id,
       subject: sensorSubject(0),
@@ -1805,14 +1818,14 @@ export function buildDataset(
     },
     // Not enough guides
     {
-      ruleId: guidesRule.id,
+      ruleId: staffingRule.id,
       subject: operatorSubject(5),
       value: 0.5,
       startValue: 1.2,
       minutesAgo: 50,
       sourceId: register.def.id,
       reliability: register.reliability,
-      rawField: "operator-5:guides_per_party",
+      rawField: "operator-5:operators_per_shift",
     },
     // Effectiveness collapse
     {
@@ -1923,8 +1936,8 @@ export function buildDataset(
       ruleId: fastRule.id,
       subject: machineSubject(36),
       reason:
-        "Guide confirmed this pace is expected — a planned training descent, not an uncontrolled rampUp.",
-      setBy: "Lead guide, Khumbu Vertical",
+        "Line lead confirmed this rate is expected — a planned ramp-up run, not an uncontrolled excursion.",
+      setBy: `Line lead, ${workedLineOperatorNames[0]}`,
       setAt: hoursAgo(2),
       expiresAt: instant(
         new Date(buildNow + 22 * 60 * 60 * 1000).toISOString()

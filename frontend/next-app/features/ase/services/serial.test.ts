@@ -86,15 +86,15 @@ describe('SerialIssuer (collision handling)', () => {
 
   it('the same BBB can be issued independently in two different registries — collision tracking is per-registry', () => {
     const issuer = new SerialIssuer()
-    const nepal = issuer.issue('977', 'shared-input')
-    const pakistan = issuer.issue('092', 'shared-input')
-    expect(nepal.collided).toBe(false)
-    expect(pakistan.collided).toBe(false)
+    const first = issuer.issue('977', 'shared-input')
+    const second = issuer.issue('092', 'shared-input')
+    expect(first.collided).toBe(false)
+    expect(second.collided).toBe(false)
     // Same BBB body (the check digit differs because it's computed over
     // AAABBB, not BBB alone — the registry prefix is part of what's checked).
-    const nepalBBB = nepal.serial.replace('-', '').slice(3, 6)
-    const pakistanBBB = pakistan.serial.replace('-', '').slice(3, 6)
-    expect(nepalBBB).toBe(pakistanBBB)
-    expect(nepal.serial).not.toBe(pakistan.serial)
+    const firstBBB = first.serial.replace('-', '').slice(3, 6)
+    const secondBBB = second.serial.replace('-', '').slice(3, 6)
+    expect(firstBBB).toBe(secondBBB)
+    expect(first.serial).not.toBe(second.serial)
   })
 })

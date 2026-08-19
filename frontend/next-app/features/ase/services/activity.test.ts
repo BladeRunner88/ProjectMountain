@@ -223,12 +223,12 @@ describe("sentence composition for 'derived' fn slugs (S9.4)", () => {
     const inputB = observed(source, "b", 2, sourceReliability(0.9))
     const next = derived(
       [inputA.id, inputB.id],
-      derivationFnId("denali:ambient-pressure"),
+      derivationFnId("plant:ambient-pressure"),
       { min: 860, max: 875 }
     )
     const prev = derived(
       [inputA.id, inputB.id],
-      derivationFnId("denali:ambient-pressure"),
+      derivationFnId("plant:ambient-pressure"),
       { min: 862, max: 871 },
       {
         supersededBy: next.id,
@@ -236,7 +236,7 @@ describe("sentence composition for 'derived' fn slugs (S9.4)", () => {
       }
     )
     const [change] = recentChanges([prev, next])
-    expect(change.sentence).toBe("Denali's ambient pressure changed.")
+    expect(change.sentence).toBe("Plant's ambient pressure changed.")
     expect(change.sentence).not.toContain("object")
   })
 })

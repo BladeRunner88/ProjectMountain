@@ -74,15 +74,15 @@ describe("identity records (S9.5b)", () => {
   it("rope partners are stored on both sides, by serial", () => {
     const d = buildDataset(testWorld(), 1)
     for (const record of d.identityRecords.values()) {
-      if (record.contacts.ropePartnerSerials.length === 0) continue
-      const partnerSerial = record.contacts.ropePartnerSerials[0].value
+      if (record.contacts.pairedMachineSerials.length === 0) continue
+      const partnerSerial = record.contacts.pairedMachineSerials[0].value
       // Find the partner machine by serial and confirm they point back.
       const partner = [...d.identityRecords.values()].find(
         (r) => r.serial.value === partnerSerial
       )
       expect(partner).toBeDefined()
       expect(
-        partner!.contacts.ropePartnerSerials.map((s) => s.value)
+        partner!.contacts.pairedMachineSerials.map((s) => s.value)
       ).toContain(record.serial.value)
     }
   })

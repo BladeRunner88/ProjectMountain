@@ -15,26 +15,33 @@ import { computeWatchIds } from "./watchStatus"
 import type { DomainDataset, DomainEntity } from "../types/domain"
 import type { GraphId } from "../types/graph"
 
-// Fictional lines, but the load bands are keyed to each country's real
-// mountaineering character — Nepal/Pakistan/China(Tibet) run 7-8,000m+,
-// the US band sits at Denali's scale, Switzerland at the Alps' — so a
-// line's country still shapes what kind of mountain it renders as.
-const COUNTRY_TARGET_RANGE_M: Record<string, [number, number]> = {
-  Nepal: [7200, 8850],
-  Pakistan: [7000, 8611],
-  "China (Tibet)": [7000, 8201],
-  "United States": [4800, 6194],
-  Switzerland: [3800, 4808],
+// Each country gets its own load band, derived from its name so the bands stay
+// stable and distinct without naming any country in particular.
+//
+// These were two lookup tables keyed on five countries the warehouse does not
+// report, so every country missed and fell through to the defaults -- every
+// line rendered with an identical profile. Same dead-lookup bug the country
+// colour table had.
+const TARGET_BAND_MIN = 3800
+const TARGET_BAND_SPREAD = 3400
+const TARGET_BAND_HEIGHT = 1200
+const ENTRY_DROP_MIN = 900
+const ENTRY_DROP_SPREAD = 1600
+const ENTRY_DROP_HEIGHT = 900
+
+function targetRangeFor(country: string): [number, number] {
+  const base =
+    TARGET_BAND_MIN +
+    (Math.abs(seedFromString(country, 5401)) % TARGET_BAND_SPREAD)
+  return [base, base + TARGET_BAND_HEIGHT]
 }
-const COUNTRY_ENTRY_DROP_M: Record<string, [number, number]> = {
-  Nepal: [2200, 3400],
-  Pakistan: [2000, 3200],
-  "China (Tibet)": [2000, 3000],
-  "United States": [1400, 2400],
-  Switzerland: [900, 1600],
+
+function entryDropFor(country: string): [number, number] {
+  const base =
+    ENTRY_DROP_MIN +
+    (Math.abs(seedFromString(country, 5402)) % ENTRY_DROP_SPREAD)
+  return [base, base + ENTRY_DROP_HEIGHT]
 }
-const DEFAULT_TARGET_RANGE: [number, number] = [5000, 7000]
-const DEFAULT_ENTRY_DROP: [number, number] = [1500, 2500]
 
 export interface LineProfile {
   lineId: GraphId
@@ -63,9 +70,8 @@ export function buildLineProfiles(
   for (const line of dataset.domainEntities) {
     if (line.tier !== "line") continue
     const countryLabel = countryLabelById.get(line.countryId) ?? ""
-    const targetRange =
-      COUNTRY_TARGET_RANGE_M[countryLabel] ?? DEFAULT_TARGET_RANGE
-    const entryDrop = COUNTRY_ENTRY_DROP_M[countryLabel] ?? DEFAULT_ENTRY_DROP
+    const targetRange = targetRangeFor(countryLabel)
+    const entryDrop = entryDropFor(countryLabel)
     const rand = mulberry32(seedFromString(line.id, 5100))
 
     const exitLoadM = randInt(rand, targetRange[0], targetRange[1])

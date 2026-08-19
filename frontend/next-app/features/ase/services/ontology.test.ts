@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import { buildDataset } from "./dataset"
 import { confidence, provenance } from "./folds"
 import { testWorld } from "../testing/world"
+import { nodesOfTier } from "@/features/ase/types/world"
 
 describe("ontology (S9.5)", () => {
   it("every competency question has a walkable, confidence-foldable canAnswer TracedValue", () => {
@@ -54,16 +55,33 @@ describe("ontology (S9.5)", () => {
     }
   })
 
-  it("seeds exactly six thing kinds with the counts established in S1g/S9.4", () => {
-    const d = buildDataset(testWorld(), 1)
+  it("seeds six thing kinds, counted from the world rather than a fixed pool", () => {
+    // The country count used to be hardcoded at 5, from a fixed name pool.
+    // Plants and their countries now
+    // come from the warehouse, so the number is whatever the world reports --
+    // asserting it against the world is the only way this stays true when the
+    // warehouse gains a plant.
+    const world = testWorld()
+    const d = buildDataset(world, 1)
     const byKind = Object.fromEntries(
       d.ontology.things.map((t) => [t.kind, t.count])
     )
+    const lines = nodesOfTier(world, "line")
+    const countries = new Set(
+      lines.map((line) => {
+        const plant = world.nodes.find((node) => node.id === line.parentId)
+        return plant?.country
+      })
+    )
+
     expect(byKind).toEqual({
-      country: 5,
-      plant: 14,
-      line: 14,
-      operator: 30,
+      country: countries.size,
+      plant: lines.length,
+      line: lines.length,
+      // Real operators dealt across the lines, with a placeholder for any line
+      // the world left without one -- so never fewer than there are lines. It
+      // was a flat 30, from a pool of invented company names.
+      operator: Math.max(world.operators.length, lines.length),
       machine: 50,
       sensor: 14,
     })
