@@ -62,7 +62,7 @@ export function Detection(): ReactElement {
     const next = applySuppression(engine, suppression)
     setEngine(next)
     const ruleLabel = engine.rules.find((r) => r.id === suppression.ruleId)?.label ?? suppression.ruleId
-    const who = suppression.subject.kind === 'climber' ? suppression.subject.name : suppression.subject.label
+    const who = suppression.subject.kind === 'machine' ? suppression.subject.name : suppression.subject.label
     logRevision(`Suppressed "${ruleLabel}" for ${who} — ${suppression.reason}`)
   }
   function handleApplyThreshold(ruleId: string, newThreshold: number): void {

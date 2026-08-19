@@ -26,28 +26,28 @@ import { useDataset, type AuditEntry } from '@/features/ase/client'
 import { confidence } from '@/features/ase/services/folds'
 import { maskedSerial } from '@/features/ase/services/serial'
 import { buildDviForm, buildResponderCard, downloadJson } from '@/features/ase/services/exportCards'
-import { isAnteMortemUnsealed, type AnteMortemRecord, type ContactInfo, type IdentityRecord } from '@/features/ase/services/identityRecord'
+import { isServiceDossierUnsealed, type ServiceDossierRecord, type ContactInfo, type IdentityRecord } from '@/features/ase/services/identityRecord'
 import type { TracedValue } from '@/features/ase/services/traced'
 import { tabHref } from '../types/tabs'
 import { useFocusRing } from '../hooks/useFocusRing'
 import { focusRingStyle } from '../services/focusRing'
 
-export function IdentityRecordPanel({ climberId }: { climberId: string }): ReactElement {
+export function IdentityRecordPanel({ machineId }: { machineId: string }): ReactElement {
   const { dataset, openIncidents, openIncident, logAccess, auditLog } = useDataset()
-  const record = dataset.identityRecords.get(climberId)
-  const anteMortem = dataset.anteMortems.get(climberId)
+  const record = dataset.identityRecords.get(machineId)
+  const serviceDossier = dataset.serviceDossiers.get(machineId)
   const isAnomaly = record ? record.derived.anomalyState.value.startsWith('Anomaly') : false
-  const incidentOpen = openIncidents.has(climberId)
-  const unsealed = record ? isAnteMortemUnsealed(record, incidentOpen) : false
+  const incidentOpen = openIncidents.has(machineId)
+  const unsealed = record ? isServiceDossierUnsealed(record, incidentOpen) : false
   const fullName = record?.who.fullLegalName.value
 
   useEffect(() => {
     if (!unsealed || !fullName) return
-    logAccess('Responder', `Viewed the ante-mortem record for ${fullName}`, isAnomaly ? 'Anomaly status' : 'Incident open')
-  }, [climberId, unsealed, fullName, isAnomaly, logAccess])
+    logAccess('Responder', `Viewed the service dossier record for ${fullName}`, isAnomaly ? 'Anomaly status' : 'Incident open')
+  }, [machineId, unsealed, fullName, isAnomaly, logAccess])
 
-  if (!record || !anteMortem) {
-    return <p style={{ ...TYPE_BODY, color: TEXT_DIM }}>No identity record for this climber.</p>
+  if (!record || !serviceDossier) {
+    return <p style={{ ...TYPE_BODY, color: TEXT_DIM }}>No identity record for this machine.</p>
   }
 
   return (
@@ -81,7 +81,7 @@ export function IdentityRecordPanel({ climberId }: { climberId: string }): React
         </p>
         {record.serialCollided ? (
           <p style={{ ...TYPE_CAPTION, color: WATCH, marginTop: SPACE_8, textTransform: 'none', letterSpacing: 'normal' }}>
-            This serial&apos;s BBB collided with another climber&apos;s on issue — resolved by increment. See MODEL / FACTS for the count.
+            This serial&apos;s BBB collided with another machine&apos;s on issue — resolved by increment. See MODEL / FACTS for the count.
           </p>
         ) : null}
       </div>
@@ -92,26 +92,26 @@ export function IdentityRecordPanel({ climberId }: { climberId: string }): React
         <FieldRow label="Date of birth" traced={record.who.dateOfBirth} />
         <FieldRow label="Sex" traced={record.who.sex} />
         <FieldRow label="Country of origin" traced={record.who.countryOfOrigin} />
-        <FieldRow label="Nationality on permit" traced={record.who.nationalityOnPermit} />
+        <FieldRow label="Nationality on workOrder" traced={record.who.nationalityOnWorkOrder} />
         <FieldRow label="Passport" traced={record.who.passportMasked} />
-        <FieldRow label="Permit number" traced={record.who.permitNumber} />
+        <FieldRow label="WorkOrder number" traced={record.who.workOrderNumber} />
         <FieldRow label="Photograph reference" traced={record.who.photographReference} />
         <FieldRow label="Languages spoken" traced={record.who.languagesSpoken} />
       </Section>
 
       <Section heading="What a responder needs" defaultOpen>
-        <FieldRow label="Blood group" traced={record.responder.bloodGroup} accessLogged />
+        <FieldRow label="Lubricant grade" traced={record.responder.lubricantGrade} accessLogged />
         <FieldRow label="Known allergies" traced={record.responder.knownAllergies} accessLogged />
-        <FieldRow label="Medical alerts" traced={record.responder.medicalAlerts} accessLogged />
+        <FieldRow label="Service alerts" traced={record.responder.serviceAlerts} accessLogged />
         <FieldRow label="Height" traced={record.responder.heightCm} format={(v) => `${v}cm`} />
         <FieldRow label="Distinguishing features" traced={record.responder.distinguishingFeatures} />
-        <FieldRow label="Current camp" traced={record.responder.currentCamp} />
+        <FieldRow label="Current station" traced={record.responder.currentStation} />
         <FieldRow label="Last known position" traced={record.responder.lastKnownPosition} />
         <FieldRow label="Insurance policy" traced={record.responder.insurancePolicy} />
         <FieldRow label="Evacuation cover" traced={record.responder.evacuationCover} />
         <FieldRow label="Evacuation preference" traced={record.responder.evacuationPreference} />
         <p style={{ ...TYPE_CAPTION, color: TEXT_DIM, marginTop: SPACE_8, textTransform: 'none', letterSpacing: 'normal' }}>
-          Blood group and medical alerts are health data. In production they&apos;re stored encrypted, visible only to the responder
+          Lubricant grade and service alerts are health data. In production they&apos;re stored encrypted, visible only to the responder
           role, and every access is written to the audit chain.
         </p>
       </Section>
@@ -137,22 +137,22 @@ export function IdentityRecordPanel({ climberId }: { climberId: string }): React
         />
         <DerivedRow label="Identity confidence" value={`${record.derived.identityConfidencePct}%`} />
         <DerivedRow label="Conflicting fields (S9.4)" value={record.derived.conflictingFields.length} />
-        <DerivedRow label="Prior expeditions" value={record.derived.priorExpeditions.value} />
+        <DerivedRow label="Prior campaigns" value={record.derived.priorCampaigns.value} />
         <DerivedRow label="Anomaly state" value={record.derived.anomalyState.value} />
       </Section>
 
-      <AnteMortemSection
+      <ServiceDossierSection
         record={record}
-        anteMortem={anteMortem}
+        serviceDossier={serviceDossier}
         unsealed={unsealed}
         incidentOpen={incidentOpen}
-        onOpenIncident={() => openIncident(climberId, record.who.fullLegalName.value)}
+        onOpenIncident={() => openIncident(machineId, record.who.fullLegalName.value)}
         auditEntries={auditLog.filter((a) => a.what.includes(record.who.fullLegalName.value))}
       />
 
       <ExportButtons
         record={record}
-        anteMortem={anteMortem}
+        serviceDossier={serviceDossier}
         incidentOpen={incidentOpen}
         onExport={(what) => logAccess('Responder', what, 'Export')}
       />
@@ -280,16 +280,16 @@ function ContactBlock({ heading, contact }: { heading: string; contact: ContactI
   )
 }
 
-function AnteMortemSection({
+function ServiceDossierSection({
   record,
-  anteMortem,
+  serviceDossier,
   unsealed,
   incidentOpen,
   onOpenIncident,
   auditEntries,
 }: {
   record: IdentityRecord
-  anteMortem: AnteMortemRecord
+  serviceDossier: ServiceDossierRecord
   unsealed: boolean
   incidentOpen: boolean
   onOpenIncident: () => void
@@ -368,41 +368,41 @@ function AnteMortemSection({
           </Section>
 
           <Section heading="Primary identifiers" defaultOpen>
-            <ReferenceRow label="Fingerprint" ref_={anteMortem.primary.fingerprint} />
-            <ReferenceRow label="Dental chart" ref_={anteMortem.primary.dentalChart} />
-            <ReferenceRow label="DNA reference" ref_={anteMortem.primary.dna} />
-            <FieldRow label="Family reference donor" traced={anteMortem.primary.dna.familyDonor} />
+            <ReferenceRow label="Fingerprint" ref_={serviceDossier.primary.fingerprint} />
+            <ReferenceRow label="Dental chart" ref_={serviceDossier.primary.dentalChart} />
+            <ReferenceRow label="DNA reference" ref_={serviceDossier.primary.dna} />
+            <FieldRow label="Family reference donor" traced={serviceDossier.primary.dna.familyDonor} />
           </Section>
 
           <Section heading="Secondary identifiers" defaultOpen>
-            <FieldRow label="Physical description" traced={anteMortem.secondary.physicalDescription} />
-            <FieldRow label="Distinguishing features" traced={anteMortem.secondary.distinguishingFeatures} />
-            <FieldRow label="Dominant hand" traced={anteMortem.secondary.dominantHand} />
-            <FieldRow label="Corrective lenses" traced={anteMortem.secondary.correctiveLenses} />
-            <FieldRow label="Dentures / orthodontics" traced={anteMortem.secondary.dentures} />
-            <FieldRow label="Clothing and equipment" traced={anteMortem.secondary.clothingAndEquipment} />
-            <FieldRow label="Personal effects" traced={anteMortem.secondary.personalEffects} />
-            <FieldRow label="Last known position" traced={anteMortem.secondary.lastKnownPosition} />
-            <FieldRow label="Last confirmed sighting" traced={anteMortem.secondary.lastConfirmedSighting} />
+            <FieldRow label="Physical description" traced={serviceDossier.secondary.physicalDescription} />
+            <FieldRow label="Distinguishing features" traced={serviceDossier.secondary.distinguishingFeatures} />
+            <FieldRow label="Dominant hand" traced={serviceDossier.secondary.dominantHand} />
+            <FieldRow label="Corrective lenses" traced={serviceDossier.secondary.correctiveLenses} />
+            <FieldRow label="Dentures / orthodontics" traced={serviceDossier.secondary.dentures} />
+            <FieldRow label="Clothing and equipment" traced={serviceDossier.secondary.clothingAndEquipment} />
+            <FieldRow label="Personal effects" traced={serviceDossier.secondary.personalEffects} />
+            <FieldRow label="Last known position" traced={serviceDossier.secondary.lastKnownPosition} />
+            <FieldRow label="Last confirmed sighting" traced={serviceDossier.secondary.lastConfirmedSighting} />
           </Section>
 
           <Section heading="Who was with them">
-            {anteMortem.whoWasWithThem.ropeTeamSerials.map((tv, i) => (
+            {serviceDossier.whoWasWithThem.ropeTeamSerials.map((tv, i) => (
               <FieldRow key={i} label="Rope team (by serial)" traced={tv} />
             ))}
-            <FieldRow label="Party manifest" traced={anteMortem.whoWasWithThem.partyManifest} />
-            <FieldRow label="Lead guide" traced={anteMortem.whoWasWithThem.leadGuide} />
-            <FieldRow label="Last with, when and where" traced={anteMortem.whoWasWithThem.lastWithWhenAndWhere} />
-            <FieldRow label="Tent assignment" traced={anteMortem.whoWasWithThem.tentAssignment} />
-            <FieldRow label="Support staff" traced={anteMortem.whoWasWithThem.supportStaff} />
+            <FieldRow label="Party manifest" traced={serviceDossier.whoWasWithThem.partyManifest} />
+            <FieldRow label="Lead guide" traced={serviceDossier.whoWasWithThem.leadGuide} />
+            <FieldRow label="Last with, when and where" traced={serviceDossier.whoWasWithThem.lastWithWhenAndWhere} />
+            <FieldRow label="Tent assignment" traced={serviceDossier.whoWasWithThem.tentAssignment} />
+            <FieldRow label="Support staff" traced={serviceDossier.whoWasWithThem.supportStaff} />
           </Section>
 
           <Section heading="Photographs and family">
-            <FieldRow label="Photograph reference" traced={anteMortem.photoAndFamily.photographReference} />
-            <ContactBlock heading="Nominated family contact" contact={anteMortem.photoAndFamily.familyContact} />
+            <FieldRow label="Photograph reference" traced={serviceDossier.photoAndFamily.photographReference} />
+            <ContactBlock heading="Nominated family contact" contact={serviceDossier.photoAndFamily.familyContact} />
             <FieldRow
               label="Consent to release"
-              traced={anteMortem.photoAndFamily.consentToRelease}
+              traced={serviceDossier.photoAndFamily.consentToRelease}
               format={(v) => (v ? 'Authorised' : 'Not authorised')}
             />
           </Section>
@@ -432,12 +432,12 @@ function ReferenceRow({
 
 function ExportButtons({
   record,
-  anteMortem,
+  serviceDossier,
   incidentOpen,
   onExport,
 }: {
   record: IdentityRecord
-  anteMortem: AnteMortemRecord
+  serviceDossier: ServiceDossierRecord
   incidentOpen: boolean
   onExport: (what: string) => void
 }): ReactElement {
@@ -468,7 +468,7 @@ function ExportButtons({
           disabled={!incidentOpen}
           onClick={() => {
             if (!incidentOpen) return
-            downloadJson(`dvi-form-${record.serial.value.replace('-', '')}.json`, buildDviForm(record, anteMortem))
+            downloadJson(`dvi-form-${record.serial.value.replace('-', '')}.json`, buildDviForm(record, serviceDossier))
             onExport(`Generated the DVI form for ${record.who.fullLegalName.value}`)
           }}
           {...dviHandlers.handlers}

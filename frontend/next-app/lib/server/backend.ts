@@ -2,13 +2,24 @@
  * Server-only helpers for talking to the FastAPI backend.
  *
  * The browser never talks to FastAPI directly: it calls the same-origin
- * Route Handlers under `/api/*`, which forward here. That keeps the backend
+ * Line Handlers under `/api/*`, which forward here. That keeps the backend
  * origin (and any future credentials) off the client and removes the need for
  * CORS.
  */
 
 const DEFAULT_BACKEND_URL = "http://localhost:8010"
 const BACKEND_TIMEOUT_MS = 30_000
+
+/**
+ * The versioned API surface. Every backend path is prefixed here, in one place,
+ * rather than in each of the twenty route handlers.
+ *
+ * The backend also still serves these paths unprefixed, but that mount is
+ * deprecated (it sends a `Deprecation` header) and exists only so this flip did
+ * not have to be a flag day. Write endpoints added in Phase 6 are on the
+ * prefixed surface ONLY, so anything new is unreachable without this.
+ */
+const API_PREFIX = "/api/v1"
 
 /**
  * Resolve the FastAPI origin. `API_URL` is server-only and wins;
@@ -26,7 +37,7 @@ export function buildBackendUrl(
   path: string,
   search?: URLSearchParams
 ): string {
-  const url = new URL(`${getBackendBaseUrl()}${path}`)
+  const url = new URL(`${getBackendBaseUrl()}${API_PREFIX}${path}`)
   if (search) {
     for (const [key, value] of search.entries()) {
       url.searchParams.append(key, value)

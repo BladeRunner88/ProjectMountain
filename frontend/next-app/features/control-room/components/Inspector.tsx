@@ -82,7 +82,7 @@ export function Inspector(): ReactElement {
         ) : selection.kind === 'conflict' ? (
           <ConflictBody conflict={selection.conflict} />
         ) : selection.kind === 'identity' ? (
-          <IdentityRecordPanel climberId={selection.climberId} />
+          <IdentityRecordPanel machineId={selection.machineId} />
         ) : selection.kind === 'ruleFiring' ? (
           <RuleFiringBody selection={selection} />
         ) : (
@@ -236,8 +236,8 @@ function RuleFiringBody({ selection }: { selection: Extract<Selection, { kind: '
         ) : (
           <div className="flex flex-col" style={{ gap: SPACE_8, marginTop: SPACE_8 }}>
             {entities.map((e, i) =>
-              e.climberId && e.serial ? (
-                <PersonBadge key={i} climberId={e.climberId} name={e.label} serial={e.serial} />
+              e.machineId && e.serial ? (
+                <PersonBadge key={i} machineId={e.machineId} name={e.label} serial={e.serial} />
               ) : (
                 <span key={i} style={{ ...TYPE_BODY, color: TEXT_SECONDARY }}>
                   {e.label}

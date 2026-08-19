@@ -1,7 +1,7 @@
 // S9.5b: the ASE serial — a deterministic seven-digit fingerprint for a
 // person, not a row id. Everything here is domain-agnostic: it hashes
 // strings, formats and validates a check-digited serial, and resolves
-// collisions. It has no idea what a "climber" or a "registry country" is —
+// collisions. It has no idea what a "machine" or a "registry country" is —
 // the caller supplies the three-digit registry prefix and the hash input;
 // this module only knows the shape AAA-BBBC.
 
@@ -58,7 +58,7 @@ export function validateSerial(serial: string): boolean {
   return computeCheckDigit(six) === check
 }
 
-/** The everyday shorthand — scoped to one expedition, never a lookup key. */
+/** The everyday shorthand — scoped to one campaign, never a lookup key. */
 export function lastFourDigits(serial: string): string {
   return serialDigits(serial).slice(-4)
 }
@@ -80,7 +80,7 @@ export interface SerialIssuance {
  * handed out so a second person hashing to the same BBB within the same
  * registry is detected and resolved, not silently overwritten — "collisions
  * are not optional to handle." Each registry's BBB space is independent, the
- * same way two countries' permit registries can each issue their own 042
+ * same way two countries' workOrder registries can each issue their own 042
  * without conflict.
  */
 export class SerialIssuer {

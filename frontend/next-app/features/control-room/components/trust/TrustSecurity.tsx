@@ -125,7 +125,7 @@ export function TrustSecurity(): ReactElement {
           <div key={r.dataClass} style={{ padding: SPACE_16, marginTop: SPACE_8, background: PANEL_RAISED, borderRadius: RADIUS_STATIC, border: `${BORDER_WIDTH}px solid ${HAIRLINE}` }}>
             <p style={{ ...TYPE_BODY, color: TEXT_PRIMARY }}>{r.dataClass}</p>
             <p style={{ ...TYPE_CAPTION, color: TEXT_SECONDARY, marginTop: SPACE_8, textTransform: 'none', letterSpacing: 'normal' }}>
-              Primary: {r.primaryRegion} · Backup: {r.backupRegion} · {r.encryptedAtRest ? 'encrypted at rest' : 'NOT encrypted at rest'} ·{' '}
+              Primary: {r.primaryPlant} · Backup: {r.backupPlant} · {r.encryptedAtRest ? 'encrypted at rest' : 'NOT encrypted at rest'} ·{' '}
               {r.encryptedInTransit ? 'encrypted in transit' : 'NOT encrypted in transit'}
             </p>
             <p style={{ ...TYPE_CAPTION, color: TEXT_DIM, marginTop: SPACE_8, textTransform: 'none', letterSpacing: 'normal' }}>{r.note}</p>

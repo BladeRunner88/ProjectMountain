@@ -52,8 +52,8 @@ export function DetectionList({
     const entities = engine.detections
       .filter((d) => d.ruleId === rule.id && !d.suppressed)
       .map((d) =>
-        d.subject.kind === 'climber'
-          ? { climberId: d.subject.climberId, label: d.subject.name, serial: d.subject.serial }
+        d.subject.kind === 'machine'
+          ? { machineId: d.subject.machineId, label: d.subject.name, serial: d.subject.serial }
           : { label: subjectLabel(d.subject) }
       )
     select({ kind: 'ruleFiring', ruleLabel: rule.label, entities })

@@ -25,7 +25,7 @@ const ROWS: { swatch: ReactNode; term: string; description: string }[] = [
     ),
     term: 'Country',
     description:
-      'the top tier — a nation hosting expeditions. Rounded square, largest of the structural nodes.',
+      'the top tier — a nation hosting campaigns. Rounded square, largest of the structural nodes.',
   },
   {
     swatch: (
@@ -33,8 +33,8 @@ const ROWS: { swatch: ReactNode; term: string; description: string }[] = [
         <MajorNodeShape x={14} y={10} size={9} status="nominal" />
       </SwatchChip>
     ),
-    term: 'Region',
-    description: 'a trekking route or approach within a country. Same shape, one size down.',
+    term: 'Plant',
+    description: 'a trekking line or approach within a country. Same shape, one size down.',
   },
   {
     swatch: (
@@ -43,7 +43,7 @@ const ROWS: { swatch: ReactNode; term: string; description: string }[] = [
       </SwatchChip>
     ),
     term: 'Company',
-    description: 'an operating trekking company. Small circle — its colour is rolled up from its climbers.',
+    description: 'an operating trekking company. Small circle — its colour is rolled up from its machines.',
   },
   {
     swatch: (
@@ -51,7 +51,7 @@ const ROWS: { swatch: ReactNode; term: string; description: string }[] = [
         <SubNodeShape x={14} y={10} radius={4.5} />
       </SwatchChip>
     ),
-    term: 'Climber',
+    term: 'Machine',
     description: 'one individual on the mountain. Smallest node — blue when nominal, red when anomalous.',
   },
   {
@@ -62,7 +62,7 @@ const ROWS: { swatch: ReactNode; term: string; description: string }[] = [
     ),
     term: 'Grey edge',
     description:
-      'a structural link — country ↔ region, region ↔ company, region ↔ environment — while everything beneath it is nominal.',
+      'a structural link — country ↔ plant, plant ↔ company, plant ↔ environment — while everything beneath it is nominal.',
   },
   {
     swatch: (
@@ -71,7 +71,7 @@ const ROWS: { swatch: ReactNode; term: string; description: string }[] = [
       </SwatchChip>
     ),
     term: 'Blue edge',
-    description: 'a company → climber link, that climber reporting nominal vitals.',
+    description: 'a company → machine link, that machine reporting nominal readings.',
   },
   {
     swatch: (
@@ -82,7 +82,7 @@ const ROWS: { swatch: ReactNode; term: string; description: string }[] = [
     ),
     term: 'Red edge',
     description:
-      'any link whose child has gone anomalous — climber, environment, or region — rolling all the way up to the country. Pulses slowly.',
+      'any link whose child has gone anomalous — machine, environment, or plant — rolling all the way up to the country. Pulses slowly.',
   },
 ]
 

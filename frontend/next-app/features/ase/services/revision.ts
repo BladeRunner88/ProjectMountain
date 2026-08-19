@@ -52,7 +52,7 @@ export interface QueueRecommendation {
 }
 
 export interface NamedPerson {
-  climberId: string
+  machineId: string
   name: string
   serial: string
 }
@@ -83,7 +83,7 @@ export interface QueueItem {
   fromTab: QueueSourceTab
   what: string
   about: string
-  aboutClimberIds: string[]
+  aboutMachineIds: string[]
   owner: OwnerState
   raisedAt: Instant
   blastRadius: number
@@ -110,7 +110,7 @@ export interface AuditRecordEntry {
   who: string
   actionKind: AuditActionKind
   actionLabel: string
-  aboutClimberId: string | null
+  aboutMachineId: string | null
   aboutSerial: string | null
   aboutLabel: string
   whatChanged: string
@@ -247,7 +247,7 @@ export interface Investigation {
 }
 export interface AsOfBelief {
   at: Instant
-  climberId: string
+  machineId: string
   name: string
   serial: string
   believedPct: number
@@ -289,10 +289,10 @@ export interface BuildRevisionInput {
   buildNowMs: number
 }
 
-function personOf(identityRecords: Map<string, IdentityRecord>, climberId: string): NamedPerson | null {
-  const r = identityRecords.get(climberId)
+function personOf(identityRecords: Map<string, IdentityRecord>, machineId: string): NamedPerson | null {
+  const r = identityRecords.get(machineId)
   if (!r) return null
-  return { climberId, name: r.who.fullLegalName.value, serial: r.serial.value }
+  return { machineId, name: r.who.fullLegalName.value, serial: r.serial.value }
 }
 
 export function buildRevisionState(input: BuildRevisionInput): RevisionState {
@@ -300,29 +300,29 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
 
   const queue: QueueItem[] = []
 
-  // -- MODEL: the ethnicity-as-recorded conflict — "a record does not fit
+  // -- MODEL: the line-as-recorded conflict — "a record does not fit
   // the model" is literally true here, since S9.6's card carries a
   // declared value the canonical model itself refuses to store.
-  const ethnicityConflict = conflicts.find((c) => c.propertyLabel === 'Ethnicity (as recorded)')
-  if (ethnicityConflict) {
-    const affected = Array.from(identityRecords.entries()).find(([, r]) => r.who.fullLegalName.value === ethnicityConflict.entityLabel)
+  const linePrefixConflict = conflicts.find((c) => c.propertyLabel === 'Line (as recorded)')
+  if (linePrefixConflict) {
+    const affected = Array.from(identityRecords.entries()).find(([, r]) => r.who.fullLegalName.value === linePrefixConflict.entityLabel)
     const affectedPerson = affected ? personOf(identityRecords, affected[0]) : null
-    const blastRadius = ethnicityConflict.resolved ? dependents(ethnicityConflict.resolved.id).length : 0
+    const blastRadius = linePrefixConflict.resolved ? dependents(linePrefixConflict.resolved.id).length : 0
     queue.push({
-      id: 'queue-model-ethnicity',
+      id: 'queue-model-line-prefix',
       kind: 'model-conflict',
       priority: 'backlog',
       fromTab: 'model',
       what: 'a declared value the model does not carry a category for',
-      about: 'ethnicity, as recorded on the source document',
-      aboutClimberIds: affectedPerson ? [affectedPerson.climberId] : [],
+      about: 'linePrefix, as recorded on the source document',
+      aboutMachineIds: affectedPerson ? [affectedPerson.machineId] : [],
       owner: { kind: 'unassigned' },
       raisedAt: instant(new Date(buildNowMs - 2 * 3600000).toISOString()),
       blastRadius,
       blockedByIds: [],
       recommendation: {
         action: 'Accept the declared value as a document-quoted field, not a model category',
-        why: 'The permit registry and operator roster disagree on a self-declared ethnicity — a real document mismatch, not a data error.',
+        why: 'The CMMS and operator register disagree on a self-declared linePrefix — a real document mismatch, not a data error.',
         confidencePct: 74,
         ifNothing: 'The Source Records card keeps showing an unresolved conflict badge for this one field.',
       },
@@ -342,7 +342,7 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
         calibrationImpact: null,
       },
       patternWatchWindow: null,
-      conflict: ethnicityConflict,
+      conflict: linePrefixConflict,
     })
   }
 
@@ -358,16 +358,16 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       kind: 'conflict',
       priority: 'standard',
       fromTab: 'identity',
-      what: 'a self-reported value disagrees with the roster and needs a human call',
+      what: 'a self-reported value disagrees with the register and needs a human call',
       about: affectedPerson ? `${affectedPerson.name} · mountains climbed` : mountainsConflict.entityLabel,
-      aboutClimberIds: affectedPerson ? [affectedPerson.climberId] : [],
+      aboutMachineIds: affectedPerson ? [affectedPerson.machineId] : [],
       owner: { kind: 'unassigned' },
       raisedAt: instant(new Date(buildNowMs - 20 * 60000).toISOString()),
       blastRadius,
       blockedByIds: [],
       recommendation: {
-        action: 'Accept the roster figure (more recently verified) over the self-report',
-        why: 'The roster entry is 45 hours older but independently verified; the self-report has no supporting document.',
+        action: 'Accept the register figure (more recently verified) over the self-report',
+        why: 'The register entry is 45 hours older but independently verified; the self-report has no supporting document.',
         confidencePct: 61,
         ifNothing: 'This record stays flagged and cannot be auto-validated at the next checkpoint.',
       },
@@ -375,7 +375,7 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       resolutionStage: 'open',
       requiresWitness: false,
       impact: {
-        ifApprove: ['the roster figure becomes the record of truth', 'downstream prior-expeditions figures recompute'],
+        ifApprove: ['the register figure becomes the record of truth', 'downstream prior-campaigns figures recompute'],
         ifReject: ['the self-reported figure stands instead', 'flagged for a second source next check-in'],
         ifWaitHours: 2,
         ifWaitNote: 'deferring costs nothing here — nothing downstream is time-critical on this field',
@@ -401,7 +401,7 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       fromTab: 'detection',
       what: 'a rule fires more often than it should',
       about: tuningRule.label.toLowerCase(),
-      aboutClimberIds: [],
+      aboutMachineIds: [],
       owner: { kind: 'assigned', name: 'S. Chen' },
       raisedAt: instant(new Date(buildNowMs - 20 * 60000).toISOString()),
       blastRadius: 12,
@@ -443,7 +443,7 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       fromTab: 'meaning',
       what: 'a field ASE does not understand',
       about: key,
-      aboutClimberIds: [],
+      aboutMachineIds: [],
       owner: { kind: 'unassigned' },
       raisedAt: instant(new Date(buildNowMs - 60 * 60000).toISOString()),
       blastRadius: 0,
@@ -484,13 +484,13 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       fromTab: 'prediction',
       what: 'a prediction resolved wrongly',
       about: `${wrongCase.who} ${wrongCase.serial}, ${wrongCase.withinHours}h`,
-      aboutClimberIds: [],
+      aboutMachineIds: [],
       owner: { kind: 'unassigned' },
       raisedAt: instant(new Date(buildNowMs - 35 * 60000).toISOString()),
       blastRadius: 1,
       blockedByIds: [],
       recommendation: {
-        action: 'Mark the wind-exposure driver as implicated for this case',
+        action: 'Mark the vibration-exposure driver as implicated for this case',
         why: wrongCase.notes,
         confidencePct: 66,
         ifNothing: 'The miss is recorded in Calibration but not traced to a specific driver for Learning to act on.',
@@ -499,7 +499,7 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       resolutionStage: 'resolved-wrong',
       requiresWitness: false,
       impact: {
-        ifApprove: ['the wind-exposure driver accuracy figure in Calibration updates', "this case is added to Learning's prediction feedback loop"],
+        ifApprove: ['the vibration-exposure driver accuracy figure in Calibration updates', "this case is added to Learning's prediction feedback loop"],
         ifReject: ['no driver is implicated — recorded as an unexplained miss'],
         ifWaitHours: 12,
         ifWaitNote: 'no urgency — the case is already resolved, this only affects how it is attributed',
@@ -526,7 +526,7 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
         fromTab: 'prediction',
         what: 'a predicted pattern did not appear',
         about: missedPattern.name.toLowerCase(),
-        aboutClimberIds: [heroPrediction.climberId],
+        aboutMachineIds: [heroPrediction.machineId],
         owner: { kind: 'unassigned' },
         raisedAt: instant(new Date(buildNowMs - 60 * 60000).toISOString()),
         blastRadius: 1,
@@ -545,7 +545,7 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
           ifReject: ['the window is extended instead of closed'],
           ifWaitHours: 1,
           ifWaitNote: 'the window has already closed — waiting only delays recording it',
-          namedAffected: [{ climberId: heroPrediction.climberId, name: heroPrediction.name, serial: heroPrediction.serial }],
+          namedAffected: [{ machineId: heroPrediction.machineId, name: heroPrediction.name, serial: heroPrediction.serial }],
           secondOrder: [],
           humanBurdenNote: null,
           newQueueItems: 0,
@@ -567,7 +567,7 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       fromTab: 'prediction',
       what: 'a recommendation was overruled',
       about: `${overruledCase.who} ${overruledCase.serial}, descent`,
-      aboutClimberIds: [],
+      aboutMachineIds: [],
       owner: { kind: 'unassigned' },
       raisedAt: instant(new Date(buildNowMs - 50 * 60000).toISOString()),
       blastRadius: 2,
@@ -607,17 +607,17 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       priority: 'backlog',
       fromTab: 'exposure',
       what: 'a conclusion rests on a single source',
-      about: 'weather feed',
-      aboutClimberIds: [],
+      about: 'metrology lab',
+      aboutMachineIds: [],
       owner: { kind: 'unassigned' },
       raisedAt: instant(new Date(buildNowMs - 60 * 60000).toISOString()),
       blastRadius: weatherDependents.length,
       blockedByIds: [],
       recommendation: {
         action: 'Add a second weather source for corroboration',
-        why: `${weatherDependents.length} facts currently depend on the weather feed alone, with no independent source to cross-check against.`,
+        why: `${weatherDependents.length} facts currently depend on the metrology lab alone, with no independent source to cross-check against.`,
         confidencePct: 68,
-        ifNothing: 'Every one of those facts stays exposed to a single point of failure — if the weather feed is wrong, nothing catches it.',
+        ifNothing: 'Every one of those facts stays exposed to a single point of failure — if the metrology lab is wrong, nothing catches it.',
       },
       whyAmISeeingThis: 'Any fact that traces back to exactly one source, with no independent corroboration, is surfaced here.',
       resolutionStage: 'open',
@@ -628,7 +628,7 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
         ifWaitHours: 12,
         ifWaitNote: 'not urgent on its own — this is exposure to a risk, not an active problem',
         namedAffected: [],
-        secondOrder: ['every detection and prediction driver that reads wind or visibility inherits this same exposure'],
+        secondOrder: ['every detection and prediction driver that reads vibration or effectiveness inherits this same exposure'],
         humanBurdenNote: `${weatherDependents.length} facts across the graph are affected — confirming this is not a small, contained item`,
         newQueueItems: 0,
         rollbackNote: 'no action taken yet — nothing to roll back',
@@ -651,9 +651,9 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       who: 'S. Chen',
       actionKind: 'approved',
       actionLabel: 'approved a merge',
-      aboutClimberId: null,
+      aboutMachineId: null,
       aboutSerial: '•••7741',
-      aboutLabel: 'James Marshall III',
+      aboutLabel: 'the worked-example machine',
       whatChanged: 'three records became one, 14 conclusions recomputed',
       witness: 'R. Gurung',
       witnessPending: false,
@@ -668,9 +668,9 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       who: 'S. Chen',
       actionKind: 'widened-model',
       actionLabel: 'widened the model',
-      aboutClimberId: null,
+      aboutMachineId: null,
       aboutSerial: null,
-      aboutLabel: 'ethnicity value',
+      aboutLabel: 'linePrefix value',
       whatChanged: 'one more declared value accepted, model v1.15',
       witness: null,
       witnessPending: false,
@@ -685,15 +685,15 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       who: 'R. Gurung',
       actionKind: 'overruled',
       actionLabel: 'overruled a descent',
-      aboutClimberId: null,
+      aboutMachineId: null,
       aboutSerial: '•••2210',
-      aboutLabel: 'Tenzing Sherpa',
+      aboutLabel: 'Tenzing Technician',
       whatChanged: 'declined — local knowledge',
       witness: 'S. Chen',
       witnessPending: false,
       attachments: [
         { kind: 'voice-note', label: 'voice note, 23s' },
-        { kind: 'photo', label: 'route photo' },
+        { kind: 'photo', label: 'line photo' },
       ],
       correctionOfId: null,
       overruleReason: 'local-knowledge',
@@ -705,9 +705,9 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       who: 'S. Chen',
       actionKind: 'corrected',
       actionLabel: 'corrected an earlier entry',
-      aboutClimberId: null,
+      aboutMachineId: null,
       aboutSerial: '•••7741',
-      aboutLabel: 'James Marshall III',
+      aboutLabel: 'the worked-example machine',
       whatChanged: "the merge's confidence figure was recorded as 94% originally; the fold actually resolves to 96% — corrected, original entry kept visible",
       witness: null,
       witnessPending: false,
@@ -722,7 +722,7 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       who: 'S. Chen',
       actionKind: 'approved',
       actionLabel: 'retuned a rule threshold',
-      aboutClimberId: null,
+      aboutMachineId: null,
       aboutSerial: null,
       aboutLabel: 'pressure mismatch',
       whatChanged: 'threshold moved, v1.14 → v1.15',
@@ -739,10 +739,10 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       who: 'R. Gurung',
       actionKind: 'annotated',
       actionLabel: 'added an annotation',
-      aboutClimberId: null,
+      aboutMachineId: null,
       aboutSerial: '•••4412',
-      aboutLabel: 'Nima Tamang',
-      whatChanged: 'noted: oxygen recovery trend matches last season’s pattern for this climber',
+      aboutLabel: 'the outlier machine',
+      whatChanged: 'noted: oxygen recovery trend matches last season’s pattern for this machine',
       witness: null,
       witnessPending: false,
       attachments: [],
@@ -756,7 +756,7 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       who: 'S. Chen',
       actionKind: 'overruled',
       actionLabel: 'overruled a review flag',
-      aboutClimberId: null,
+      aboutMachineId: null,
       aboutSerial: '•••1198',
       aboutLabel: 'Ji-woo Choi',
       whatChanged: 'assessed in person, cleared to continue',
@@ -768,7 +768,7 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       fromTab: 'prediction',
     },
     // S9.12: Exposure writes into this SAME chain — no second audit trail of
-    // its own. These two are real source events (Weather feed is the one
+    // its own. These two are real source events (Metrology lab is the one
     // genuinely degraded source in this dataset); Exposure's Activity view
     // is nothing more than `auditSeed.filter(e => e.fromTab === 'exposure')`.
     {
@@ -777,10 +777,10 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       who: 'S. Chen',
       actionKind: 'annotated',
       actionLabel: 'accepted a single-source risk',
-      aboutClimberId: null,
+      aboutMachineId: null,
       aboutSerial: null,
-      aboutLabel: 'Weather feed',
-      whatChanged: 'noted: no second weather source available on this route yet — risk accepted, not resolved',
+      aboutLabel: 'Metrology lab',
+      whatChanged: 'noted: no second weather source available on this line yet — risk accepted, not resolved',
       witness: null,
       witnessPending: false,
       attachments: [],
@@ -794,10 +794,10 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
       who: 'R. Gurung',
       actionKind: 'annotated',
       actionLabel: 'logged a source health check',
-      aboutClimberId: null,
+      aboutMachineId: null,
       aboutSerial: null,
-      aboutLabel: 'GPS tracker',
-      whatChanged: 'confirmed GPS tracker sync age within normal range after a field radio check',
+      aboutLabel: 'Plant MES',
+      whatChanged: 'confirmed Plant MES sync age within normal range after a field radio check',
       witness: null,
       witnessPending: false,
       attachments: [],
@@ -821,7 +821,7 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
     { id: 'change-1', what: 'Low-oxygen threshold', before: '78%', after: '80%', who: 'S. Chen', measuredEffect: '9% fewer false alarms, no missed true positives', madeThingsWorse: false, revertImpact: null },
     {
       id: 'change-2',
-      what: 'Wind rule threshold',
+      what: 'Vibration rule threshold',
       before: 'v1.14',
       after: 'v1.15',
       who: 'S. Chen',
@@ -833,7 +833,7 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
 
   const regressionResults: RegressionResult[] = [
     { id: 'regr-1', change: 'Low-oxygen threshold 78% → 80%', tabsChecked: ['detection', 'prediction'], verdict: 'pass', note: 'Improved Detection precision with no measurable effect on Prediction.' },
-    { id: 'regr-2', change: 'Wind rule threshold v1.14 → v1.15', tabsChecked: ['detection', 'prediction'], verdict: 'fail', note: 'Improved Detection recall but caused 3 false positives in Prediction — the two tabs disagree on this change.' },
+    { id: 'regr-2', change: 'Vibration rule threshold v1.14 → v1.15', tabsChecked: ['detection', 'prediction'], verdict: 'fail', note: 'Improved Detection recall but caused 3 false positives in Prediction — the two tabs disagree on this change.' },
   ]
 
   const driftSignals: DriftSignal[] = [{ id: 'drift-1', metric: 'oxygen recovery driver accuracy', changePct: 8, direction: 'down', period: '7 days', possibleCause: 'a change in weather pattern' }]
@@ -841,52 +841,52 @@ export function buildRevisionState(input: BuildRevisionInput): RevisionState {
   const driverImportance: DriverImportanceEntry[] = [
     { driver: 'Oxygen recovery vs own baseline', rankLastMonth: 1, rankNow: 1 },
     { driver: 'Cognitive slip indicators', rankLastMonth: 3, rankNow: 2 },
-    { driver: 'Wind above 70 kph exposure', rankLastMonth: 2, rankNow: 3 },
+    { driver: 'Vibration above 70 kph exposure', rankLastMonth: 2, rankNow: 3 },
     { driver: 'Rope separation widening', rankLastMonth: 4, rankNow: 4 },
-    { driver: 'Ascent rate alone', rankLastMonth: 2, rankNow: 5 },
+    { driver: 'RampUp rate alone', rankLastMonth: 2, rankNow: 5 },
   ]
 
   const humanVsAse: HumanVsAse = { humanOverruleCorrectPct: 64, humanOverruleN: overruleTally.total, aseCorrectWhenNotOverruledPct: 78, aseN: predictions.calibration.totalResolvedCases }
 
   const predictionFeedback: PredictionFeedback = {
-    wrongPredictions: predictions.calibration.resolved.filter((r) => !r.correct).map((r) => ({ who: r.who, serial: r.serial, implicatedDriver: 'wind-exposure' })),
+    wrongPredictions: predictions.calibration.resolved.filter((r) => !r.correct).map((r) => ({ who: r.who, serial: r.serial, implicatedDriver: 'vibration-exposure' })),
     missedPatterns: [{ pattern: heroPrediction?.patterns[1]?.name ?? 'Social withdrawal', count: rng.int(2, 6), expiredWatchWindows: rng.int(1, 3) }],
     overruledByReason: (['local-knowledge', 'conditions-changed', 'equipment-malfunction', 'false-positive'] as OverruleReason[]).map((reason) => ({ reason, count: rng.int(1, 8) })),
   }
 
   const qaSamples: QaSample[] = [
-    { id: 'qa-1', what: "James Marshall III's merge, approved 20h ago", status: 'confirmed-correct' },
+    { id: 'qa-1', what: "the worked-example machine's merge, approved 20h ago", status: 'confirmed-correct' },
     { id: 'qa-2', what: "Pressure-mismatch threshold retune, approved 6h ago", status: 'pending' },
   ]
 
   const modelVersions: ModelVersion[] = [
     { version: 'v1.13', what: 'Initial low-oxygen threshold calibration', recomputedCount: 4, at: instant(new Date(buildNowMs - 30 * 86400000).toISOString()) },
-    { version: 'v1.14', what: 'Wind rule threshold tightened', recomputedCount: 9, at: instant(new Date(buildNowMs - 12 * 86400000).toISOString()) },
-    { version: 'v1.15', what: 'Wind rule threshold loosened again after regression fail', recomputedCount: 9, at: instant(new Date(buildNowMs - 6 * 3600000).toISOString()) },
+    { version: 'v1.14', what: 'Vibration rule threshold tightened', recomputedCount: 9, at: instant(new Date(buildNowMs - 12 * 86400000).toISOString()) },
+    { version: 'v1.15', what: 'Vibration rule threshold loosened again after regression fail', recomputedCount: 9, at: instant(new Date(buildNowMs - 6 * 3600000).toISOString()) },
   ]
 
   // -- Timeline --------------------------------------------------------------
   const timelineEvents: TimelineEvent[] = [
-    { id: 'tl-1', at: instant(new Date(buildNowMs - 20 * 3600000).toISOString()), layer: 'system', severity: 'medium', label: 'Merge approved — James Marshall III', detail: 'Three records merged into one, 14 conclusions recomputed.' },
-    { id: 'tl-2', at: instant(new Date(buildNowMs - 14.75 * 3600000).toISOString()), layer: 'external', severity: 'high', label: 'Wind gust 95 kph', detail: 'Recorded by the weather feed at Khumbu / EBC sensor 1.' },
-    { id: 'tl-3', at: instant(new Date(buildNowMs - 14.5 * 3600000).toISOString()), layer: 'system', severity: 'high', label: 'Prediction spike — Nima Tamang', detail: 'Requires-descent likelihood rose to 68%.' },
-    { id: 'tl-4', at: instant(new Date(buildNowMs - 15 * 3600000).toISOString()), layer: 'system', severity: 'incident', label: 'Descent overruled — Tenzing Sherpa', detail: 'Overruled on local knowledge, witnessed.' },
-    { id: 'tl-5', at: instant(new Date(buildNowMs - 6 * 3600000).toISOString()), layer: 'system', severity: 'low', label: 'Model v1.14 → v1.15', detail: 'Wind rule threshold change.' },
-    { id: 'tl-6', at: instant(new Date(buildNowMs + 2 * 3600000).toISOString()), layer: 'upcoming', severity: 'low', label: 'Forecast window closes 20:15', detail: 'Nima Tamang’s current open prediction.' },
+    { id: 'tl-1', at: instant(new Date(buildNowMs - 20 * 3600000).toISOString()), layer: 'system', severity: 'medium', label: 'Merge approved — the worked-example machine', detail: 'Three records merged into one, 14 conclusions recomputed.' },
+    { id: 'tl-2', at: instant(new Date(buildNowMs - 14.75 * 3600000).toISOString()), layer: 'external', severity: 'high', label: 'Vibration gust 95 kph', detail: 'Recorded by the metrology lab at Khumbu / EBC sensor 1.' },
+    { id: 'tl-3', at: instant(new Date(buildNowMs - 14.5 * 3600000).toISOString()), layer: 'system', severity: 'high', label: 'Prediction spike — the outlier machine', detail: 'Requires-descent likelihood rose to 68%.' },
+    { id: 'tl-4', at: instant(new Date(buildNowMs - 15 * 3600000).toISOString()), layer: 'system', severity: 'incident', label: 'Descent overruled — Tenzing Technician', detail: 'Overruled on local knowledge, witnessed.' },
+    { id: 'tl-5', at: instant(new Date(buildNowMs - 6 * 3600000).toISOString()), layer: 'system', severity: 'low', label: 'Model v1.14 → v1.15', detail: 'Vibration rule threshold change.' },
+    { id: 'tl-6', at: instant(new Date(buildNowMs + 2 * 3600000).toISOString()), layer: 'upcoming', severity: 'low', label: 'Forecast window closes 20:15', detail: 'the outlier machine’s current open prediction.' },
     { id: 'tl-7', at: instant(new Date(buildNowMs + 5 * 3600000).toISOString()), layer: 'upcoming', severity: 'medium', label: 'Model retrain 02:00', detail: 'Scheduled nightly retrain.' },
-    { id: 'tl-8', at: instant(new Date(buildNowMs - 4 * 60000).toISOString()), layer: 'annotation', severity: 'low', label: 'High winds started here', detail: 'Sticky note added by S. Chen.' },
+    { id: 'tl-8', at: instant(new Date(buildNowMs - 4 * 60000).toISOString()), layer: 'annotation', severity: 'low', label: 'High vibrations started here', detail: 'Sticky note added by S. Chen.' },
   ]
   const eventClusters: EventCluster[] = [
     { id: 'cluster-1', startAt: timelineEvents[3].at, endAt: instant(new Date(new Date(timelineEvents[3].at).getTime() + 6 * 60000).toISOString()), eventIds: ['audit-1', 'tl-4', 'audit-5'], question: 'Cluster — a merge, an overrule and a threshold change within minutes of each other. Possible link?' },
   ]
 
   const investigations: Investigation[] = [
-    { id: 'inv-1', openedAt: instant(new Date(buildNowMs - 48 * 3600000).toISOString()), by: 'R. Gurung', touched: "Nima Tamang's oxygen-decline detection", outcome: 'Confirmed correct — descent recommendation upheld', durationMinutes: 34, concludedNoAction: false },
+    { id: 'inv-1', openedAt: instant(new Date(buildNowMs - 48 * 3600000).toISOString()), by: 'R. Gurung', touched: "the outlier machine's oxygen-decline detection", outcome: 'Confirmed correct — descent recommendation upheld', durationMinutes: 34, concludedNoAction: false },
     { id: 'inv-2', openedAt: instant(new Date(buildNowMs - 30 * 3600000).toISOString()), by: 'S. Chen', touched: 'sensor 7 low-battery flapping', outcome: 'Battery replaced by field team, no further action needed', durationMinutes: 12, concludedNoAction: true },
   ]
 
   const asOfBeliefs: AsOfBelief[] = heroPrediction
-    ? [{ at: instant(new Date(buildNowMs - 8 * 3600000).toISOString()), climberId: heroPrediction.climberId, name: heroPrediction.name, serial: heroPrediction.serial, believedPct: 72, outcome: 'required descent', wasCorrect: true }]
+    ? [{ at: instant(new Date(buildNowMs - 8 * 3600000).toISOString()), machineId: heroPrediction.machineId, name: heroPrediction.name, serial: heroPrediction.serial, believedPct: 72, outcome: 'required descent', wasCorrect: true }]
     : []
 
   return {

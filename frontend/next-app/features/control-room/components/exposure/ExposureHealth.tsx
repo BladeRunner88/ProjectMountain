@@ -110,7 +110,7 @@ function AlertRow({ alert, role }: { alert: ExposureState['alerts'][number]; rol
             who: 'You',
             actionKind: 'annotated',
             actionLabel: 'flagged a source health alert for review',
-            aboutClimberId: null,
+            aboutMachineId: null,
             aboutSerial: null,
             aboutLabel: alert.sourceName,
             whatChanged: alert.message,

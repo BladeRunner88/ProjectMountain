@@ -3,7 +3,7 @@ import type { ReactElement } from 'react'
 import { CRITICAL, INACTIVE_SEGMENT, TEXT_PRIMARY, TEXT_SECONDARY } from '../types/tokens'
 import { LegendItem } from './primitives'
 
-const STAGES = ['BC', 'C1', 'C2', 'C3', 'C4', 'SUMMIT']
+const STAGES = ['BC', 'C1', 'C2', 'C3', 'C4', 'TARGET']
 const W = 560
 const H = 150
 
@@ -20,17 +20,17 @@ function pathFor(values: number[], min: number, max: number): string {
 }
 
 export function DataStream({
-  spo2Series,
+  oeeSeries,
   hrSeries,
-  ascentSeries,
+  rampUpSeries,
 }: {
-  spo2Series: number[]
+  oeeSeries: number[]
   hrSeries: number[]
-  ascentSeries: number[]
+  rampUpSeries: number[]
 }): ReactElement {
-  const spo2Path = pathFor(spo2Series, 60, 100)
+  const oeePath = pathFor(oeeSeries, 60, 100)
   const hrPath = pathFor(hrSeries, 50, 160)
-  const ascentPath = pathFor(ascentSeries, 0, 250)
+  const rampUpPath = pathFor(rampUpSeries, 0, 250)
 
   return (
     <div className="flex flex-col gap-3">
@@ -53,14 +53,14 @@ export function DataStream({
             </text>
           )
         })}
-        <path d={ascentPath} fill="none" stroke={INACTIVE_SEGMENT} strokeWidth={1.5} />
+        <path d={rampUpPath} fill="none" stroke={INACTIVE_SEGMENT} strokeWidth={1.5} />
         <path d={hrPath} fill="none" stroke={TEXT_PRIMARY} strokeWidth={1.5} />
-        <path d={spo2Path} fill="none" stroke={CRITICAL} strokeWidth={1.5} />
+        <path d={oeePath} fill="none" stroke={CRITICAL} strokeWidth={1.5} />
       </svg>
       <div className="flex gap-6 font-mono text-[10px] uppercase tracking-[0.12em]" style={{ color: TEXT_SECONDARY }}>
-        <LegendItem color={CRITICAL} label="SpO2" />
-        <LegendItem color={TEXT_PRIMARY} label="Heart rate" />
-        <LegendItem color={INACTIVE_SEGMENT} label="Ascent rate" />
+        <LegendItem color={CRITICAL} label="Oee" />
+        <LegendItem color={TEXT_PRIMARY} label="Vibration" />
+        <LegendItem color={INACTIVE_SEGMENT} label="RampUp rate" />
       </div>
     </div>
   )

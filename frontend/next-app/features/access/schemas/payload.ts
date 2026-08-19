@@ -23,7 +23,7 @@ export function toAccessRequestPayload(
     address_line1: form.addressLine1,
     address_line2: emptyToNull(form.addressLine2),
     city: form.city,
-    state_region: form.stateRegion,
+    state_plant: form.statePlant,
     postal_code: form.postalCode,
     business_description: form.businessDescription,
     use_case: form.useCase,

@@ -41,7 +41,7 @@ export interface MetricProps<T> {
    * S1f rule 3: "every number is two links" — click the number selects it,
    * click the label navigates to the tab that owns it. Typed as ase/'s own
    * TabId (a Control Room URL segment) rather than a plain string, so
-   * typedRoutes can check the generated href — ase/ still doesn't depend on
+   * typedLines can check the generated href — ase/ still doesn't depend on
    * components/controlRoom, that dependency only runs the other way. Omit it
    * and the label stays invisible, exactly like before this
    * block (most call sites, e.g. EvidenceTable rows, already show the claim

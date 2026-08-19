@@ -1,9 +1,9 @@
 // S9.13: TRUST AND PERFORMANCE — closes the product. Unlike every other
-// tab, this one is not describing the expedition domain — it is describing
+// tab, this one is not describing the campaign domain — it is describing
 // the SYSTEM ITSELF: its engineering decisions, its security posture, its
 // test health, its API surface, its performance budgets. There is no
 // TracedValue chain for "is GraphQL introspection enabled" — that's not a
-// fact about a climber, it's a fact about this codebase, so this file is
+// fact about a machine, it's a fact about this codebase, so this file is
 // plain structured data rather than `observed()`/`derived()` calls.
 //
 // What stays real, the same way it does everywhere else in ASE: every
@@ -145,7 +145,7 @@ export const DECISIONS: Decision[] = [
     whatWasChosen:
       'A single global confidence floor of 72%: anything below it is computed and stored, but not surfaced as an alert. Alert load fell to 3 a day; acknowledgement rose to 94%.',
     whatWasRejected: [
-      { option: 'Per-operator thresholds', whyItLost: 'too inconsistent — the same underlying signal meant a different bar depending on which operator\'s climber it was about.' },
+      { option: 'Per-operator thresholds', whyItLost: 'too inconsistent — the same underlying signal meant a different bar depending on which operator\'s machine it was about.' },
       { option: 'No floor at all', whyItLost: '34 false alarms a day in pilot, alert fatigue, 31% acknowledgement.' },
       { option: '60% floor', whyItLost: 'still 12 false alarms a day — not enough of a cut to fix acknowledgement.' },
       { option: '85% floor', whyItLost: 'missed 3 critical early warnings that were correct but under 85% at first detection.' },
@@ -156,7 +156,7 @@ export const DECISIONS: Decision[] = [
     impact: ['Detection alert surfacing', 'Prediction alert surfacing', 'Superseded by Decision 7'],
     supersededById: 7,
     supersededReason:
-      'One global floor was too blunt — Identity needs 85% (a wrong merge is expensive to unwind), Detection needs 70%, Prediction needs 60% (a directional early warning is still useful well below where Identity would trust a merge). The global 72% floor suppressed 18% of valid detection alerts while letting 4% of weak identity merges through — a floor tuned for one class was wrong for the other two.',
+      'One global floor was too blunt — Identity needs 85% (a wrong merge is expensive to unvibration), Detection needs 70%, Prediction needs 60% (a directional early warning is still useful well below where Identity would trust a merge). The global 72% floor suppressed 18% of valid detection alerts while letting 4% of weak identity merges through — a floor tuned for one class was wrong for the other two.',
     confidence: 'strong',
     confidenceNote: 'Superseded on real pilot data, not opinion — the 18%/4% figures are what forced the change.',
     implementation: { files: ['ase/tokens.ts CONFIDENCE_FLOOR_DEFAULT (historical)'], configs: [], modelVersions: [] },
@@ -168,7 +168,7 @@ export const DECISIONS: Decision[] = [
     status: 'active',
     date: '2026-03-09',
     by: 'R. Gurung',
-    context: 'Every operator already has a permit registry, a roster system, medical logging and route sensors. Asking them to replace any of it before ASE could run was the single biggest sales objection in early conversations.',
+    context: 'Every operator already has a CMMS, a register system, service logging and line sensors. Asking them to replace any of it before ASE could run was the single biggest sales objection in early conversations.',
     whatWasChosen: 'ASE only ever reads from existing sources through a connector (`observed()`); it never becomes the system of record for anything it did not originate. Losing ASE never loses the underlying operational data.',
     whatWasRejected: [{ option: 'ASE as the primary system of record', whyItLost: 'creates a migration project and a single point of failure operators explicitly said they would not accept.' }],
     tradeOff: 'ASE inherits whatever data quality problems its sources already have (see Exposure — Fragility, Staleness) in exchange for zero migration cost and zero new single point of failure.',
@@ -254,7 +254,7 @@ export const SECURITY_FINDINGS: SecurityFinding[] = [
     owner: 'Engineer — data pipeline',
     eta: '2026-08-31',
     what: 'The radio-check-in-log connector\'s retention job was configured with a 90-day window during initial setup and never corrected to match the 30-day data-minimisation policy.',
-    impact: 'No unauthorised access has occurred, but 60 days of retained records exceed what the stated policy and, in some jurisdictions, applicable regulation permits.',
+    impact: 'No unauthorised access has occurred, but 60 days of retained records exceed what the stated policy and, in some jurisdictions, applicable regulation workOrders.',
     whySeverity: 'MEDIUM: a configuration/compliance gap, not an active exposure — no evidence of misuse, but a real policy violation with regulatory exposure if audited.',
     whyStillOpen: 'The retention job runs as part of the shared ingestion pipeline; changing its window requires a migration to purge the existing 60-day excess without deleting records still inside an active investigation hold, and that purge logic hasn\'t been written yet.',
     fixRequires: 'A retention-purge job that respects investigation holds, then a config change to the 30-day window.',
@@ -271,11 +271,11 @@ export const SECURITY_FINDINGS: SecurityFinding[] = [
     owner: 'Engineer — infrastructure',
     eta: '2026-09-15',
     what: 'The paper-logbook digitisation backup (a nightly export used only for disaster recovery) is written to encrypted-in-transit but plaintext-at-rest storage on the backup volume.',
-    impact: 'If the backup volume itself were compromised, the logbook backup — names, camp assignments, medical notes — would be readable without needing to break any encryption.',
+    impact: 'If the backup volume itself were compromised, the logbook backup — names, station assignments, service notes — would be readable without needing to break any encryption.',
     whySeverity: 'MEDIUM: the primary datastore is encrypted at rest; this is a secondary, less-frequently-accessed backup, but it contains the same sensitive fields.',
     whyStillOpen: 'The backup volume is provisioned by the same infrastructure-as-code module used for three other, unrelated backup jobs; encrypting it in place requires a coordinated cutover for all four so a shared key-rotation window doesn\'t break the others mid-backup.',
     fixRequires: 'A coordinated infra change across all four backup jobs sharing the module, plus a key-rotation window.',
-    mitigationNow: 'The backup volume sits in a network segment with no external route and access is restricted to two infrastructure engineers.',
+    mitigationNow: 'The backup volume sits in a network segment with no external line and access is restricted to two infrastructure engineers.',
     blockedBy: 'Infra module refactor (Roadmap, Q3)',
   },
   {
@@ -289,8 +289,8 @@ export const SECURITY_FINDINGS: SecurityFinding[] = [
     eta: '2026-08-20',
     what: 'The stated session policy is a 2-hour idle timeout for operator (coordinator/medic/guide) sessions; the deployed configuration still uses the 4-hour default set before the policy was tightened.',
     impact: 'A device left unattended for up to 4 hours keeps an authenticated session live, double the stated policy window.',
-    whySeverity: 'LOW: field devices are typically kept on-person at altitude and physical access is already limited; this is a policy-conformance gap rather than an active exploited weakness.',
-    whyStillOpen: 'Shortening the timeout without a "save your place" mechanism risks losing an in-progress overrule-reason form mid-entry at altitude, where re-authenticating can be slow on poor connectivity — the fix is tied to shipping session-preserving form drafts first.',
+    whySeverity: 'LOW: field devices are typically kept on-person at load and physical access is already limited; this is a policy-conformance gap rather than an active exploited weakness.',
+    whyStillOpen: 'Shortening the timeout without a "save your place" mechanism risks losing an in-progress overrule-reason form mid-entry at load, where re-authenticating can be slow on poor connectivity — the fix is tied to shipping session-preserving form drafts first.',
     fixRequires: 'Client-side form-draft persistence across a re-auth, then the timeout config change.',
     mitigationNow: 'Idle sessions are flagged (not terminated) after 2 hours and require a lightweight re-confirmation, not a full re-login, to continue.',
     blockedBy: null,
@@ -314,14 +314,14 @@ export const SECURITY_FINDINGS: SecurityFinding[] = [
   },
   {
     id: 'SEC-006',
-    finding: 'Weather feed API key rotation established',
+    finding: 'Metrology lab API key rotation established',
     severity: 'low',
     status: 'closed',
     opened: '2025-12-08',
     closed: '2025-12-19',
     owner: 'Engineer — data pipeline',
     eta: null,
-    what: 'The weather feed connector used a single, never-rotated API key issued at initial integration.',
+    what: 'The metrology lab connector used a single, never-rotated API key issued at initial integration.',
     impact: 'An indefinitely-lived key is a bigger blast radius if ever leaked, with no forcing function to notice.',
     whySeverity: 'Was rated LOW — the key only grants read access to public weather data — but rotation hygiene was still worth fixing.',
     whyStillOpen: '',
@@ -354,18 +354,18 @@ export const ACCESS_LEVEL_LABEL: Record<AccessLevel, string> = { rw: 'R/W', 'rw-
 
 export interface DataClassResidency {
   dataClass: string
-  primaryRegion: string
-  backupRegion: string
+  primaryPlant: string
+  backupPlant: string
   encryptedAtRest: boolean
   encryptedInTransit: boolean
   note: string
 }
 
 export const DATA_RESIDENCY: DataClassResidency[] = [
-  { dataClass: 'Radio logs', primaryRegion: 'Local edge node, Base Camp', backupRegion: 'ap-south-1, synced every 15 min when connectivity allows', encryptedAtRest: true, encryptedInTransit: true, note: 'Held locally first because satellite uplink is intermittent above Base Camp — the edge node is the durable copy until sync succeeds.' },
-  { dataClass: 'PII — name, date of birth, permit ID', primaryRegion: 'ap-south-1', backupRegion: 'ap-southeast-1', encryptedAtRest: true, encryptedInTransit: true, note: 'AES-256 at rest, TLS 1.3 in transit.' },
-  { dataClass: 'Health — oxygen, heart rate, cognitive indices', primaryRegion: 'ap-south-1', backupRegion: 'ap-southeast-1', encryptedAtRest: true, encryptedInTransit: true, note: 'Same encryption as PII; access additionally logged per S9.5b.' },
-  { dataClass: 'Location and behavioural data', primaryRegion: 'ap-south-1', backupRegion: 'ap-southeast-1', encryptedAtRest: true, encryptedInTransit: true, note: 'Includes GPS tracker readings and rope-partner proximity.' },
+  { dataClass: 'Radio logs', primaryPlant: 'Local edge node, Base Station', backupPlant: 'ap-south-1, synced every 15 min when connectivity allows', encryptedAtRest: true, encryptedInTransit: true, note: 'Held locally first because satellite uplink is intermittent above Base Station — the edge node is the durable copy until sync succeeds.' },
+  { dataClass: 'PII — name, date of birth, workOrder ID', primaryPlant: 'ap-south-1', backupPlant: 'ap-southeast-1', encryptedAtRest: true, encryptedInTransit: true, note: 'AES-256 at rest, TLS 1.3 in transit.' },
+  { dataClass: 'Health — oxygen, vibration, cognitive indices', primaryPlant: 'ap-south-1', backupPlant: 'ap-southeast-1', encryptedAtRest: true, encryptedInTransit: true, note: 'Same encryption as PII; access additionally logged per S9.5b.' },
+  { dataClass: 'Location and behavioural data', primaryPlant: 'ap-south-1', backupPlant: 'ap-southeast-1', encryptedAtRest: true, encryptedInTransit: true, note: 'Includes Plant MES readings and rope-partner proximity.' },
 ]
 
 export const KEY_MANAGEMENT = {
@@ -390,7 +390,7 @@ export const DATA_FLOW: DataFlowStep[] = [
   { id: 'consumers', label: 'Consumers (operators, agents)', encryption: 'in-transit-tls', dataClassification: 'Role-filtered' },
 ]
 
-export const AUDIT_LOGGING_SAMPLE = '2026-08-09T11:42:07Z | who: R. Gurung (medic) | what: READ | resource: identity-record:climber-12 | from: 10.4.2.18 (Base Camp edge) | result: 200 OK'
+export const AUDIT_LOGGING_SAMPLE = '2026-08-09T11:42:07Z | who: R. Gurung (medic) | what: READ | resource: identity-record:machine-12 | from: 10.4.2.18 (Base Station edge) | result: 200 OK'
 
 export interface IncidentResponseStep {
   n: number
@@ -440,7 +440,7 @@ export const NETWORK_SEGMENTATION: NetworkSegment[] = [
   { segment: 'Public edge', contains: 'API gateway, GraphQL endpoint, webhook receivers', exposedPublicly: true, crossesInto: ['Application tier (auth-checked only)'] },
   { segment: 'Application tier', contains: 'Reasoning engine, detection engine, prediction service', exposedPublicly: false, crossesInto: ['Data tier'] },
   { segment: 'Data tier', contains: 'Graph store, audit chain, backups', exposedPublicly: false, crossesInto: [] },
-  { segment: 'Edge nodes (Base Camp, etc.)', contains: 'Local radio-log buffer', exposedPublicly: false, crossesInto: ['Public edge, via scheduled sync only'] },
+  { segment: 'Edge nodes (Base Station, etc.)', contains: 'Local radio-log buffer', exposedPublicly: false, crossesInto: ['Public edge, via scheduled sync only'] },
 ]
 
 export interface ComplianceItem {
@@ -449,7 +449,7 @@ export interface ComplianceItem {
 }
 export const COMPLIANCE: ComplianceItem[] = [
   { item: 'Data minimisation', status: 'Enforced at connector level — only fields a bound context rule reads are retained past ingestion; see SEC-011 for the one known exception.' },
-  { item: 'Retention', status: '7 years for the audit chain (expedition protocol); 30 days for radio logs per policy (SEC-011 tracks a live gap); PII retained for the expedition duration plus 1 year.' },
+  { item: 'Retention', status: '7 years for the audit chain (campaign protocol); 30 days for radio logs per policy (SEC-011 tracks a live gap); PII retained for the campaign duration plus 1 year.' },
   { item: 'Deletion method', status: 'Cryptographic erasure (key destruction) for encrypted-at-rest data classes, followed by storage-level overwrite confirmation.' },
   { item: 'DPO contact', status: 'dpo@isildur.example (placeholder)' },
 ]
@@ -478,7 +478,7 @@ export const BREACH_HISTORY: BreachHistoryEntry[] = [
   {
     date: '2026-03-22',
     kind: 'near-miss',
-    summary: 'An API key for the weather feed connector was committed to a test repository during a debugging session.',
+    summary: 'An API key for the metrology lab connector was committed to a test repository during a debugging session.',
     rootCause: 'A developer copied a local .env file into a scratch test fixture and committed it without reviewing the diff.',
     remediation: 'Key revoked and rotated within 4 minutes of the automated secret-scan alert firing on the push. A pre-commit secret scanner was added to block this specific pattern going forward.',
     detectedWithinMinutes: 4,
@@ -645,9 +645,9 @@ export interface GraphQLField {
   hasAsOf?: boolean
 }
 export const GRAPHQL_QUERIES: GraphQLField[] = [
-  { name: 'climber(id: ID!, asOf: DateTime)', type: 'Climber', resolver: 'resolveClimber', dataSource: 'Identity graph', performanceBudgetMs: 20, hasAsOf: true },
-  { name: 'climbers(filter: ClimberFilter, asOf: DateTime)', type: '[Climber!]!', resolver: 'resolveClimbers', dataSource: 'Identity graph', performanceBudgetMs: 80, hasAsOf: true },
-  { name: 'prediction(climberId: ID!, asOf: DateTime)', type: 'Prediction', resolver: 'resolvePrediction', dataSource: 'Prediction engine', performanceBudgetMs: 40, hasAsOf: true },
+  { name: 'machine(id: ID!, asOf: DateTime)', type: 'Machine', resolver: 'resolveMachine', dataSource: 'Identity graph', performanceBudgetMs: 20, hasAsOf: true },
+  { name: 'machines(filter: MachineFilter, asOf: DateTime)', type: '[Machine!]!', resolver: 'resolveMachines', dataSource: 'Identity graph', performanceBudgetMs: 80, hasAsOf: true },
+  { name: 'prediction(machineId: ID!, asOf: DateTime)', type: 'Prediction', resolver: 'resolvePrediction', dataSource: 'Prediction engine', performanceBudgetMs: 40, hasAsOf: true },
   { name: 'predictions(status: PredictionStatus, asOf: DateTime)', type: '[Prediction!]!', resolver: 'resolvePredictions', dataSource: 'Prediction engine', performanceBudgetMs: 100, hasAsOf: true },
   { name: 'source(id: ID!)', type: 'Source', resolver: 'resolveSource', dataSource: 'Source registry', performanceBudgetMs: 10 },
   { name: 'sources(status: SourceStatus)', type: '[Source!]!', resolver: 'resolveSources', dataSource: 'Source registry', performanceBudgetMs: 15 },
@@ -664,7 +664,7 @@ export const GRAPHQL_MUTATIONS: GraphQLField[] = [
   { name: 'adjustConfidenceFloor(className: ConclusionClass!, pct: Int!)', type: 'ConfidenceFloor', resolver: 'mutateFloor', dataSource: 'Exposure engine', performanceBudgetMs: 15 },
 ]
 export const GRAPHQL_SUBSCRIPTIONS: GraphQLField[] = [
-  { name: 'predictionUpdated(climberId: ID)', type: 'Prediction', resolver: 'subscribePrediction', dataSource: 'Prediction engine', performanceBudgetMs: 500 },
+  { name: 'predictionUpdated(machineId: ID)', type: 'Prediction', resolver: 'subscribePrediction', dataSource: 'Prediction engine', performanceBudgetMs: 500 },
   { name: 'sourceStatusChanged', type: 'Source', resolver: 'subscribeSourceStatus', dataSource: 'Source registry', performanceBudgetMs: 500 },
   { name: 'queueItemAdded', type: 'QueueItem', resolver: 'subscribeQueueAdded', dataSource: 'Revision queue', performanceBudgetMs: 500 },
   { name: 'alert(severity: Severity)', type: 'Alert', resolver: 'subscribeAlert', dataSource: 'Detection + Exposure engines', performanceBudgetMs: 500 },
@@ -672,7 +672,7 @@ export const GRAPHQL_SUBSCRIPTIONS: GraphQLField[] = [
 export const GRAPHQL_SCHEMA_VERSION = 'v2.3.0'
 export const GRAPHQL_LAST_BREAKING_CHANGE = '2026-05-14 — Prediction.likelihood renamed to Prediction.likelihoodPct (see Breaking Changes)'
 export const GRAPHQL_EXAMPLE_QUERY = `query HeroPrediction {
-  prediction(climberId: "climber-2", asOf: null) {
+  prediction(machineId: "machine-2", asOf: null) {
     name
     serial
     likelihoodPct
@@ -683,13 +683,13 @@ export const GRAPHQL_EXAMPLE_QUERY = `query HeroPrediction {
 export const GRAPHQL_EXAMPLE_RESPONSE = `{
   "data": {
     "prediction": {
-      "name": "Nima Tamang",
+      "name": "the outlier machine",
       "serial": "NP-4412",
       "likelihoodPct": 68,
       "withinHours": 6,
       "drivers": [
         { "label": "Oxygen recovery vs. own baseline", "weightPct": 34 },
-        { "label": "Wind exposure above 70kph", "weightPct": 21 }
+        { "label": "Vibration exposure above 70kph", "weightPct": 21 }
       ]
     }
   }
@@ -760,11 +760,11 @@ export interface WebhookCatalogEntry {
 }
 export const WEBHOOK_CATALOG: WebhookCatalogEntry[] = [
   { event: 'queue_item.added', payloadSchema: '{ id, kind, priority, fromTab, about }', deliveryGuarantee: 'at-least-once', retryPolicy: 'exponential backoff, 5 attempts over 15 minutes', example: '{"event":"queue_item.added","id":"queue-...","priority":"critical"}' },
-  { event: 'prediction.updated', payloadSchema: '{ climberId, likelihoodPct, withinHours }', deliveryGuarantee: 'at-least-once', retryPolicy: 'exponential backoff, 5 attempts over 15 minutes', example: '{"event":"prediction.updated","climberId":"climber-2","likelihoodPct":68}' },
+  { event: 'prediction.updated', payloadSchema: '{ machineId, likelihoodPct, withinHours }', deliveryGuarantee: 'at-least-once', retryPolicy: 'exponential backoff, 5 attempts over 15 minutes', example: '{"event":"prediction.updated","machineId":"machine-2","likelihoodPct":68}' },
   { event: 'source.status_changed', payloadSchema: '{ sourceId, status, healthPct }', deliveryGuarantee: 'at-least-once', retryPolicy: 'exponential backoff, 5 attempts over 15 minutes', example: '{"event":"source.status_changed","sourceId":"weather-feed","status":"critical"}' },
 ]
 
-export const STREAMING = { topic: 'ase.conclusions.v1', schemaFormat: 'Avro, schema-registry backed', retentionDays: 14, partitioning: 'by climberId hash, 12 partitions' }
+export const STREAMING = { topic: 'ase.conclusions.v1', schemaFormat: 'Avro, schema-registry backed', retentionDays: 14, partitioning: 'by machineId hash, 12 partitions' }
 
 export interface SdkRow {
   language: string
@@ -800,33 +800,33 @@ export interface ExampleIntegration {
   domain: string
   sameSchema: boolean
   changedFrom: string
-  changes: { field: string; expedition: string; thisDomain: string }[]
+  changes: { field: string; campaign: string; thisDomain: string }[]
 }
 export const EXAMPLE_INTEGRATIONS: ExampleIntegration[] = [
   {
     domain: 'Mining',
     sameSchema: true,
-    changedFrom: 'Expedition safety',
+    changedFrom: 'Campaign safety',
     changes: [
-      { field: 'Entity', expedition: 'Climber', thisDomain: 'Miner / shift worker' },
-      { field: 'Source: wearable sensor', expedition: 'Wearable oximeter (SpO2)', thisDomain: 'Wearable gas detector (CO/CH4 ppm)' },
-      { field: 'Source: position', expedition: 'GPS tracker', thisDomain: 'Underground beacon triangulation' },
-      { field: 'Detection rule', expedition: 'Low blood oxygen', thisDomain: 'Gas concentration above threshold' },
-      { field: 'Prediction model', expedition: 'Requires-descent forecaster', thisDomain: 'Requires-evacuation forecaster' },
-      { field: 'Engine (folds, derivation kinds, confidence formulas)', expedition: 'unchanged', thisDomain: 'unchanged' },
+      { field: 'Entity', campaign: 'Machine', thisDomain: 'Miner / shift worker' },
+      { field: 'Source: wearable sensor', campaign: 'OT historian (Oee)', thisDomain: 'Wearable gas detector (CO/CH4 ppm)' },
+      { field: 'Source: position', campaign: 'Plant MES', thisDomain: 'Underground beacon triangulation' },
+      { field: 'Detection rule', campaign: 'Low effectiveness', thisDomain: 'Gas concentration above threshold' },
+      { field: 'Prediction model', campaign: 'Requires-descent forecaster', thisDomain: 'Requires-evacuation forecaster' },
+      { field: 'Engine (folds, derivation kinds, confidence formulas)', campaign: 'unchanged', thisDomain: 'unchanged' },
     ],
   },
   {
     domain: 'Logistics',
     sameSchema: true,
-    changedFrom: 'Expedition safety',
+    changedFrom: 'Campaign safety',
     changes: [
-      { field: 'Entity', expedition: 'Climber', thisDomain: 'Shipment' },
-      { field: 'Source: wearable sensor', expedition: 'Wearable oximeter (SpO2)', thisDomain: 'Cold-chain temperature sensor' },
-      { field: 'Source: position', expedition: 'GPS tracker', thisDomain: 'Fleet GPS tracker (same connector type)' },
-      { field: 'Detection rule', expedition: 'Low blood oxygen', thisDomain: 'Temperature excursion above threshold' },
-      { field: 'Prediction model', expedition: 'Requires-descent forecaster', thisDomain: 'Spoilage-risk forecaster' },
-      { field: 'Engine (folds, derivation kinds, confidence formulas)', expedition: 'unchanged', thisDomain: 'unchanged' },
+      { field: 'Entity', campaign: 'Machine', thisDomain: 'Shipment' },
+      { field: 'Source: wearable sensor', campaign: 'OT historian (Oee)', thisDomain: 'Cold-chain temperature sensor' },
+      { field: 'Source: position', campaign: 'Plant MES', thisDomain: 'Fleet Plant MES (same connector type)' },
+      { field: 'Detection rule', campaign: 'Low effectiveness', thisDomain: 'Spindle temp excursion above threshold' },
+      { field: 'Prediction model', campaign: 'Requires-descent forecaster', thisDomain: 'Spoilage-risk forecaster' },
+      { field: 'Engine (folds, derivation kinds, confidence formulas)', campaign: 'unchanged', thisDomain: 'unchanged' },
     ],
   },
 ]
@@ -843,7 +843,7 @@ export interface PerformanceBudget {
   lastViolation: string
 }
 export const PERFORMANCE_BUDGETS: PerformanceBudget[] = [
-  { id: 'fold-7hop', budget: 'Fold of a 7-hop chain', targetLabel: 'under 5 ms', p50: '1.2 ms', p99: '4.1 ms', status: 'within', lastViolation: '2026-07-19 — 6.8ms during a 200-climber synthetic load test' },
+  { id: 'fold-7hop', budget: 'Fold of a 7-hop chain', targetLabel: 'under 5 ms', p50: '1.2 ms', p99: '4.1 ms', status: 'within', lastViolation: '2026-07-19 — 6.8ms during a 200-machine synthetic load test' },
   { id: 'counterfactual', budget: 'Counterfactual compute', targetLabel: 'under 40 ms', p50: '9 ms', p99: '31 ms', status: 'within', lastViolation: 'Never' },
   { id: 'tab-switch', budget: 'Tab switch', targetLabel: 'under 150 ms', p50: '48 ms', p99: '162 ms', status: 'watch', lastViolation: '2026-08-02 — 210ms switching into Exposure with Matrix pre-computed' },
   { id: 'asof-rerender', budget: 'As-of re-render', targetLabel: 'under 400 ms', p50: '110 ms', p99: '380 ms', status: 'within', lastViolation: '2026-06-30 — 512ms scrubbing across a 24h window with the palette open' },
@@ -946,7 +946,7 @@ export interface KnownLimitation {
 export const KNOWN_LIMITATIONS: KnownLimitation[] = [
   { id: 'lim-1', text: 'Cognitive state is inferred, not measured. We do not read minds. We infer decision-making risk from behaviour.', linkLabel: 'Prediction → Cognitive state', linkTabId: 'prediction' },
   { id: 'lim-2', text: 'Single-source conclusions are fragile. We flag them, but we cannot always corroborate in time.', linkLabel: 'Exposure → Fragility', linkTabId: 'exposure' },
-  { id: 'lim-3', text: 'Below 200 resolved predictions, calibration is advisory. Early in an expedition, treat likelihoods as directional rather than precise.', linkLabel: 'Prediction → Calibration', linkTabId: 'prediction' },
+  { id: 'lim-3', text: 'Below 200 resolved predictions, calibration is advisory. Early in an campaign, treat likelihoods as directional rather than precise.', linkLabel: 'Prediction → Calibration', linkTabId: 'prediction' },
   { id: 'lim-4', text: 'Model transfer to other domains is proven in principle, not in production. The architecture supports it. We have no operational history there.', linkLabel: 'Trust → Connections → example integrations', linkTabId: 'trust' },
   { id: 'lim-5', text: 'GraphQL introspection is enabled, which is a known risk. It is required by the agent interface. A fix is scheduled.', linkLabel: 'Trust → Security, SEC-008', linkTabId: 'trust' },
   { id: 'lim-6', text: 'Coverage in Exposure and UI components is below 80%, and 41 tests are quarantined. This is technical debt and we are aware of it.', linkLabel: 'Trust → Quality', linkTabId: 'trust' },
@@ -985,7 +985,7 @@ export const SUPPORT = {
   statusPage: 'status.isildur.example (placeholder)',
   engineeringContact: { name: 'S. Chen', responseTime: 'within 1 business day' },
   securityContact: { name: 'Security team', responseTime: 'within 4 hours for HIGH severity reports' },
-  emergencyChannel: 'expedition-critical-only pager, placeholder — not yet provisioned',
+  emergencyChannel: 'campaign-critical-only pager, placeholder — not yet provisioned',
 }
 
 // -- bundle -----------------------------------------------------------------

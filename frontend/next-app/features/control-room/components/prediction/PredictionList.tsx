@@ -5,7 +5,7 @@ import {
   ANOMALY,
   BORDER_WIDTH,
   HAIRLINE,
-  MAP_HEADER_CLIMBER,
+  MAP_HEADER_MACHINE,
   NOMINAL,
   PANEL_PADDING,
   PANEL_RAISED,
@@ -47,14 +47,14 @@ const STATUS_LABEL: Record<PersonPrediction['status'], string> = {
   resolved: 'Resolved',
 }
 
-type SortColumn = 'within' | 'altitude' | 'likelihood' | null
+type SortColumn = 'within' | 'load' | 'likelihood' | null
 
 export function PredictionList({
   state,
   onSelectPerson,
 }: {
   state: PredictionState
-  onSelectPerson: (climberId: string) => void
+  onSelectPerson: (machineId: string) => void
 }): ReactElement {
   const [statusFilter, setStatusFilter] = useState<'all' | PersonPrediction['status']>('all')
   const [predictedFilter, setPredictedFilter] = useState<'all' | PredictedOutcome>('all')
@@ -89,7 +89,7 @@ export function PredictionList({
     const copy = [...filtered]
     copy.sort((a, b) => {
       if (sortColumn === 'within') return a.withinHours - b.withinHours
-      if (sortColumn === 'altitude') return b.position.altitudeM - a.position.altitudeM
+      if (sortColumn === 'load') return b.position.loadM - a.position.loadM
       return b.likelihoodPct - a.likelihoodPct
     })
     return copy
@@ -99,7 +99,7 @@ export function PredictionList({
     <div>
       <div className="flex flex-wrap items-center" style={{ gap: SPACE_8 }}>
         <SortButton label="Sort: within" active={sortColumn === 'within'} onClick={() => setSortColumn('within')} />
-        <SortButton label="Sort: altitude" active={sortColumn === 'altitude'} onClick={() => setSortColumn('altitude')} />
+        <SortButton label="Sort: load" active={sortColumn === 'load'} onClick={() => setSortColumn('load')} />
         <SortButton label="Sort: likelihood" active={sortColumn === 'likelihood'} onClick={() => setSortColumn('likelihood')} />
         <Divider />
         <ToggleChip label="Unacknowledged only" active={onlyUnacknowledged} onClick={() => setOnlyUnacknowledged((v) => !v)} />
@@ -136,11 +136,11 @@ export function PredictionList({
           ) : (
             sorted.map((p) => (
               <Row
-                key={p.climberId}
+                key={p.machineId}
                 p={p}
-                expanded={expandedId === p.climberId}
-                onToggleExpand={() => setExpandedId((id) => (id === p.climberId ? null : p.climberId))}
-                onSelect={() => onSelectPerson(p.climberId)}
+                expanded={expandedId === p.machineId}
+                onToggleExpand={() => setExpandedId((id) => (id === p.machineId ? null : p.machineId))}
+                onSelect={() => onSelectPerson(p.machineId)}
               />
             ))
           )}
@@ -279,8 +279,8 @@ function HeaderRow(): ReactElement {
   )
 }
 
-function DriverKindTag({ kind }: { kind: 'clinical' | 'learned' | 'operator' }): ReactElement {
-  const label = kind === 'clinical' ? 'Clinical' : kind === 'learned' ? 'Learned' : 'Operator'
+function DriverKindTag({ kind }: { kind: 'condition' | 'learned' | 'operator' }): ReactElement {
+  const label = kind === 'condition' ? 'Clinical' : kind === 'learned' ? 'Learned' : 'Operator'
   return <span style={{ ...TYPE_CAPTION, color: TEXT_DIM, textTransform: 'none', letterSpacing: 'normal' }}> · {label}</span>
 }
 
@@ -337,7 +337,7 @@ function Row({
               width: 22,
               height: 22,
               borderRadius: '50%',
-              background: MAP_HEADER_CLIMBER,
+              background: MAP_HEADER_MACHINE,
               flexShrink: 0,
               display: 'flex',
               alignItems: 'center',
@@ -367,10 +367,10 @@ function Row({
           <span style={{ ...TYPE_BODY, color: TEXT_PRIMARY }}>{p.position.label}</span>
           <br />
           <span style={{ ...TYPE_CAPTION, textTransform: 'none', letterSpacing: 'normal' }}>
-            {p.position.altitudeM.toLocaleString()}m{' '}
+            {p.position.loadM.toLocaleString()}m{' '}
             <span style={{ color: TEXT_DIM }}>
-              ({p.position.altitudeDeltaM >= 0 ? '+' : ''}
-              {p.position.altitudeDeltaM})
+              ({p.position.loadDeltaM >= 0 ? '+' : ''}
+              {p.position.loadDeltaM})
             </span>{' '}
             {p.position.movement === 'ascending' ? '↑' : p.position.movement === 'descending' ? '↓' : '→'} {p.position.movement}
           </span>

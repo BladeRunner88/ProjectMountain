@@ -110,7 +110,7 @@ export function RevisionRecord({ role }: { role: Role }): ReactElement {
       </div>
 
       <p style={{ ...TYPE_CAPTION, color: TEXT_DIM, marginTop: SPACE_32, textTransform: 'none', letterSpacing: 'normal' }}>
-        Records retained for 7 years per expedition protocol. {auditRecord.length.toLocaleString()} entries.
+        Records retained for 7 years per campaign protocol. {auditRecord.length.toLocaleString()} entries.
       </p>
     </div>
   )

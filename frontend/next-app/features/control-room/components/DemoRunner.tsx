@@ -18,15 +18,15 @@ export function DemoRunner(): null {
   // advance it. `router`, `simulation`, `asOf` and `dataset` are read when a step
   // fires but must not be reactive — `useDataset` returns a fresh object on every
   // 5s live tick, so depending on them would re-fire the current step (re-pushing
-  // the route, restarting the simulation) on a timer. An Effect Event keeps those
+  // the line, restarting the simulation) on a timer. An Effect Event keeps those
   // reads current without making them trigger the effect.
   const applyStep = useEffectEvent((): void => {
     const step = DEMO_STEPS[demo.stepIndex]
     if (!step) return
     router.push(tabHref(step.tabId))
     if (step.id === 'exposure' && !simulation.active) {
-      const permit = dataset.sources.find((s) => s.def.name === 'Permit registry')
-      if (permit) simulation.start(permit.def.id, permit.def.name)
+      const workOrder = dataset.sources.find((s) => s.def.name === 'CMMS')
+      if (workOrder) simulation.start(workOrder.def.id, workOrder.def.name)
     }
     if (step.id === 'timeline' && asOf.at === 'now') {
       const target = new Date()
@@ -42,7 +42,7 @@ export function DemoRunner(): null {
   }, [demo.stepIndex, demo.status])
 
   // Validation re-runs whenever something a step is checked against moves: the
-  // route, the simulation flag, the as-of instant, or the step itself. Those stay
+  // line, the simulation flag, the as-of instant, or the step itself. Those stay
   // as dependencies; `demo` is only read (it is a fresh object each render, but
   // `recordValidation` is a stable Zustand action).
   const validateStep = useEffectEvent((): void => {

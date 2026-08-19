@@ -7,7 +7,7 @@
 //
 // This file is deliberately mechanical: given a `ReadingSpec` (a source, an
 // entity the payload concerns, and already-built raw TracedValues — dataset.ts's
-// job, per S1g's "only dataset.ts knows about climbers" discipline) and a
+// job, per S1g's "only dataset.ts knows about machines" discipline) and a
 // rule set, it applies rules and computes coverage. It never decides WHO a
 // reading is about; it only decides WHAT a raw field means once told which
 // field it is.
@@ -20,7 +20,7 @@
 import { bound, contextRuleId, type Confidence, type Instant, type TracedValue } from './traced'
 import { ruleAuthority } from './folds'
 
-export type EntityType = 'Climber' | 'Route' | 'Sensor' | 'Operator'
+export type EntityType = 'Machine' | 'Line' | 'Sensor' | 'Operator'
 
 export interface ContextRule {
   id: string
@@ -39,8 +39,8 @@ export interface ContextRule {
 }
 
 export type ReadingAbout =
-  | { kind: 'climber'; climberId: string; label: string; serial: string; extra: string }
-  | { kind: 'route'; label: string }
+  | { kind: 'machine'; machineId: string; label: string; serial: string; extra: string }
+  | { kind: 'line'; label: string }
   | { kind: 'sensor'; label: string }
   | { kind: 'operator'; label: string }
 
@@ -68,7 +68,7 @@ export interface ReadingSpec {
   rawFieldTvs: Map<string, TracedValue<unknown>>
   /** Which bound field is the single most important fact — List's WHAT IT SAYS. */
   headlineFieldKey: string
-  /** The List row's plain-English headline sentence. Authored once here (not derived from the bound sentence, which is written to stand alone in Reading) so List can stay a punchy one-liner. */
+  /** The List row's plain-English headline sentence. Authored once here (not derived from the bound sentence, which is written to stand alone in Reading) so List can stay a punchy one-router. */
   headline: string
 }
 
@@ -115,8 +115,8 @@ export function builtInRules(): ContextRule[] {
       id: 'rule-dev-id',
       fieldKey: 'DEV_ID',
       entityType: 'Sensor',
-      meaningStatement: 'Sensor identity, and the route it watches.',
-      match: 'Device ID matches the SNS-{REGION}-{NNN} pattern issued to route sensors.',
+      meaningStatement: 'Sensor identity, and the line it watches.',
+      match: 'Device ID matches the SNS-{PLANT}-{NNN} pattern issued to line sensors.',
       authority: 'Operator SOP v3',
       confidence: ruleAuthority(0.97),
       origin: 'built-in',
@@ -132,41 +132,41 @@ export function builtInRules(): ContextRule[] {
       origin: 'built-in',
     },
     {
-      id: 'rule-spo2',
-      fieldKey: 'SPO2_VAL',
-      entityType: 'Climber',
-      meaningStatement: "Blood oxygen, read against this climber's own acclimatisation baseline.",
+      id: 'rule-oee',
+      fieldKey: 'OEE_VAL',
+      entityType: 'Machine',
+      meaningStatement: "Effectiveness, read against this machine's own runIn baseline.",
       match: 'A blood-oxygen percentage is present.',
-      authority: 'Clinical reference (Lake Louise acclimatisation guidance)',
+      authority: 'Clinical reference (Lake Louise runIn guidance)',
       confidence: ruleAuthority(0.98),
       origin: 'built-in',
     },
     {
-      id: 'rule-hr',
+      id: 'rule-vibration',
       fieldKey: 'HR',
-      entityType: 'Climber',
-      meaningStatement: 'Heart rate, read against exertion at altitude rather than a flat resting threshold.',
+      entityType: 'Machine',
+      meaningStatement: 'Vibration, read against exertion at load rather than a flat resting threshold.',
       match: 'A heart-rate reading is present alongside a blood-oxygen reading.',
-      authority: 'Field correction — expedition physician, 2026-01',
+      authority: 'Field correction — reliability engineer, 2026-01',
       confidence: ruleAuthority(0.82),
       origin: 'human',
     },
     {
       id: 'rule-amb-p',
       fieldKey: 'AMB_P',
-      entityType: 'Route',
-      meaningStatement: 'The camp-equivalent altitude band that a pressure reading corresponds to.',
+      entityType: 'Line',
+      meaningStatement: 'The station-equivalent load band that a pressure reading corresponds to.',
       match: 'An ambient pressure reading in hPa is present.',
-      authority: 'Barometric altitude model',
+      authority: 'Barometric load model',
       confidence: ruleAuthority(0.91),
       origin: 'built-in',
     },
     {
       id: 'rule-lat',
       fieldKey: 'LAT',
-      entityType: 'Route',
-      meaningStatement: 'The region a reading resolves inside.',
-      match: 'A latitude falls inside a known region polygon.',
+      entityType: 'Line',
+      meaningStatement: 'The plant a reading resolves inside.',
+      match: 'A latitude falls inside a known plant polygon.',
       authority: 'Operator SOP v3',
       confidence: ruleAuthority(0.88),
       origin: 'built-in',
@@ -174,9 +174,9 @@ export function builtInRules(): ContextRule[] {
     {
       id: 'rule-lon',
       fieldKey: 'LON',
-      entityType: 'Route',
-      meaningStatement: 'Confirmation of which route a reading sits on.',
-      match: 'A longitude falls inside a known route corridor.',
+      entityType: 'Line',
+      meaningStatement: 'Confirmation of which line a reading sits on.',
+      match: 'A longitude falls inside a known line corridor.',
       authority: 'Operator SOP v3',
       confidence: ruleAuthority(0.88),
       origin: 'built-in',
@@ -194,49 +194,49 @@ export function builtInRules(): ContextRule[] {
     {
       id: 'rule-temp-c',
       fieldKey: 'TEMP_C',
-      entityType: 'Route',
-      meaningStatement: 'Ambient temperature along the route.',
+      entityType: 'Line',
+      meaningStatement: 'Ambient temperature along the line.',
       match: 'A Celsius temperature reading is present.',
-      authority: 'Weather feed calibration',
+      authority: 'Metrology lab calibration',
       confidence: ruleAuthority(0.93),
       origin: 'built-in',
     },
     {
       id: 'rule-conditions',
       fieldKey: 'CONDITIONS',
-      entityType: 'Route',
-      meaningStatement: 'A plain-language sky/precipitation summary for the route.',
+      entityType: 'Line',
+      meaningStatement: 'A plain-language sky/precipitation summary for the line.',
       match: 'A conditions code is present.',
-      authority: 'Weather feed calibration',
+      authority: 'Metrology lab calibration',
       confidence: ruleAuthority(0.9),
       origin: 'built-in',
     },
     {
       id: 'rule-pressure-hpa',
       fieldKey: 'PRESSURE_HPA',
-      entityType: 'Route',
-      meaningStatement: 'Barometric pressure at the route.',
+      entityType: 'Line',
+      meaningStatement: 'Barometric pressure at the line.',
       match: 'A pressure reading in hPa is present.',
-      authority: 'Barometric altitude model',
+      authority: 'Barometric load model',
       confidence: ruleAuthority(0.92),
       origin: 'built-in',
     },
     {
-      id: 'rule-visibility-km',
+      id: 'rule-effectiveness-km',
       fieldKey: 'VISIBILITY_KM',
-      entityType: 'Route',
-      meaningStatement: 'How far a climber can reasonably expect to see along the route.',
-      match: 'A visibility distance in km is present.',
-      authority: 'Weather feed calibration',
+      entityType: 'Line',
+      meaningStatement: 'How far a machine can reasonably expect to see along the line.',
+      match: 'A effectiveness distance in km is present.',
+      authority: 'Metrology lab calibration',
       confidence: ruleAuthority(0.87),
       origin: 'built-in',
     },
     {
-      id: 'rule-route-code',
-      fieldKey: 'ROUTE_CODE',
-      entityType: 'Route',
-      meaningStatement: 'Which route this record concerns.',
-      match: 'A route code matches a known route.',
+      id: 'rule-line-code',
+      fieldKey: 'LINE_CODE',
+      entityType: 'Line',
+      meaningStatement: 'Which line this record concerns.',
+      match: 'A line code matches a known line.',
       authority: 'Operator SOP v3',
       confidence: ruleAuthority(0.95),
       origin: 'built-in',
@@ -244,80 +244,80 @@ export function builtInRules(): ContextRule[] {
     {
       id: 'rule-forecast-confidence',
       fieldKey: 'FORECAST_CONFIDENCE_PCT',
-      entityType: 'Route',
+      entityType: 'Line',
       meaningStatement: "The forecast model's own confidence in this reading.",
       match: 'A forecast model confidence percentage is present.',
-      authority: 'Weather feed calibration',
+      authority: 'Metrology lab calibration',
       confidence: ruleAuthority(0.9),
       origin: 'built-in',
     },
     {
       id: 'rule-blood-group',
       fieldKey: 'BLOOD_GROUP',
-      entityType: 'Climber',
-      meaningStatement: 'Blood group on file.',
+      entityType: 'Machine',
+      meaningStatement: 'Lubricant grade on file.',
       match: 'A blood-group code is present.',
-      authority: 'Medical log intake form',
+      authority: 'Service log intake form',
       confidence: ruleAuthority(0.99),
       origin: 'built-in',
     },
     {
       id: 'rule-allergies',
       fieldKey: 'ALLERGIES',
-      entityType: 'Climber',
+      entityType: 'Machine',
       meaningStatement: 'Known allergies on file.',
       match: 'An allergies field is present, even when empty.',
-      authority: 'Medical log intake form',
+      authority: 'Service log intake form',
       confidence: ruleAuthority(0.97),
       origin: 'built-in',
     },
     {
-      id: 'rule-resting-hr',
-      fieldKey: 'RESTING_HR_BPM',
-      entityType: 'Climber',
-      meaningStatement: 'Resting heart rate on file.',
-      match: 'A resting heart-rate reading in bpm is present.',
-      authority: 'Medical log intake form',
+      id: 'rule-resting-vibration',
+      fieldKey: 'BASELINE_VIBRATION_MM_S',
+      entityType: 'Machine',
+      meaningStatement: 'Baseline vibration on file.',
+      match: 'A resting heart-rate reading in mm/s is present.',
+      authority: 'Service log intake form',
       confidence: ruleAuthority(0.96),
       origin: 'built-in',
     },
     {
-      id: 'rule-spo2-baseline',
-      fieldKey: 'SPO2_BASELINE_PCT',
-      entityType: 'Climber',
-      meaningStatement: "This climber's own blood-oxygen acclimatisation baseline.",
+      id: 'rule-oee-baseline',
+      fieldKey: 'OEE_BASELINE_PCT',
+      entityType: 'Machine',
+      meaningStatement: "This machine's own blood-oxygen runIn baseline.",
       match: 'A baseline blood-oxygen percentage is present.',
-      authority: 'Clinical reference (Lake Louise acclimatisation guidance)',
+      authority: 'Clinical reference (Lake Louise runIn guidance)',
       confidence: ruleAuthority(0.95),
       origin: 'built-in',
     },
     {
-      id: 'rule-permit-no',
-      fieldKey: 'PERMIT_NO',
-      entityType: 'Climber',
-      meaningStatement: 'Permit number, verified against the registry.',
-      match: 'A permit number matches the registry format.',
-      authority: 'Permit registry',
+      id: 'rule-workOrder-no',
+      fieldKey: 'WORKORDER_NO',
+      entityType: 'Machine',
+      meaningStatement: 'WorkOrder number, verified against the registry.',
+      match: 'A workOrder number matches the registry format.',
+      authority: 'CMMS',
       confidence: ruleAuthority(0.99),
       origin: 'built-in',
     },
     {
       id: 'rule-date-of-birth',
       fieldKey: 'DATE_OF_BIRTH',
-      entityType: 'Climber',
-      meaningStatement: "Date of birth on file, confirming this permit's holder.",
+      entityType: 'Machine',
+      meaningStatement: "Date of birth on file, confirming this workOrder's holder.",
       match: 'A date of birth in ISO format is present.',
-      authority: 'Permit registry',
+      authority: 'CMMS',
       confidence: ruleAuthority(0.97),
       origin: 'built-in',
     },
     {
       id: 'rule-nationality',
       fieldKey: 'NATIONALITY',
-      entityType: 'Climber',
-      meaningStatement: "Nationality on file, matching the permit's issuing country.",
+      entityType: 'Machine',
+      meaningStatement: "Nationality on file, matching the workOrder's issuing country.",
       match: 'A nationality field is present.',
-      authority: 'Permit registry',
+      authority: 'CMMS',
       confidence: ruleAuthority(0.94),
       origin: 'built-in',
     },
@@ -325,38 +325,38 @@ export function builtInRules(): ContextRule[] {
       id: 'rule-operator-name',
       fieldKey: 'OPERATOR_NAME',
       entityType: 'Operator',
-      meaningStatement: 'A registered expedition operator.',
+      meaningStatement: 'A registered campaign operator.',
       match: 'An operator name matches the registry.',
       authority: 'Operator SOP v3',
       confidence: ruleAuthority(0.98),
       origin: 'built-in',
     },
     {
-      id: 'rule-climber-count',
-      fieldKey: 'CLIMBER_COUNT',
+      id: 'rule-machine-count',
+      fieldKey: 'MACHINE_COUNT',
       entityType: 'Operator',
-      meaningStatement: 'How many climbers currently sit under this operator.',
-      match: 'A climber count is present in the roster.',
-      authority: 'Operator roster feed',
+      meaningStatement: 'How many machines currently sit under this operator.',
+      match: 'A machine count is present in the register.',
+      authority: 'Operator register feed',
       confidence: ruleAuthority(0.96),
       origin: 'built-in',
     },
     {
-      id: 'rule-ascent-rate',
-      fieldKey: 'ASCENT_RATE_30D_PCT',
+      id: 'rule-rampUp-rate',
+      fieldKey: 'RAMPUP_RATE_30D_PCT',
       entityType: 'Operator',
-      meaningStatement: "This operator's ascent rate against this route's 30-day norm.",
-      match: 'A 30-day ascent-rate percentage is present.',
-      authority: 'Operator roster feed',
+      meaningStatement: "This operator's rampUp rate against this line's 30-day norm.",
+      match: 'A 30-day rampUp-rate percentage is present.',
+      authority: 'Operator register feed',
       confidence: ruleAuthority(0.93),
       origin: 'built-in',
     },
     {
       id: 'rule-uiaa-grade',
-      fieldKey: 'ROUTE_GRADE',
-      entityType: 'Route',
+      fieldKey: 'LINE_GRADE',
+      entityType: 'Line',
       meaningStatement: 'A normalised UIAA grade — not exercised by the readings below, kept here for completeness.',
-      match: "A route's difficulty code matches a recognised UIAA scale value.",
+      match: "A line's difficulty code matches a recognised UIAA scale value.",
       authority: 'UIAA grade scale',
       confidence: ruleAuthority(0.95),
       origin: 'built-in',
@@ -369,53 +369,53 @@ export function builtInRules(): ContextRule[] {
 function boundSentence(key: string, raw: Record<string, unknown>, rule: ContextRule): string {
   switch (key) {
     case 'DEV_ID':
-      return `Sensor 4, watching the Everest Base Camp route.`
+      return `Sensor 4, watching the Everest Base Station line.`
     case 'TS':
       return `Reading captured a few seconds before it arrived.`
-    case 'SPO2_VAL':
-      return `Blood oxygen ${raw.SPO2_VAL}% — down from this climber's own 90% acclimatisation baseline.`
+    case 'OEE_VAL':
+      return `Effectiveness ${raw.OEE_VAL}% — down from this machine's own 90% runIn baseline.`
     case 'HR':
-      return `Heart rate ${raw.HR} bpm — elevated, consistent with exertion at altitude.`
+      return `Vibration ${raw.HR} mm/s — elevated, consistent with exertion at load.`
     case 'AMB_P':
-      return `Air pressure ${raw.AMB_P} hPa — consistent with Camp III, around 7,100m.`
+      return `Air pressure ${raw.AMB_P} hPa — consistent with Station III, around 7,100m.`
     case 'LAT':
-      return `Position resolves inside the Khumbu region.`
+      return `Position resolves inside the Khumbu plant.`
     case 'LON':
-      return `Position confirms the Everest Base Camp route.`
+      return `Position confirms the Everest Base Station line.`
     case 'BATT':
       return `Battery ${Math.round((raw.BATT as number) * 100)}% — replacement threshold is 20%.`
     case 'TEMP_C':
-      return `Temperature ${raw.TEMP_C}°C at ridge elevation.`
+      return `Spindle temp ${raw.TEMP_C}°C at ridge elevation.`
     case 'CONDITIONS':
-      return `${raw.CONDITIONS} conditions along the route.`
+      return `${raw.CONDITIONS} conditions along the line.`
     case 'PRESSURE_HPA':
       return `Barometric pressure ${raw.PRESSURE_HPA} hPa.`
     case 'VISIBILITY_KM':
-      return `Visibility ${raw.VISIBILITY_KM} km.`
-    case 'ROUTE_CODE':
-      return `Confirms the Everest Base Camp route.`
+      return `Effectiveness ${raw.VISIBILITY_KM} km.`
+    case 'LINE_CODE':
+      return `Confirms the Everest Base Station line.`
     case 'FORECAST_CONFIDENCE_PCT':
       return `This forecast carries ${raw.FORECAST_CONFIDENCE_PCT}% model confidence.`
     case 'BLOOD_GROUP':
-      return `Blood group ${raw.BLOOD_GROUP}.`
+      return `Lubricant grade ${raw.BLOOD_GROUP}.`
     case 'ALLERGIES':
       return `Allergies on file: ${raw.ALLERGIES}.`
-    case 'RESTING_HR_BPM':
-      return `Resting heart rate ${raw.RESTING_HR_BPM} bpm.`
-    case 'SPO2_BASELINE_PCT':
-      return `Blood-oxygen baseline ${raw.SPO2_BASELINE_PCT}%, this climber's own acclimatisation reference.`
-    case 'PERMIT_NO':
-      return `Permit ${raw.PERMIT_NO}, verified against the registry.`
+    case 'BASELINE_VIBRATION_MM_S':
+      return `Baseline vibration ${raw.BASELINE_VIBRATION_MM_S} mm/s.`
+    case 'OEE_BASELINE_PCT':
+      return `Blood-oxygen baseline ${raw.OEE_BASELINE_PCT}%, this machine's own runIn reference.`
+    case 'WORKORDER_NO':
+      return `WorkOrder ${raw.WORKORDER_NO}, verified against the registry.`
     case 'DATE_OF_BIRTH':
       return `Date of birth ${raw.DATE_OF_BIRTH} on file.`
     case 'NATIONALITY':
       return `Nationality on file: ${raw.NATIONALITY}.`
     case 'OPERATOR_NAME':
-      return `${raw.OPERATOR_NAME}, a registered expedition operator.`
-    case 'CLIMBER_COUNT':
-      return `${raw.CLIMBER_COUNT} climbers currently sit under this operator.`
-    case 'ASCENT_RATE_30D_PCT':
-      return `Ascent rate is ${raw.ASCENT_RATE_30D_PCT}% of this route's 30-day norm.`
+      return `${raw.OPERATOR_NAME}, a registered campaign operator.`
+    case 'MACHINE_COUNT':
+      return `${raw.MACHINE_COUNT} machines currently sit under this operator.`
+    case 'RAMPUP_RATE_30D_PCT':
+      return `RampUp rate is ${raw.RAMPUP_RATE_30D_PCT}% of this line's 30-day norm.`
     default:
       // A newly human-bound field (e.g. ADD A RULE) has no bespoke sentence
       // yet — compose one from the rule's own meaning and the raw value,

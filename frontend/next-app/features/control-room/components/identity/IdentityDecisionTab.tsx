@@ -21,31 +21,31 @@ import {
 import { useDataset } from '@/features/ase/client'
 import type { Dataset } from '@/features/ase/services/dataset'
 import { statusFromAnomalyState, type IdentityCard } from '@/features/ase/services/identityCard'
-import { isAnteMortemUnsealed, type AnteMortemRecord, type IdentityRecord } from '@/features/ase/services/identityRecord'
+import { isServiceDossierUnsealed, type ServiceDossierRecord, type IdentityRecord } from '@/features/ase/services/identityRecord'
 import { buildDviForm, buildResponderCard, downloadJson } from '@/features/ase/services/exportCards'
 import { compositeScore, decisionBand, type DecisionThresholds, type ScoringWeights } from '@/features/ase/services/entityResolution'
 import { focusRingStyle, RecommendedSection, type Recommendation, useFocusRing } from '@/features/control-room'
 
 export function IdentityDecisionTab({
   dataset,
-  climberId,
+  machineId,
   weights,
   thresholds,
   onSelectPerson,
 }: {
   dataset: Dataset
-  climberId: string
+  machineId: string
   weights: ScoringWeights
   thresholds: DecisionThresholds
-  onSelectPerson: (climberId: string) => void
+  onSelectPerson: (machineId: string) => void
 }): ReactElement {
   const { logRevision, logAccess, openIncidents } = useDataset()
-  const record = dataset.identityRecords.get(climberId)
-  const anteMortem = dataset.anteMortems.get(climberId)
-  const card = dataset.identityCards.get(climberId)
-  const scoring = dataset.personScoring.get(climberId)
+  const record = dataset.identityRecords.get(machineId)
+  const serviceDossier = dataset.serviceDossiers.get(machineId)
+  const card = dataset.identityCards.get(machineId)
+  const scoring = dataset.personScoring.get(machineId)
 
-  if (!record || !anteMortem || !card || !scoring) {
+  if (!record || !serviceDossier || !card || !scoring) {
     return <p style={{ ...TYPE_BODY, color: TEXT_DIM }}>No decision data for this person.</p>
   }
 
@@ -53,8 +53,8 @@ export function IdentityDecisionTab({
   const status = statusFromAnomalyState(record.derived.anomalyState.value)
   const overall = compositeScore(scoring.fields, weights)
   const band = decisionBand(overall, thresholds)
-  const incidentOpen = openIncidents.has(climberId)
-  const unsealed = isAnteMortemUnsealed(record, incidentOpen)
+  const incidentOpen = openIncidents.has(machineId)
+  const unsealed = isServiceDossierUnsealed(record, incidentOpen)
 
   const recommendations: Recommendation[] = []
   if (record.derived.conflictingFields.length > 0) {
@@ -64,7 +64,7 @@ export function IdentityDecisionTab({
       action: 'Request a second identifying document',
       why: `${fieldNames} disagree${record.derived.conflictingFields.length === 1 ? 's' : ''} between sources for ${name}. A second document resolves it without a human judgement call.`,
       confidencePct: record.derived.identityConfidencePct,
-      ifYouDoNothing: 'This record stays in the review queue and their permit cannot be auto-validated at the next checkpoint.',
+      ifYouDoNothing: 'This record stays in the review queue and their workOrder cannot be auto-validated at the next checkpoint.',
       onRun: () => {
         logRevision(`${name}: second identifying document requested to resolve ${fieldNames}.`)
         logAccess('Coordinator', `Requested a second identifying document for ${name}`, 'Unresolved source conflict')
@@ -88,7 +88,7 @@ export function IdentityDecisionTab({
     recommendations.push({
       id: 'rec-escalate',
       action: 'Escalate to operator',
-      why: `${name}'s vitals are outside their own baseline. ${record.contacts.leadGuide.value} and ${record.contacts.operatorName.value} have not yet been notified.`,
+      why: `${name}'s readings are outside their own baseline. ${record.contacts.leadGuide.value} and ${record.contacts.operatorName.value} have not yet been notified.`,
       confidencePct: 91,
       ifYouDoNothing: 'No one on the mountain is alerted to the anomaly.',
       onRun: () => {
@@ -108,7 +108,7 @@ export function IdentityDecisionTab({
       <AllActions
         dataset={dataset}
         record={record}
-        anteMortem={anteMortem}
+        serviceDossier={serviceDossier}
         card={card}
         name={name}
         incidentOpen={incidentOpen}
@@ -122,7 +122,7 @@ export function IdentityDecisionTab({
 function AllActions({
   dataset,
   record,
-  anteMortem,
+  serviceDossier,
   card,
   name,
   incidentOpen,
@@ -131,12 +131,12 @@ function AllActions({
 }: {
   dataset: Dataset
   record: IdentityRecord
-  anteMortem: AnteMortemRecord
+  serviceDossier: ServiceDossierRecord
   card: IdentityCard
   name: string
   incidentOpen: boolean
   unsealed: boolean
-  onSelectPerson: (climberId: string) => void
+  onSelectPerson: (machineId: string) => void
 }): ReactElement {
   const { logRevision, logAccess, openIncident } = useDataset()
   const [mergeTarget, setMergeTarget] = useState('')
@@ -144,8 +144,8 @@ function AllActions({
   const [flagSource, setFlagSource] = useState('')
   const [flagReason, setFlagReason] = useState('')
 
-  const otherPeople = Array.from(dataset.identityRecords.entries()).filter(([id]) => id !== record.climberId)
-  const ropePartnerId = card.associates.find((a) => a.kind === 'rope_partner' && a.climberId)?.climberId
+  const otherPeople = Array.from(dataset.identityRecords.entries()).filter(([id]) => id !== record.machineId)
+  const ropePartnerId = card.associates.find((a) => a.kind === 'rope_partner' && a.machineId)?.machineId
 
   return (
     <div style={{ marginTop: SPACE_32 }}>
@@ -227,16 +227,16 @@ function AllActions({
       <ActionGroup heading="Response">
         <ActionRow
           label="Mark as missing"
-          detail="Opens an incident and unseals the ante-mortem record. Requires nothing to trigger, but unseals protected data. Writes to the audit chain."
+          detail="Opens an incident and unseals the service dossier record. Requires nothing to trigger, but unseals protected data. Writes to the audit chain."
           buttonLabel={incidentOpen ? 'INCIDENT OPEN' : 'MARK AS MISSING'}
           color={ANOMALY}
           disabled={incidentOpen}
           reflectsExternalState
-          onRun={() => openIncident(record.climberId, name)}
+          onRun={() => openIncident(record.machineId, name)}
         />
         <ActionRow
           label="Generate responder card"
-          detail="One page for a live rescue — serial, photo reference, blood group, medical alerts, contacts, insurance, last known position. Requires nothing. Writes to the audit chain."
+          detail="One page for a live rescue — serial, photo reference, lubricant grade, service alerts, contacts, insurance, last known position. Requires nothing. Writes to the audit chain."
           buttonLabel="GENERATE"
           onRun={() => {
             downloadJson(`responder-card-${record.serial.value.replace('-', '')}.json`, buildResponderCard(record))
@@ -245,21 +245,21 @@ function AllActions({
         />
         <ActionRow
           label="Generate DVI form"
-          detail="The full ante-mortem record in Interpol field order, for recovery or a coroner. Requires an open incident. Writes to the audit chain."
+          detail="The full service dossier record in Interpol field order, for recovery or a coroner. Requires an open incident. Writes to the audit chain."
           buttonLabel={unsealed ? 'GENERATE' : 'REQUIRES AN OPEN INCIDENT'}
           disabled={!unsealed}
           onRun={() => {
-            downloadJson(`dvi-form-${record.serial.value.replace('-', '')}.json`, buildDviForm(record, anteMortem))
+            downloadJson(`dvi-form-${record.serial.value.replace('-', '')}.json`, buildDviForm(record, serviceDossier))
             logAccess('Responder', `Generated the DVI form for ${name}`, 'Export')
           }}
         />
         <ActionRow
           label="Request biometric match"
-          detail={`Names the custodian to contact — ${anteMortem.primary.fingerprint.custodian.value}. Requires an open incident. Writes to the audit chain.`}
+          detail={`Names the custodian to contact — ${serviceDossier.primary.fingerprint.custodian.value}. Requires an open incident. Writes to the audit chain.`}
           buttonLabel={unsealed ? 'REQUEST' : 'REQUIRES AN OPEN INCIDENT'}
           disabled={!unsealed}
           onRun={() => {
-            logRevision(`${name}: biometric match requested via ${anteMortem.primary.fingerprint.custodian.value}.`)
+            logRevision(`${name}: biometric match requested via ${serviceDossier.primary.fingerprint.custodian.value}.`)
             logAccess('Coordinator', `Requested a biometric match for ${name}`, 'Identification')
           }}
         />

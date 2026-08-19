@@ -6,15 +6,15 @@
 // `resolveEdgeOpacity` per edge; which source is "in control" is decided
 // here, once, not re-decided per view.
 //
-// Filter visibility is deliberately NOT part of this priority chain — S8.8
+// Filter effectiveness is deliberately NOT part of this priority chain — S8.8
 // is explicit that filtering "changes what is drawn, never the dataset",
 // i.e. a filtered-out node isn't dimmed, it's absent. Callers check
 // `isFilterVisible` first and skip the node/edge entirely; only nodes that
 // pass the filter ever reach `resolveOpacity`.
 
-import type { HoverChain } from './hoverChain'
-import type { EntityTier } from '../types/domain'
-import type { GraphId } from '../types/graph'
+import type { HoverChain } from "./hoverChain"
+import type { EntityTier } from "../types/domain"
+import type { GraphId } from "../types/graph"
 
 export const DIMMED_OPACITY = 0.08
 
@@ -25,11 +25,18 @@ export interface EmphasisContext {
   searchMatches: ReadonlySet<GraphId> | null
 }
 
-export function isFilterVisible(id: GraphId, filterVisible: ReadonlySet<GraphId> | null): boolean {
+export function isFilterVisible(
+  id: GraphId,
+  filterVisible: ReadonlySet<GraphId> | null
+): boolean {
   return !filterVisible || filterVisible.has(id)
 }
 
-export function resolveOpacity(id: GraphId, tier: EntityTier, ctx: EmphasisContext): number {
+export function resolveOpacity(
+  id: GraphId,
+  tier: EntityTier,
+  ctx: EmphasisContext
+): number {
   if (ctx.focusChain) return ctx.focusChain.nodeIds.has(id) ? 1 : DIMMED_OPACITY
   if (ctx.searchMatches) return ctx.searchMatches.has(id) ? 1 : DIMMED_OPACITY
   if (ctx.hoverChain) return ctx.hoverChain.nodeIds.has(id) ? 1 : DIMMED_OPACITY
@@ -37,11 +44,20 @@ export function resolveOpacity(id: GraphId, tier: EntityTier, ctx: EmphasisConte
   return 1
 }
 
-export function resolveEdgeOpacity(edgeKey: string, targetId: GraphId, targetTier: EntityTier, ctx: EmphasisContext): number {
-  if (ctx.focusChain) return ctx.focusChain.edgeKeys.has(edgeKey) ? 1 : DIMMED_OPACITY
-  if (ctx.searchMatches) return ctx.searchMatches.has(targetId) ? 1 : DIMMED_OPACITY
-  if (ctx.hoverChain) return ctx.hoverChain.edgeKeys.has(edgeKey) ? 1 : DIMMED_OPACITY
-  if (ctx.hoveredTier) return targetTier === ctx.hoveredTier ? 1 : DIMMED_OPACITY
+export function resolveEdgeOpacity(
+  edgeKey: string,
+  targetId: GraphId,
+  targetTier: EntityTier,
+  ctx: EmphasisContext
+): number {
+  if (ctx.focusChain)
+    return ctx.focusChain.edgeKeys.has(edgeKey) ? 1 : DIMMED_OPACITY
+  if (ctx.searchMatches)
+    return ctx.searchMatches.has(targetId) ? 1 : DIMMED_OPACITY
+  if (ctx.hoverChain)
+    return ctx.hoverChain.edgeKeys.has(edgeKey) ? 1 : DIMMED_OPACITY
+  if (ctx.hoveredTier)
+    return targetTier === ctx.hoveredTier ? 1 : DIMMED_OPACITY
   return 1
 }
 
@@ -55,9 +71,24 @@ export function resolveEdgeOpacity(edgeKey: string, targetId: GraphId, targetTie
  * covers sub-nodes), so checking both ids covers "this sub-node is hovered"
  * and "this sub-node's owner is somewhere in the lit chain".
  */
-export function resolveSubNodeOpacity(subNodeId: GraphId, parentId: GraphId, ctx: EmphasisContext): number {
-  if (ctx.focusChain) return ctx.focusChain.nodeIds.has(subNodeId) || ctx.focusChain.nodeIds.has(parentId) ? 1 : DIMMED_OPACITY
-  if (ctx.searchMatches) return ctx.searchMatches.has(subNodeId) || ctx.searchMatches.has(parentId) ? 1 : DIMMED_OPACITY
-  if (ctx.hoverChain) return ctx.hoverChain.nodeIds.has(subNodeId) || ctx.hoverChain.nodeIds.has(parentId) ? 1 : DIMMED_OPACITY
+export function resolveSubNodeOpacity(
+  subNodeId: GraphId,
+  parentId: GraphId,
+  ctx: EmphasisContext
+): number {
+  if (ctx.focusChain)
+    return ctx.focusChain.nodeIds.has(subNodeId) ||
+      ctx.focusChain.nodeIds.has(parentId)
+      ? 1
+      : DIMMED_OPACITY
+  if (ctx.searchMatches)
+    return ctx.searchMatches.has(subNodeId) || ctx.searchMatches.has(parentId)
+      ? 1
+      : DIMMED_OPACITY
+  if (ctx.hoverChain)
+    return ctx.hoverChain.nodeIds.has(subNodeId) ||
+      ctx.hoverChain.nodeIds.has(parentId)
+      ? 1
+      : DIMMED_OPACITY
   return 1
 }

@@ -64,7 +64,7 @@ export function RevisionImpact({
           ) : (
             <div className="flex flex-wrap" style={{ gap: SPACE_8, marginTop: SPACE_8 }}>
               {impact.namedAffected.map((p) => (
-                <PersonBadge key={p.climberId} climberId={p.climberId} name={p.name} serial={p.serial} />
+                <PersonBadge key={p.machineId} machineId={p.machineId} name={p.name} serial={p.serial} />
               ))}
             </div>
           )}

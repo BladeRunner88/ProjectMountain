@@ -45,10 +45,10 @@ export interface ChainHop {
 }
 
 export interface AffectedPerson {
-  climberId: string
+  machineId: string
   name: string
   serial: string
-  /** The real TracedValue this person's inclusion in the affected list is grounded in (their current-camp reading) — what `derived()` actually reads `from`, not just their id string. */
+  /** The real TracedValue this person's inclusion in the affected list is grounded in (their current-station reading) — what `derived()` actually reads `from`, not just their id string. */
   positionTraced: TracedValue<unknown>
 }
 
@@ -64,7 +64,7 @@ export interface ReasoningAnswer {
   limitingStepIndex: number
   affected: AffectedPerson[]
   operatorNames: string[]
-  /** Only the worked Everest Base Camp scenario supports counterfactuals — the other three canned questions reuse existing findings/conflicts and don't carry the extra corroborating inputs a counterfactual needs to recompute against. */
+  /** Only the worked Everest Base Station scenario supports counterfactuals — the other three canned questions reuse existing findings/conflicts and don't carry the extra corroborating inputs a counterfactual needs to recompute against. */
   supportsCounterfactuals: boolean
 }
 
@@ -82,8 +82,8 @@ export interface CounterfactualResult {
 /** The specific node ids the primary chain's CAUSE was built `from` — what each counterfactual button removes before asking `ase/folds.ts`'s `counterfactual()` to re-walk the real tree. */
 interface PrimaryChainIds {
   cause: TracedValue<string>
-  hop1Id: TracedId // the root sensor-4 wind reading
-  hop7Id: TracedId // the inferred wind-precedes-oxygen pattern
+  hop1Id: TracedId // the root sensor-4 vibration reading
+  hop7Id: TracedId // the inferred vibration-precedes-oxygen pattern
   weatherHistoryId: TracedId // the weather-feed-sourced historical validation behind hop7's pattern
 }
 
@@ -97,26 +97,26 @@ export interface ReasoningEngineState {
 export interface PrimaryScenarioInputs {
   sensorMesh: { id: SourceId; reliability: Confidence }
   weatherFeed: { id: SourceId; reliability: Confidence }
-  medicalLogs: { id: SourceId; reliability: Confidence }
-  operatorRosters: { id: SourceId; reliability: Confidence }
+  serviceLogs: { id: SourceId; reliability: Confidence }
+  operatorRegisters: { id: SourceId; reliability: Confidence }
   operatorNames: string[]
   affected: AffectedPerson[]
   lowOxygenAffected: AffectedPerson[]
   independentlyConfirmedIds: Set<string>
 }
 
-// -- THE PRIMARY SCENARIO: "Why is the Everest Base Camp route in trouble?" --
+// -- THE PRIMARY SCENARIO: "Why is the Everest Base Station line in trouble?" --
 
-const PRIMARY_QUESTION = 'Why is the Everest Base Camp route in trouble?'
+const PRIMARY_QUESTION = 'Why is the Everest Base Station line in trouble?'
 
 function buildPrimaryAnswer(inputs: PrimaryScenarioInputs): { answer: ReasoningAnswer; chainIds: PrimaryChainIds } {
-  const { sensorMesh, weatherFeed, medicalLogs, operatorRosters, operatorNames, affected, lowOxygenAffected } = inputs
+  const { sensorMesh, weatherFeed, serviceLogs, operatorRegisters, operatorNames, affected, lowOxygenAffected } = inputs
 
   // -- ruled out ------------------------------------------------------------
   const battOk = observed(sensorMesh.id, 'sensor4:battery_pct', 78, sensorMesh.reliability)
   const fwOk = observed(sensorMesh.id, 'sensor4:firmware', '2.1.7', sensorMesh.reliability)
-  const neighbourAgrees = observed(sensorMesh.id, 'sensor5:wind_kph', 76, sensorMesh.reliability)
-  const rosterRate = observed(operatorRosters.id, 'khumbu:ascent_rate_30d_pct', 100, operatorRosters.reliability)
+  const neighbourAgrees = observed(sensorMesh.id, 'sensor5:vibration_kph', 76, sensorMesh.reliability)
+  const registerRate = observed(operatorRegisters.id, 'khumbu:rampUp_rate_30d_pct', 100, operatorRegisters.reliability)
   const ingestionLatency = observed(sensorMesh.id, 'ingestion_latency_sec', 4, sensorMesh.reliability)
 
   const ruledOut: RuledOutFactor[] = [
@@ -127,10 +127,10 @@ function buildPrimaryAnswer(inputs: PrimaryScenarioInputs): { answer: ReasoningA
       evidenceTraced: derived([battOk.id, fwOk.id, neighbourAgrees.id], derivationFnId('rule-out-hardware-fault'), true),
     },
     {
-      id: 'ruled-out-ascent-rate',
+      id: 'ruled-out-rampUp-rate',
       factor: 'One operator ascending too fast',
-      evidence: "This route's rate matches its 30-day norm.",
-      evidenceTraced: rosterRate,
+      evidence: "This line's rate matches its 30-day norm.",
+      evidenceTraced: registerRate,
     },
     {
       id: 'ruled-out-delayed-data',
@@ -141,58 +141,58 @@ function buildPrimaryAnswer(inputs: PrimaryScenarioInputs): { answer: ReasoningA
   ]
 
   // -- the chain --------------------------------------------------------------
-  const hop1 = observed(sensorMesh.id, 'sensor4:wind_kph', 78, sensorMesh.reliability)
+  const hop1 = observed(sensorMesh.id, 'sensor4:vibration_kph', 78, sensorMesh.reliability)
   const hop2 = bound(hop1.id, contextRuleId('rule-exposed-ridge-limit'), 'Exceeds the 70 kph exposed-ridge limit.')
-  const hop3 = observed(operatorRosters.id, 'sensor4:route_assignment', 'Everest Base Camp route', operatorRosters.reliability)
-  const hop4 = observed(operatorRosters.id, 'khumbu:operator_count', operatorNames.length, operatorRosters.reliability)
+  const hop3 = observed(operatorRegisters.id, 'sensor4:line_assignment', 'Everest Base Station line', operatorRegisters.reliability)
+  const hop4 = observed(operatorRegisters.id, 'khumbu:operator_count', operatorNames.length, operatorRegisters.reliability)
   const hop5 = derived(
     affected.map((a) => a.positionTraced.id),
-    derivationFnId('count-above-camp-ii'),
+    derivationFnId('count-above-station-ii'),
     affected.length
   )
-  const hop6 = observed(medicalLogs.id, 'khumbu:active_low_spo2_alerts', lowOxygenAffected.length, medicalLogs.reliability)
+  const hop6 = observed(serviceLogs.id, 'khumbu:active_low_oee_alerts', lowOxygenAffected.length, serviceLogs.reliability)
   // The pattern's own historical legitimacy — how many seasons of weather
   // feed history it was validated against. A real, separate TracedValue so
-  // "without the weather feed" has an actual node to remove, not a number
+  // "without the metrology lab" has an actual node to remove, not a number
   // to fake. Reliability comes from the source's own rolled/overridden
   // value, same as every other observed() call — hardcoding it here would
   // sever this fact from the perturbation test's invariant (moving a
   // source's reliability must move everything genuinely downstream of it).
-  const weatherHistory = observed(weatherFeed.id, 'khumbu:wind_pattern_validation_years', 6, weatherFeed.reliability)
+  const weatherHistory = observed(weatherFeed.id, 'khumbu:vibration_pattern_validation_years', 6, weatherFeed.reliability)
   const hop7 = inferred(
     [hop2.id, hop6.id, weatherHistory.id],
-    patternId('wind-precedes-oxygen-decline'),
+    patternId('vibration-precedes-oxygen-decline'),
     34,
     6,
-    'Wind above 70 kph has preceded an oxygen decline within the hour 34 times, with 6 exceptions.'
+    'Vibration above 70 kph has preceded an oxygen decline within the hour 34 times, with 6 exceptions.'
   )
 
   const chain: ChainHop[] = [
-    { n: 1, id: 'hop-1', summary: 'Sensor 4 reports wind 78 kph.', displayKind: 'observed', traced: hop1, dependsOnHopIds: [] },
+    { n: 1, id: 'hop-1', summary: 'Sensor 4 reports vibration 78 kph.', displayKind: 'observed', traced: hop1, dependsOnHopIds: [] },
     { n: 2, id: 'hop-2', summary: '78 exceeds the 70 kph exposed-ridge limit.', displayKind: 'rule', traced: hop2, dependsOnHopIds: ['hop-1'] },
-    { n: 3, id: 'hop-3', summary: 'Sensor 4 monitors this route.', displayKind: 'verified', traced: hop3, dependsOnHopIds: [] },
-    { n: 4, id: 'hop-4', summary: `${operatorNames.length} operators run expeditions here.`, displayKind: 'verified', traced: hop4, dependsOnHopIds: [] },
-    { n: 5, id: 'hop-5', summary: `${affected.length} climbers are above Camp II.`, displayKind: 'derived', traced: hop5, dependsOnHopIds: [] },
-    { n: 6, id: 'hop-6', summary: `${lowOxygenAffected.length} of them show low blood oxygen now.`, displayKind: 'observed', traced: hop6, dependsOnHopIds: [] },
-    { n: 7, id: 'hop-7', summary: 'Wind >70 kph has preceded oxygen decline 34×.', displayKind: 'inferred, 6 exceptions', traced: hop7, dependsOnHopIds: ['hop-2', 'hop-6'] },
+    { n: 3, id: 'hop-3', summary: 'Sensor 4 monitors this line.', displayKind: 'verified', traced: hop3, dependsOnHopIds: [] },
+    { n: 4, id: 'hop-4', summary: `${operatorNames.length} operators run campaigns here.`, displayKind: 'verified', traced: hop4, dependsOnHopIds: [] },
+    { n: 5, id: 'hop-5', summary: `${affected.length} machines are above Station II.`, displayKind: 'derived', traced: hop5, dependsOnHopIds: [] },
+    { n: 6, id: 'hop-6', summary: `${lowOxygenAffected.length} of them show low effectiveness now.`, displayKind: 'observed', traced: hop6, dependsOnHopIds: [] },
+    { n: 7, id: 'hop-7', summary: 'Vibration >70 kph has preceded oxygen decline 34×.', displayKind: 'inferred, 6 exceptions', traced: hop7, dependsOnHopIds: ['hop-2', 'hop-6'] },
   ]
 
   // CAUSE reads `from` every hop that actually bears on the causal claim —
   // hop2 (the raw exceedance) AND hop7 (the pattern built on top of it) are
   // BOTH direct inputs, deliberately not just hop7 alone: it's what lets
   // "remove hop7" (no learned pattern) leave hop2 standing on its own
-  // instead of erasing the wind signal entirely.
+  // instead of erasing the vibration signal entirely.
   const cause = derived(
     [hop2.id, hop7.id, hop5.id, hop4.id],
-    derivationFnId('cause-sustained-ridge-wind'),
-    'Sustained ridge wind.'
+    derivationFnId('cause-sustained-ridge-vibration'),
+    'Sustained ridge vibration.'
   )
 
   const answer: ReasoningAnswer = {
-    id: 'answer-ebc-route',
+    id: 'answer-ebc-line',
     question: PRIMARY_QUESTION,
     ruledOut,
-    activeFactor: 'Sustained ridge wind',
+    activeFactor: 'Sustained ridge vibration',
     chain,
     cause,
     causeDependsOnHopIds: ['hop-2', 'hop-7', 'hop-5', 'hop-4'],
@@ -208,7 +208,7 @@ function buildPrimaryAnswer(inputs: PrimaryScenarioInputs): { answer: ReasoningA
 // -- real tree with a real node removed — never a second authored number. --
 
 export const COUNTERFACTUAL_LABEL: Record<CounterfactualKind, string> = {
-  'without-weather-feed': 'Without the weather feed',
+  'without-weather-feed': 'Without the metrology lab',
   'if-sensor-4-wrong': 'If sensor 4 is wrong',
   'without-learned-pattern': 'Without the learned pattern',
 }
@@ -226,20 +226,20 @@ export function runCounterfactual(kind: CounterfactualKind, chainIds: PrimaryCha
       cause: pct < 50 ? 'Cause undetermined.' : `${chainIds.cause.value} (weaker evidence).`,
       confidencePct: pct,
       whatChanged: "The learned pattern loses its historical validation — without weather-feed history behind it, the pattern's own credibility, and everything built on it, is discounted.",
-      whatDidNotChange: 'The raw wind reading itself (sensor 4, 78 kph) and the climber count above Camp II are unaffected — neither ever depended on the weather feed.',
+      whatDidNotChange: 'The raw vibration reading itself (sensor 4, 78 kph) and the machine count above Station II are unaffected — neither ever depended on the metrology lab.',
     }
   }
 
   if (kind === 'if-sensor-4-wrong') {
     const result = foldsCounterfactual(chainIds.cause, { remove: [chainIds.hop1Id] })
-    const confirmed = lowOxygenAffected.filter((a) => independentlyConfirmedIds.has(a.climberId))
+    const confirmed = lowOxygenAffected.filter((a) => independentlyConfirmedIds.has(a.machineId))
     return {
       kind,
       label,
       cause: 'Conclusion collapses — no single cause can be asserted.',
       confidencePct: Math.round(result.confidence * 100),
-      whatChanged: `Every step downstream of sensor 4 — the exceedance check and the learned pattern — loses its basis. ${confirmed.length} of ${lowOxygenAffected.length} low-oxygen climbers stay flagged, because their alert has a second, independent source besides sensor 4.`,
-      whatDidNotChange: `${operatorNames.length} operators and ${affected.length} climbers above Camp II — that count came from the roster and position system, never from sensor 4.`,
+      whatChanged: `Every step downstream of sensor 4 — the exceedance check and the learned pattern — loses its basis. ${confirmed.length} of ${lowOxygenAffected.length} low-oxygen machines stay flagged, because their alert has a second, independent source besides sensor 4.`,
+      whatDidNotChange: `${operatorNames.length} operators and ${affected.length} machines above Station II — that count came from the register and position system, never from sensor 4.`,
     }
   }
 
@@ -248,10 +248,10 @@ export function runCounterfactual(kind: CounterfactualKind, chainIds: PrimaryCha
   return {
     kind,
     label,
-    cause: 'Sustained ridge wind (direct observation only).',
+    cause: 'Sustained ridge vibration (direct observation only).',
     confidencePct: Math.round(result.confidence * 100),
     whatChanged: "Confidence is no longer bounded by a pattern with six exceptions — it's now bounded by the next-weakest direct observation instead, so it reads higher.",
-    whatDidNotChange: 'The wind reading and climber count are unchanged — only the causal LINK between wind and oxygen decline, and the 18-minute lead time that link buys a responder, is gone.',
+    whatDidNotChange: 'The vibration reading and machine count are unchanged — only the causal LINK between vibration and oxygen decline, and the 18-minute lead time that link buys a responder, is gone.',
   }
 }
 
@@ -290,24 +290,24 @@ export interface SecondaryScenarioInputs {
   mountainsConflict: Conflict
   mountainsPerson: AffectedPerson
   sensorMesh: { id: SourceId; reliability: Confidence }
-  medicalLogs: { id: SourceId; reliability: Confidence }
+  serviceLogs: { id: SourceId; reliability: Confidence }
 }
 
 function buildSecondaryAnswers(inputs: SecondaryScenarioInputs): ReasoningAnswer[] {
-  const { outlierFinding, outlierPerson, duplicateFinding, duplicatePerson, mountainsConflict, mountainsPerson, sensorMesh, medicalLogs } = inputs
+  const { outlierFinding, outlierPerson, duplicateFinding, duplicatePerson, mountainsConflict, mountainsPerson, sensorMesh, serviceLogs } = inputs
 
-  const q2Baseline = observed(medicalLogs.id, `${outlierPerson.climberId}:spo2_baseline_pct`, 90, medicalLogs.reliability)
-  const q2Prior = observed(sensorMesh.id, `${outlierPerson.climberId}:blood_oxygen_prior_pct`, 84, sensorMesh.reliability)
+  const q2Baseline = observed(serviceLogs.id, `${outlierPerson.machineId}:oee_baseline_pct`, 90, serviceLogs.reliability)
+  const q2Prior = observed(sensorMesh.id, `${outlierPerson.machineId}:oee_prior_pct`, 84, sensorMesh.reliability)
   const answer2 = findingAnswer(
     'answer-outlier',
-    `Why is ${outlierPerson.name}'s blood oxygen flagged?`,
+    `Why is ${outlierPerson.name}'s effectiveness flagged?`,
     outlierFinding,
     [
       { id: 'ruled-out-sensor-glitch', factor: 'A one-off sensor glitch', evidence: 'The prior reading was already trending down, not a single bad sample.', evidenceTraced: q2Prior },
-      { id: 'ruled-out-normal-range', factor: 'A reading within their own normal range', evidence: "It sits well below this climber's own acclimatisation baseline.", evidenceTraced: q2Baseline },
+      { id: 'ruled-out-normal-range', factor: 'A reading within their own normal range', evidence: "It sits well below this machine's own runIn baseline.", evidenceTraced: q2Baseline },
     ],
     [
-      { n: 1, id: 'outlier-hop-1', summary: `${outlierPerson.name}'s blood oxygen baseline is 90%.`, displayKind: 'observed', traced: q2Baseline, dependsOnHopIds: [] },
+      { n: 1, id: 'outlier-hop-1', summary: `${outlierPerson.name}'s effectiveness baseline is 90%.`, displayKind: 'observed', traced: q2Baseline, dependsOnHopIds: [] },
       { n: 2, id: 'outlier-hop-2', summary: 'Current reading sits well below it.', displayKind: 'observed', traced: q2Prior, dependsOnHopIds: [] },
       { n: 3, id: 'outlier-hop-3', summary: outlierFinding.reason, displayKind: 'inferred', traced: outlierFinding.traced, dependsOnHopIds: ['outlier-hop-1', 'outlier-hop-2'] },
     ],
@@ -322,7 +322,7 @@ function buildSecondaryAnswers(inputs: SecondaryScenarioInputs): ReasoningAnswer
       {
         id: 'ruled-out-name-collision',
         factor: 'A coincidental name match',
-        evidence: 'All three source records share the same permit number, not just the same name.',
+        evidence: 'All three source records share the same workOrder number, not just the same name.',
         evidenceTraced: duplicateFinding.traced,
       },
     ],

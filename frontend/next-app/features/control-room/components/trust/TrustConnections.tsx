@@ -209,11 +209,11 @@ function IntegrationDiff({ domain }: { domain: ExampleIntegration }) {
         </thead>
         <tbody>
           {domain.changes.map((c) => {
-            const unchanged = c.expedition === c.thisDomain
+            const unchanged = c.campaign === c.thisDomain
             return (
               <tr key={c.field} style={{ borderBottom: `${BORDER_WIDTH}px solid ${HAIRLINE}` }}>
                 <td style={{ ...TYPE_BODY, color: TEXT_PRIMARY, padding: SPACE_8, textTransform: 'none', letterSpacing: 'normal' }}>{c.field}</td>
-                <td style={{ ...TYPE_CAPTION, color: TEXT_SECONDARY, padding: SPACE_8, textTransform: 'none', letterSpacing: 'normal' }}>{c.expedition}</td>
+                <td style={{ ...TYPE_CAPTION, color: TEXT_SECONDARY, padding: SPACE_8, textTransform: 'none', letterSpacing: 'normal' }}>{c.campaign}</td>
                 <td style={{ ...TYPE_CAPTION, color: unchanged ? TEXT_DIM : ANOMALY, padding: SPACE_8, textTransform: 'none', letterSpacing: 'normal' }}>{c.thisDomain}</td>
               </tr>
             )

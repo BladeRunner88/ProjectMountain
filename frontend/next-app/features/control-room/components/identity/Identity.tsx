@@ -33,38 +33,38 @@ import { IdentityScoringTab } from './IdentityScoringTab'
 import { IdentityDecisionTab } from './IdentityDecisionTab'
 
 export function Identity(): ReactElement {
-  const { sub, climberId, setSub, setPerson } = useIdentitySubnav()
+  const { sub, machineId, setSub, setPerson } = useIdentitySubnav()
   const [weights, setWeights] = useState<ScoringWeights>(DEFAULT_WEIGHTS)
   const [thresholds, setThresholds] = useState<DecisionThresholds>(DEFAULT_THRESHOLDS)
   const skipSelectionSyncRef = useRef<string | null>(null)
   const { dataset } = useDataset()
   const { select, selection } = useSelection()
 
-  const selectedClimberId = climberId && dataset.identityRecords.has(climberId) ? climberId : null
-  const climberMissing = Boolean(climberId && !selectedClimberId)
+  const selectedMachineId = machineId && dataset.identityRecords.has(machineId) ? machineId : null
+  const machineMissing = Boolean(machineId && !selectedMachineId)
 
   function selectPerson(id: string, moveToSourceRecords: boolean): void {
     skipSelectionSyncRef.current = id
-    select({ kind: 'identity', climberId: id })
+    select({ kind: 'identity', machineId: id })
     setPerson(id, moveToSourceRecords)
   }
 
   useEffect(() => {
-    if (selectedClimberId === null) return
-    skipSelectionSyncRef.current = selectedClimberId
-    select({ kind: 'identity', climberId: selectedClimberId })
-  }, [selectedClimberId, select])
+    if (selectedMachineId === null) return
+    skipSelectionSyncRef.current = selectedMachineId
+    select({ kind: 'identity', machineId: selectedMachineId })
+  }, [selectedMachineId, select])
 
   useEffect(() => {
     if (selection?.kind !== 'identity') return
-    if (!dataset.identityRecords.has(selection.climberId)) return
-    if (skipSelectionSyncRef.current === selection.climberId) {
+    if (!dataset.identityRecords.has(selection.machineId)) return
+    if (skipSelectionSyncRef.current === selection.machineId) {
       skipSelectionSyncRef.current = null
       return
     }
-    if (selection.climberId === selectedClimberId) return
-    setPerson(selection.climberId, true)
-  }, [dataset.identityRecords, selectedClimberId, selection, setPerson])
+    if (selection.machineId === selectedMachineId) return
+    setPerson(selection.machineId, true)
+  }, [dataset.identityRecords, selectedMachineId, selection, setPerson])
 
   return (
     <div style={{ padding: PAGE_GUTTER }}>
@@ -72,14 +72,14 @@ export function Identity(): ReactElement {
       <div style={{ marginTop: SPACE_32 }} data-identity-panel={sub}>
         {sub === 'list' ? <IdentityList dataset={dataset} onSelectPerson={(id) => selectPerson(id, true)} /> : null}
         {sub === 'source-records' ? (
-          selectedClimberId ? (
+          selectedMachineId ? (
             <IdentitySourceRecords
               dataset={dataset}
-              climberId={selectedClimberId}
+              machineId={selectedMachineId}
               onSelectPerson={(id) => selectPerson(id, false)}
             />
           ) : (
-            <PersonRequired missing={climberMissing} />
+            <PersonRequired missing={machineMissing} />
           )
         ) : null}
         {sub === 'method' ? (
@@ -92,23 +92,23 @@ export function Identity(): ReactElement {
           />
         ) : null}
         {sub === 'scoring' ? (
-          selectedClimberId ? (
-            <IdentityScoringTab dataset={dataset} climberId={selectedClimberId} weights={weights} thresholds={thresholds} />
+          selectedMachineId ? (
+            <IdentityScoringTab dataset={dataset} machineId={selectedMachineId} weights={weights} thresholds={thresholds} />
           ) : (
-            <PersonRequired missing={climberMissing} />
+            <PersonRequired missing={machineMissing} />
           )
         ) : null}
         {sub === 'decision' ? (
-          selectedClimberId ? (
+          selectedMachineId ? (
             <IdentityDecisionTab
               dataset={dataset}
-              climberId={selectedClimberId}
+              machineId={selectedMachineId}
               weights={weights}
               thresholds={thresholds}
               onSelectPerson={(id) => selectPerson(id, false)}
             />
           ) : (
-            <PersonRequired missing={climberMissing} />
+            <PersonRequired missing={machineMissing} />
           )
         ) : null}
       </div>
@@ -119,7 +119,7 @@ export function Identity(): ReactElement {
 function PersonRequired({ missing }: { missing: boolean }): ReactElement {
   return (
     <p style={{ ...TYPE_BODY, color: TEXT_DIM }}>
-      {missing ? 'No identity record for this climber.' : 'Select someone in List first.'}
+      {missing ? 'No identity record for this machine.' : 'Select someone in List first.'}
     </p>
   )
 }

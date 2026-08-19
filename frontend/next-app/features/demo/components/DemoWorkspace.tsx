@@ -4,7 +4,7 @@ import { useState, type ReactElement } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 import type { GraphSelection } from '../types/simulation'
-import { ClimberGraphCanvas } from './ClimberGraphCanvas'
+import { MachineGraphCanvas } from './MachineGraphCanvas'
 import { GraphTopBar } from './GraphTopBar'
 import { LegendScreen } from './LegendScreen'
 import { LensesScreen } from './LensesScreen'
@@ -17,7 +17,7 @@ export function DemoWorkspace(): ReactElement {
   const selectType = searchParams.get('selectType')
   const selectId = searchParams.get('selectId')
   const initialSelection: GraphSelection | null =
-    (selectType === 'climber' || selectType === 'environment') && selectId
+    (selectType === 'machine' || selectType === 'environment') && selectId
       ? { type: selectType, id: selectId }
       : null
 
@@ -40,7 +40,7 @@ export function DemoWorkspace(): ReactElement {
       <div className="flex h-full w-full flex-col">
         <GraphTopBar />
         <div className="relative min-h-0 flex-1">
-          <ClimberGraphCanvas lenses={lenses} initialSelection={initialSelection} />
+          <MachineGraphCanvas lenses={lenses} initialSelection={initialSelection} />
         </div>
         <ResolvingTicker />
       </div>

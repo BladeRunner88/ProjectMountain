@@ -80,7 +80,7 @@ export function TrustPerformance(): ReactElement {
                           fromTab: 'trust',
                           what: 'a performance budget is outside target',
                           about: b.budget,
-                          aboutClimberIds: [],
+                          aboutMachineIds: [],
                           owner: { kind: 'unassigned' },
                           raisedAt: instant(new Date().toISOString()),
                           blastRadius: 1,

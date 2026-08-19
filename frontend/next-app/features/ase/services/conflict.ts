@@ -2,7 +2,7 @@
 // object, not a footnote. Everything here is domain-agnostic engine
 // infrastructure — it knows how to pick a winner between two TracedValues
 // given a strategy, and how to re-resolve live when a human changes that
-// strategy. It has no idea what a "climber" or a "date of birth" is; the
+// strategy. It has no idea what a "machine" or a "date of birth" is; the
 // five real conflicts (which properties, which entities, which policy) are
 // authored in dataset.ts, exactly like every other domain fact in this app.
 //
@@ -20,9 +20,9 @@ import { supersede } from './graph'
 // A "subject:metric" fn slug — same convention `activity.ts` already reads
 // for 'observed' rawFields, extended to 'derived' fn ids so a resolved
 // conflict value (and whatever it feeds downstream) composes into real
-// English too, e.g. "James Marshall III's age changed from 34 to 35."
+// English too, e.g. "the worked-example machine's age changed from 34 to 35."
 // Generic string shaping, not a lookup table — this file still has no idea
-// what an "age" or a "climber" is.
+// what an "age" or a "machine" is.
 function slugify(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 }

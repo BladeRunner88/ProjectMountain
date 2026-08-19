@@ -9,28 +9,51 @@
 // Sub-nodes are never part of this layout at all (S8.6: "3,000 points in a
 // 60px band is noise") — only the 127 domain entities.
 
-import type { DomainDataset, DomainEntity, EntityTier } from '../types/domain'
-import type { GraphId, Point } from '../types/graph'
+import type { DomainDataset, DomainEntity, EntityTier } from "../types/domain"
+import type { GraphId, Point } from "../types/graph"
 
 export const BAND_HEIGHT = 60
-export const BAND_ORDER: EntityTier[] = ['country', 'region', 'route', 'operator', 'climber', 'sensor']
+export const BAND_ORDER: EntityTier[] = [
+  "country",
+  "plant",
+  "line",
+  "machine",
+  "sensor",
+]
 export const BAND_LABEL: Record<EntityTier, string> = {
-  country: 'COUNTRIES',
-  region: 'REGIONS',
-  route: 'ROUTES',
-  operator: 'OPERATORS',
-  climber: 'CLIMBERS',
-  sensor: 'SENSORS',
+  country: "COUNTRIES",
+  plant: "PLANTS",
+  line: "LINES",
+  machine: "MACHINES",
+  sensor: "SENSORS",
 }
 
 // "country" -> "countries" isn't a naive +s — the count line ("30 operators
 // · 3 in anomaly") needs a real plural, not BAND_LABEL's fixed all-caps form.
-const TIER_PLURAL: Record<EntityTier, string> = { country: 'countries', region: 'regions', route: 'routes', operator: 'operators', climber: 'climbers', sensor: 'sensors' }
-const TIER_SINGULAR: Record<EntityTier, string> = { country: 'country', region: 'region', route: 'route', operator: 'operator', climber: 'climber', sensor: 'sensor' }
+const TIER_PLURAL: Record<EntityTier, string> = {
+  country: "countries",
+  plant: "plants",
+  line: "lines",
+  machine: "machines",
+  sensor: "sensors",
+}
+const TIER_SINGULAR: Record<EntityTier, string> = {
+  country: "country",
+  plant: "plant",
+  line: "line",
+  machine: "machine",
+  sensor: "sensor",
+}
 export function pluralizeTier(tier: EntityTier, count: number): string {
   return count === 1 ? TIER_SINGULAR[tier] : TIER_PLURAL[tier]
 }
-export const BAND_INDEX: Record<EntityTier, number> = { country: 0, region: 1, route: 2, operator: 3, climber: 4, sensor: 5 }
+export const BAND_INDEX: Record<EntityTier, number> = {
+  country: 0,
+  plant: 1,
+  line: 2,
+  machine: 3,
+  sensor: 4,
+}
 export const STRATA_TOTAL_HEIGHT = BAND_ORDER.length * BAND_HEIGHT
 
 const SIZE_BASE_PX = 3
@@ -39,7 +62,7 @@ const SIZE_MAX_PX = 11
 
 export interface StrataLayout {
   positions: ReadonlyMap<GraphId, Point>
-  /** direct domain-entity child count — what drives node size ("an operator with 4 climbers is larger than one with 1"). */
+  /** direct domain-entity child count — what drives node size ("a line with 4 machines is larger than one with 1"). */
   childCount: ReadonlyMap<GraphId, number>
   radius: ReadonlyMap<GraphId, number>
 }
@@ -48,8 +71,16 @@ let cachedVersion: number | null = null
 let cachedWidth: number | null = null
 let cachedResult: StrataLayout | null = null
 
-export function computeStrataLayout(dataset: DomainDataset, width: number): StrataLayout {
-  if (cachedVersion === dataset.version && cachedWidth === width && cachedResult) return cachedResult
+export function computeStrataLayout(
+  dataset: DomainDataset,
+  width: number
+): StrataLayout {
+  if (
+    cachedVersion === dataset.version &&
+    cachedWidth === width &&
+    cachedResult
+  )
+    return cachedResult
 
   const childrenOf = new Map<GraphId, DomainEntity[]>()
   for (const e of dataset.domainEntities) {
@@ -77,7 +108,7 @@ export function computeStrataLayout(dataset: DomainDataset, width: number): Stra
     return mean
   }
 
-  const countries = dataset.domainEntities.filter((e) => e.tier === 'country')
+  const countries = dataset.domainEntities.filter((e) => e.tier === "country")
   for (const c of countries) assign(c)
   const totalLeaves = Math.max(1, nextLeaf)
 
@@ -93,7 +124,10 @@ export function computeStrataLayout(dataset: DomainDataset, width: number): Stra
 
   const radius = new Map<GraphId, number>()
   for (const [id, count] of childCount) {
-    radius.set(id, Math.min(SIZE_MAX_PX, SIZE_BASE_PX + count * SIZE_PER_CHILD_PX))
+    radius.set(
+      id,
+      Math.min(SIZE_MAX_PX, SIZE_BASE_PX + count * SIZE_PER_CHILD_PX)
+    )
   }
 
   const result: StrataLayout = { positions, childCount, radius }
@@ -118,18 +152,31 @@ export interface BandStats {
 export function computeBandStats(dataset: DomainDataset): BandStats[] {
   return BAND_ORDER.map((tier) => {
     const entities = dataset.domainEntities.filter((e) => e.tier === tier)
-    return { tier, total: entities.length, anomalyCount: entities.filter((e) => e.status === 'anomaly').length }
+    return {
+      tier,
+      total: entities.length,
+      anomalyCount: entities.filter((e) => e.status === "anomaly").length,
+    }
   })
 }
 
 /** A per-band histogram of how entities cluster horizontally — `bins` buckets across the band's width, each a 0..1 density relative to the band's busiest bucket. */
-export function computeDensityStrip(dataset: DomainDataset, layout: StrataLayout, tier: EntityTier, width: number, bins = 40): number[] {
+export function computeDensityStrip(
+  dataset: DomainDataset,
+  layout: StrataLayout,
+  tier: EntityTier,
+  width: number,
+  bins = 40
+): number[] {
   const counts: number[] = new Array(bins).fill(0)
   const entities = dataset.domainEntities.filter((e) => e.tier === tier)
   for (const e of entities) {
     const p = layout.positions.get(e.id)
     if (!p) continue
-    const bin = Math.min(bins - 1, Math.max(0, Math.floor((p.x / width) * bins)))
+    const bin = Math.min(
+      bins - 1,
+      Math.max(0, Math.floor((p.x / width) * bins))
+    )
     counts[bin]++
   }
   const max = Math.max(1, ...counts)

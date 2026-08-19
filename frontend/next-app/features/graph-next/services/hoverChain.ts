@@ -7,16 +7,20 @@
 // they just borrow their parent's already-computed chain and add
 // themselves to it.
 
-import type { DomainDataset, DomainEntity } from '../types/domain'
-import type { GraphId } from '../types/graph'
+import type { DomainDataset, DomainEntity } from "../types/domain"
+import type { GraphId } from "../types/graph"
 
 export interface HoverChain {
   nodeIds: ReadonlySet<GraphId>
   edgeKeys: ReadonlySet<string>
 }
 
-export function buildHoverChainIndex(dataset: DomainDataset): ReadonlyMap<GraphId, HoverChain> {
-  const byId = new Map<GraphId, DomainEntity>(dataset.domainEntities.map((e) => [e.id, e]))
+export function buildHoverChainIndex(
+  dataset: DomainDataset
+): ReadonlyMap<GraphId, HoverChain> {
+  const byId = new Map<GraphId, DomainEntity>(
+    dataset.domainEntities.map((e) => [e.id, e])
+  )
 
   const chainByEntity = new Map<GraphId, HoverChain>()
   for (const entity of dataset.domainEntities) {
@@ -35,7 +39,10 @@ export function buildHoverChainIndex(dataset: DomainDataset): ReadonlyMap<GraphI
   for (const sub of dataset.subNodes) {
     const parentChain = chainByEntity.get(sub.parentId)
     if (!parentChain) continue
-    index.set(sub.id, { nodeIds: new Set([sub.id, ...parentChain.nodeIds]), edgeKeys: parentChain.edgeKeys })
+    index.set(sub.id, {
+      nodeIds: new Set([sub.id, ...parentChain.nodeIds]),
+      edgeKeys: parentChain.edgeKeys,
+    })
   }
   return index
 }

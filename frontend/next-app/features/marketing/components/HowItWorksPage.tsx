@@ -25,7 +25,7 @@ const STEPS = [
   {
     n: "05",
     name: "Automate",
-    desc: "Surface anomalies, answer questions in plain language, and route work to the right people.",
+    desc: "Surface anomalies, answer questions in plain language, and line work to the right people.",
   },
 ]
 

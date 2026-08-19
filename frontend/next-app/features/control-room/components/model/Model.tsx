@@ -37,7 +37,7 @@ const SUB_TABS: { id: SubTab; label: string }[] = [
 
 export function Model(): ReactElement {
   const [subTab, setSubTab] = useState<SubTab>('questions')
-  const [selectedKind, setSelectedKind] = useState<ThingKind>('climber')
+  const [selectedKind, setSelectedKind] = useState<ThingKind>('machine')
   const { dataset } = useDataset()
   const ontology = dataset.ontology
 

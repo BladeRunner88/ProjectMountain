@@ -39,17 +39,17 @@ const BAND_COLOR: Record<DecisionBand, string> = { 'auto-merge': NOMINAL, human:
 
 export function IdentityScoringTab({
   dataset,
-  climberId,
+  machineId,
   weights,
   thresholds,
 }: {
   dataset: Dataset
-  climberId: string
+  machineId: string
   weights: ScoringWeights
   thresholds: DecisionThresholds
 }): ReactElement {
-  const record = dataset.identityRecords.get(climberId)
-  const scoring = dataset.personScoring.get(climberId)
+  const record = dataset.identityRecords.get(machineId)
+  const scoring = dataset.personScoring.get(machineId)
   if (!record || !scoring) {
     return <p style={{ ...TYPE_BODY, color: TEXT_DIM }}>No scoring data for this person.</p>
   }

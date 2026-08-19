@@ -9,7 +9,7 @@
 // `ruleAuthority()`, not folded from any one TracedValue, because it
 // describes the RULE's own track record, not a fact the rule produced.
 // Every ACTIVE detection's own VALUE is a real, folded TracedValue; only
-// the wider tuning population behind the trade-off curve (46 climbers who
+// the wider tuning population behind the trade-off curve (46 machines who
 // are currently fine, alongside the 4 who aren't) is plain numbers — an
 // aggregate background distribution, not individually displayed facts, the
 // same distinction `perSourceCoverage` already draws in ase/contextEngine.ts.
@@ -19,7 +19,7 @@ import { ruleAuthority } from './folds'
 import type { NodeStatus } from './nodeLanguage'
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low'
-export type WatchTarget = 'climbers' | 'sensors' | 'operators' | 'permits' | 'system'
+export type WatchTarget = 'machines' | 'sensors' | 'operators' | 'workOrders' | 'system'
 export type ThresholdDirection = 'below' | 'above'
 export type Trend = 'rising' | 'falling' | 'steady'
 
@@ -48,9 +48,9 @@ export interface DetectionRule {
 // same as its own id-looking label would have matched by accident and
 // everything else would have silently failed to propagate).
 export type DetectionSubject =
-  | { kind: 'climber'; nodeId: string; climberId: string; name: string; serial: string }
-  | { kind: 'route'; nodeId: string; label: string }
-  | { kind: 'sensor'; nodeId: string; label: string; routeLabel: string }
+  | { kind: 'machine'; nodeId: string; machineId: string; name: string; serial: string }
+  | { kind: 'line'; nodeId: string; label: string }
+  | { kind: 'sensor'; nodeId: string; label: string; lineLabel: string }
   | { kind: 'operator'; nodeId: string; label: string }
   | { kind: 'system'; label: string }
 
@@ -87,10 +87,10 @@ export interface Suppression {
 
 export interface MapNodeInput {
   id: string
-  tier: 'country' | 'regionRoute' | 'operator' | 'climber' | 'sensor'
+  tier: 'country' | 'plantLine' | 'operator' | 'machine' | 'sensor'
   label: string
   parentId: string | null
-  climberId?: string
+  machineId?: string
   serial?: string
 }
 
@@ -112,7 +112,7 @@ export interface DetectionEngineState {
   suppressions: Suppression[]
   mapNodes: MapNode[]
   mapEdges: MapEdge[]
-  /** Every entity a rule watches, not just the ones currently firing — Tuning's real background distribution, keyed by rule id. Built once in dataset.ts (the only place that knows what a "climber" is) and passed straight through. */
+  /** Every entity a rule watches, not just the ones currently firing — Tuning's real background distribution, keyed by rule id. Built once in dataset.ts (the only place that knows what a "machine" is) and passed straight through. */
   tuningPopulations: Map<string, TuningPopulationMember[]>
 }
 
@@ -125,9 +125,9 @@ export interface DetectionEngineState {
 export function builtInRules(): DetectionRule[] {
   return [
     {
-      id: 'rule-low-spo2',
-      label: 'Low blood oxygen',
-      watches: 'climbers',
+      id: 'rule-low-oee',
+      label: 'Low effectiveness',
+      watches: 'machines',
       conditionSentence: 'below 80%',
       window: '6 min',
       windowMinutes: 6,
@@ -136,13 +136,13 @@ export function builtInRules(): DetectionRule[] {
       thresholdValue: 80,
       thresholdUnit: '%',
       thresholdDirection: 'below',
-      authority: 'Clinical reference (Lake Louise acclimatisation guidance)',
+      authority: 'Clinical reference (Lake Louise runIn guidance)',
       patternName: null,
       patternLeadMinutes: null,
     },
     {
-      id: 'rule-dangerous-wind',
-      label: 'Dangerous wind',
+      id: 'rule-dangerous-vibration',
+      label: 'Dangerous vibration',
       watches: 'sensors',
       conditionSentence: 'above 70 kph',
       window: 'live',
@@ -153,29 +153,29 @@ export function builtInRules(): DetectionRule[] {
       thresholdUnit: 'kph',
       thresholdDirection: 'above',
       authority: 'Operator SOP v3 — exposed-ridge limit',
-      patternName: 'wind-precedes-oxygen-decline',
+      patternName: 'vibration-precedes-oxygen-decline',
       patternLeadMinutes: 18,
     },
     {
-      id: 'rule-high-pulse',
+      id: 'rule-high-vibration',
       label: 'Sustained high pulse',
-      watches: 'climbers',
-      conditionSentence: 'above 120 bpm',
+      watches: 'machines',
+      conditionSentence: 'above 120 mm/s',
       window: '10 min',
       windowMinutes: 10,
       severity: 'high',
       accuracy: ruleAuthority(0.88),
       thresholdValue: 120,
-      thresholdUnit: 'bpm',
+      thresholdUnit: 'mm/s',
       thresholdDirection: 'above',
-      authority: 'Field correction — expedition physician, 2026-01',
+      authority: 'Field correction — reliability engineer, 2026-01',
       patternName: null,
       patternLeadMinutes: null,
     },
     {
       id: 'rule-climbing-too-fast',
       label: 'Climbing too fast',
-      watches: 'climbers',
+      watches: 'machines',
       conditionSentence: 'faster than the body can adjust',
       window: '24 h',
       windowMinutes: 1440,
@@ -184,7 +184,7 @@ export function builtInRules(): DetectionRule[] {
       thresholdValue: 500,
       thresholdUnit: 'm/day',
       thresholdDirection: 'above',
-      authority: 'Wilderness Medical Society ascent-rate guidance',
+      authority: 'Wilderness Service Society rampUp-rate guidance',
       patternName: null,
       patternLeadMinutes: null,
     },
@@ -221,8 +221,8 @@ export function builtInRules(): DetectionRule[] {
       patternLeadMinutes: null,
     },
     {
-      id: 'rule-visibility-collapse',
-      label: 'Visibility collapse',
+      id: 'rule-effectiveness-collapse',
+      label: 'Effectiveness collapse',
       watches: 'sensors',
       conditionSentence: 'below 200 m',
       window: 'live',
@@ -232,14 +232,14 @@ export function builtInRules(): DetectionRule[] {
       thresholdValue: 200,
       thresholdUnit: 'm',
       thresholdDirection: 'below',
-      authority: 'Weather feed calibration',
+      authority: 'Metrology lab calibration',
       patternName: null,
       patternLeadMinutes: null,
     },
     {
-      id: 'rule-permit-expired',
-      label: 'Permit expired',
-      watches: 'permits',
+      id: 'rule-workOrder-expired',
+      label: 'WorkOrder expired',
+      watches: 'workOrders',
       conditionSentence: 'end date has passed',
       window: 'daily',
       windowMinutes: null,
@@ -248,7 +248,7 @@ export function builtInRules(): DetectionRule[] {
       thresholdValue: 0,
       thresholdUnit: 'days remaining',
       thresholdDirection: 'below',
-      authority: 'Permit registry',
+      authority: 'CMMS',
       patternName: null,
       patternLeadMinutes: null,
     },
@@ -271,7 +271,7 @@ export function builtInRules(): DetectionRule[] {
     {
       id: 'rule-rope-partner-lost',
       label: 'Rope partner lost',
-      watches: 'climbers',
+      watches: 'machines',
       conditionSentence: 'partner unreachable',
       window: '30 min',
       windowMinutes: 30,
@@ -287,8 +287,8 @@ export function builtInRules(): DetectionRule[] {
     {
       id: 'rule-pressure-mismatch',
       label: 'Pressure mismatch',
-      watches: 'climbers',
-      conditionSentence: 'altitude does not match camp',
+      watches: 'machines',
+      conditionSentence: 'load does not match station',
       window: '1 h',
       windowMinutes: 60,
       severity: 'medium',
@@ -296,7 +296,7 @@ export function builtInRules(): DetectionRule[] {
       thresholdValue: 150,
       thresholdUnit: 'm discrepancy',
       thresholdDirection: 'above',
-      authority: 'Barometric altitude model',
+      authority: 'Barometric load model',
       patternName: null,
       patternLeadMinutes: null,
     },
@@ -372,7 +372,7 @@ export function computeTrendFromSeries(series: { minutesAgo: number; value: numb
 
 // -- map tree + propagation ---------------------------------------------------
 
-const TIER_ORDER: MapNodeInput['tier'][] = ['country', 'regionRoute', 'operator', 'climber', 'sensor']
+const TIER_ORDER: MapNodeInput['tier'][] = ['country', 'plantLine', 'operator', 'machine', 'sensor']
 
 export function buildMapTree(nodeInputs: MapNodeInput[], detections: Detection[]): { nodes: MapNode[]; edges: MapEdge[] } {
   const bySubjectKey = new Map<string, string[]>() // "kind:id" -> ruleIds firing on it
@@ -439,7 +439,7 @@ export function dimOpacityFor(node: MapNode, selectedRuleId: string | null): num
   return node.firingRuleIds.includes(selectedRuleId) ? 1 : 0.12
 }
 
-/** `rootId` plus every node beneath it — what a Map click on a route or country (never itself a detection subject) filters Detections to, so "moves to Detections filtered to them" means everything firing under that place, not a literal, always-empty match on the place's own id. */
+/** `rootId` plus every node beneath it — what a Map click on a line or country (never itself a detection subject) filters Detections to, so "moves to Detections filtered to them" means everything firing under that place, not a literal, always-empty match on the place's own id. */
 export function descendantNodeIds(nodes: MapNode[], rootId: string): Set<string> {
   const childrenOf = new Map<string, string[]>()
   for (const n of nodes) {
@@ -500,14 +500,14 @@ export function simulateThreshold(population: TuningPopulationMember[], directio
 
 export function subjectLabel(subject: DetectionSubject): string {
   switch (subject.kind) {
-    case 'climber':
+    case 'machine':
       return subject.name
-    case 'route':
+    case 'line':
     case 'operator':
     case 'system':
       return subject.label
     case 'sensor':
-      return `${subject.label} — ${subject.routeLabel}`
+      return `${subject.label} — ${subject.lineLabel}`
   }
 }
 

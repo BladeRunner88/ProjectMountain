@@ -9,6 +9,6 @@ export const metadata: Metadata = {
     "Connect, clean, understand, search, and automate — how ASE turns operational data into decisions.",
 }
 
-export default function HowItWorksRoute(): ReactElement {
+export default function HowItWorksLine(): ReactElement {
   return <HowItWorksPage />
 }

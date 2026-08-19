@@ -155,13 +155,13 @@ export function RevisionLearning({ state, role }: { state: RevisionState; role: 
       <div style={{ marginTop: SPACE_32, padding: SPACE_16, background: PANEL_RAISED, borderRadius: RADIUS_STATIC, border: `${BORDER_WIDTH}px solid ${HAIRLINE}` }}>
         <p style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>EXTERNAL VALIDATION</p>
         <p style={{ ...TYPE_BODY, color: TEXT_DIM, marginTop: SPACE_8, textTransform: 'none', letterSpacing: 'normal' }}>
-          No external reviewer assessment on record yet. When a medical officer or an external altitude-medicine reviewer assesses ASE&apos;s calls, their independent verdict lands here — e.g. &quot;External validation: 89% agreement on descent recommendations.&quot; Left present, empty, to show the intent.
+          No external reviewer assessment on record yet. When a service officer or an external load-medicine reviewer assesses ASE&apos;s calls, their independent verdict lands here — e.g. &quot;External validation: 89% agreement on descent recommendations.&quot; Left present, empty, to show the intent.
         </p>
       </div>
 
       <div className="grid grid-cols-2" style={{ gap: SPACE_16, marginTop: SPACE_32 }}>
         <NotBuiltPanel heading="A/B TESTING">
-          Not shown: with {'118'} resolved cases, a 20%-of-climbers split test cannot reach statistical significance, and showing one implies a sample size this product does not have. A/B testing becomes available above 400 resolved cases — this is a stated production plan, not a demo feature.
+          Not shown: with {'118'} resolved cases, a 20%-of-machines split test cannot reach statistical significance, and showing one implies a sample size this product does not have. A/B testing becomes available above 400 resolved cases — this is a stated production plan, not a demo feature.
         </NotBuiltPanel>
         <NotBuiltPanel heading="COST IN LIVES">
           Not shown: converting a false-negative rate into &quot;lives saved&quot; from mock data is the easiest claim in this product to attack. Instead: this change reduces missed cases by 12% and increases false alarms by 8% — the trade-off, for the operator to weigh, not a number this product invents on their behalf.

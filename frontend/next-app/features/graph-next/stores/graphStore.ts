@@ -106,7 +106,7 @@ export interface GraphStore {
   setDriftAmplitudeFn(fn: (id: GraphId) => number): void
   /** Declares "the canvas wants the loop running" — idempotent, safe to call from an effect that may double-invoke under StrictMode. */
   start(): void
-  /** Declares "the canvas no longer needs the loop" — also stops any visibility-triggered resume. */
+  /** Declares "the canvas no longer needs the loop" — also stops any effectiveness-triggered resume. */
   stop(): void
   isRunning(): boolean
 }
@@ -137,7 +137,7 @@ export function createGraphStore(): GraphStore {
   const frameListeners = new Set<(offsets: ReadonlyMap<GraphId, Point>, nowMs: number) => void>()
 
   // S8.2 rule 8: desired-vs-actual running state, kept separate so a
-  // visibility change never starts a loop nobody asked for, and never fails
+  // effectiveness change never starts a loop nobody asked for, and never fails
   // to resume one that was legitimately running before the tab was hidden.
   let desiredRunning = false
 
@@ -179,7 +179,7 @@ export function createGraphStore(): GraphStore {
     for (const l of frameListeners) l(offsets, now)
   })
 
-  function handleVisibility() {
+  function handleEffectiveness() {
     if (typeof document === 'undefined') return
     if (document.hidden) {
       loop.stop()
@@ -189,7 +189,7 @@ export function createGraphStore(): GraphStore {
   }
 
   if (typeof document !== 'undefined') {
-    document.addEventListener('visibilitychange', handleVisibility)
+    document.addEventListener('effectivenesschange', handleEffectiveness)
   }
 
   return {

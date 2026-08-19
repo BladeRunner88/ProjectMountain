@@ -354,7 +354,7 @@ function ChainPhase({ answer }: { answer: ReasoningAnswer }): ReactElement {
             <p style={{ ...TYPE_BODY, color: TEXT_DIM }}>Nobody is currently in the affected set.</p>
           ) : (
             answer.affected.map((a) => (
-              <PersonBadge key={a.climberId} climberId={a.climberId} name={a.name} serial={a.serial} />
+              <PersonBadge key={a.machineId} machineId={a.machineId} name={a.name} serial={a.serial} />
             ))
           )}
         </div>

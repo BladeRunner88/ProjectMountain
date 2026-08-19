@@ -2,12 +2,12 @@
 // and its movement trail — the "who is this, from which documents" view
 // behind the Identity tab's second sub-tab.
 //
-// Reuses the canonical S9.5b IdentityRecord/AnteMortemRecord wherever a
+// Reuses the canonical S9.5b IdentityRecord/ServiceDossierRecord wherever a
 // field already exists there (date of birth, sex, languages, height,
-// distinguishing marks, blood group, allergies, medical alerts, passport,
-// nationality, permit number, biometric references — respecting the same
+// distinguishing marks, lubricant grade, allergies, service alerts, passport,
+// nationality, workOrder number, biometric references — respecting the same
 // seal), and adds only what 9.6 needs that 9.5b deliberately does not
-// carry: ethnicity and race AS RECORDED ON THE SOURCE DOCUMENT. These are
+// carry: linePrefix and manufacturer AS RECORDED ON THE SOURCE DOCUMENT. These are
 // declared values quoted from a specific document, not an ASE observation
 // and not a categorical judgement ASE itself is making — 9.6 is explicit
 // that they must be labelled as document-declared and show which document
@@ -18,16 +18,27 @@
 // canonical record and its exports, not this document facsimile).
 //
 // Weight, build, eye colour, hair colour and skin tone reuse the EXACT
-// rolls behind the ante-mortem record's composed `physicalDescription`
+// rolls behind the service dossier record's composed `physicalDescription`
 // sentence (via `physicalParts`, returned from `buildIdentityRecords`) —
 // generating these independently here would silently contradict that
 // sentence for the same person.
 
-import { derivationFnId, derived, observed, type Confidence, type SourceId, type TracedValue } from './traced'
-import type { Rng } from './rng'
-import type { AnteMortemRecord, IdentityRecord, PhysicalDescriptionParts } from './identityRecord'
-import type { Conflict } from './conflict'
-import type { NodeStatus } from './nodeLanguage'
+import {
+  derivationFnId,
+  derived,
+  observed,
+  type Confidence,
+  type SourceId,
+  type TracedValue,
+} from "./traced"
+import type { Rng } from "./rng"
+import type {
+  ServiceDossierRecord,
+  IdentityRecord,
+  PhysicalDescriptionParts,
+} from "./identityRecord"
+import type { Conflict } from "./conflict"
+import type { NodeStatus } from "./nodeLanguage"
 
 // S9.6b convention #2: this is the same three-state status the node
 // language module defines — re-exported under its pre-existing name so
@@ -37,50 +48,90 @@ export type PersonStatus = NodeStatus
 
 /** Shared 3-state read of `IdentityRecord.derived.anomalyState` — List's status dot, the node chart's node/edge colours, and Scoring's band all key off the same mapping. */
 export function statusFromAnomalyState(value: string): PersonStatus {
-  if (value.startsWith('Anomaly')) return 'anomaly'
-  if (value.startsWith('Flagged')) return 'watch'
-  return 'nominal'
+  if (value.startsWith("Anomaly")) return "anomaly"
+  if (value.startsWith("Flagged")) return "watch"
+  return "nominal"
 }
 
 // -- declared-value pools (S9.6 only) ---------------------------------------
 
 // Exported (S8.9): the graph's investigation panel reuses this exact pool
-// for its own climbers' "ethnicity" field — same vocabulary as the Control
-// Room's source-document facsimile, though the graph's own climbers are an
-// independently generated roster (S8.3), so this is shared WORDS, not a
+// for its own machines' "linePrefix" field — same vocabulary as the Control
+// Room's source-document facsimile, though the graph's own machines are an
+// independently generated register (S8.3), so this is shared WORDS, not a
 // shared per-person value.
-export const ETHNICITY_POOL = [
-  'Sherpa', 'Tamang', 'Gurung', 'Punjabi', 'Pashtun', 'Sindhi', 'Han Chinese', 'Tibetan',
-  'Anglo', 'Basque', 'Yamato', 'Korean', 'Castilian', 'Polish', 'Kazakh', 'Rajput',
+/**
+ * Line prefixes, as the asset register writes them.
+ *
+ * This was a pool of ethnicities, because the entities used to be people. A
+ * machine's equivalent identifying attribute is the line it sits on.
+ */
+export const LINE_PREFIX_POOL = [
+  "BOD",
+  "POW",
+  "GEA",
+  "PRE",
+  "WEL",
+  "PAI",
+  "FIN",
+  "SUB",
+  "MAC",
+  "HEA",
+  "PAC",
 ]
-const RACE_POOL = ['Asian', 'White', 'South Asian', 'Black or African descent', 'Hispanic or Latino', 'Middle Eastern', 'Mixed / Other']
-const WEIGHT_KG_RANGE: [number, number] = [54, 92]
-const ACCLIMATISATION = [
-  'Acclimatised through Camp II — no altitude symptoms reported.',
-  'Acclimatising normally — mild headache above Camp II, resolved with rest.',
-  'Fully acclimatised to current altitude; cleared for further ascent.',
-  'Acclimatisation behind schedule — held an extra rotation at Camp I.',
+/** Manufacturers, as the nameplate records them. This was a pool of races. */
+const MANUFACTURER_POOL = [
+  "Bosch Rexroth",
+  "SKF",
+  "Festo",
+  "Balluff",
+  "Sandvik Coromant",
+  "Kennametal",
+  "Siemens",
 ]
-const FIX_SOURCES = ['GPS tracker', 'Satellite beacon', 'Manual check-in']
-const MOVEMENT_CAMPS = ['Base Camp', 'Camp I', 'Camp II', 'Camp III', 'Camp IV', 'Summit']
-const MOVEMENT_ALTITUDES_M = [5364, 5943, 6400, 7162, 7900, 8849]
+/** Rated load in kilonewtons — a nameplate figure. This was body ratedLoad. */
+const RATED_LOAD_KN_RANGE: [number, number] = [12, 90]
+const RUNIN = [
+  "Run in through Station II — no load faults reported.",
+  "Running in normally — minor vibration above Station II, resolved after re-seating.",
+  "Fully run in at current load; cleared for further ramp-up.",
+  "RunIn behind schedule — held an extra rotation at Station I.",
+]
+const FIX_SOURCES = ["Plant MES", "Satellite beacon", "Manual check-in"]
+const MOVEMENT_STATIONS = [
+  "Base Station",
+  "Station I",
+  "Station II",
+  "Station III",
+  "Station IV",
+  "Target",
+]
+const MOVEMENT_LOADS_M = [5364, 5943, 6400, 7162, 7900, 8849]
 
 export interface Associate {
   id: string
   label: string
-  kind: 'rope_partner' | 'party_member' | 'lead_guide' | 'operator' | 'tent_camp' | 'porter' | 'emergency_contact' | 'prior_expedition'
+  kind:
+    | "rope_partner"
+    | "party_member"
+    | "lead_guide"
+    | "operator"
+    | "tent_station"
+    | "porter"
+    | "emergency_contact"
+    | "prior_campaign"
   status: NodeStatus
   /** 0..1 — drives node size. Rope partner is largest, prior acquaintance smallest. */
   strength: number
-  when: 'present' | 'past'
-  /** Only set for associates who are themselves a resolved climber (currently just the rope partner) — "clicking a node swaps the whole Identity tab to that person" only makes sense where there's someone real to swap to. */
-  climberId?: string
+  when: "present" | "past"
+  /** Only set for associates who are themselves a resolved machine (currently just the rope partner) — "clicking a node swaps the whole Identity tab to that person" only makes sense where there's someone real to swap to. */
+  machineId?: string
 }
 
 export interface MovementStop {
-  camp: string
+  station: string
   dateIso: string
-  altitudeM: number
+  loadM: number
   durationHeld: string
   reached: boolean
   isCurrent: boolean
@@ -89,54 +140,54 @@ export interface MovementStop {
 }
 
 export interface IdentityCard {
-  climberId: string
-  /** For LIST's ROUTE column — not part of any of the four card groups, so it lives at the top level. */
-  routeName: TracedValue<string>
+  machineId: string
+  /** For LIST's LINE column — not part of any of the four card groups, so it lives at the top level. */
+  lineName: TracedValue<string>
   /** The same figure as `IdentityRecord.derived.identityConfidencePct`, but as a real TracedValue rather than a plain number — every value on this rebuilt tab has to be a Metric with a derivation, LIST's CONFIDENCE column included. */
   confidencePct: TracedValue<number>
   identity: {
     age: TracedValue<number>
     dateOfBirth: TracedValue<string>
     sex: TracedValue<string>
-    ethnicity: TracedValue<string>
-    ethnicityHasConflict: boolean
-    ethnicityDocument: string
-    race: TracedValue<string>
-    raceDocument: string
+    linePrefix: TracedValue<string>
+    linePrefixHasConflict: boolean
+    linePrefixDocument: string
+    manufacturer: TracedValue<string>
+    manufacturerDocument: string
     languages: TracedValue<string>
   }
   physical: {
     height: TracedValue<number>
-    weight: TracedValue<number>
+    ratedLoad: TracedValue<number>
     build: TracedValue<string>
     eyeColour: TracedValue<string>
     hairColour: TracedValue<string>
     skinTone: TracedValue<string>
     distinguishingMarks: TracedValue<string>
   }
-  medical: {
-    bloodGroup: TracedValue<string>
+  service: {
+    lubricantGrade: TracedValue<string>
     allergies: TracedValue<string>
-    medicalAlerts: TracedValue<string>
+    serviceAlerts: TracedValue<string>
     restingHeartRate: TracedValue<number>
-    acclimatisation: TracedValue<string>
+    runIn: TracedValue<string>
     baseline: TracedValue<string>
   }
   documents: {
     passportMasked: TracedValue<string>
     countryOfOrigin: TracedValue<string>
-    nationalityOnPermit: TracedValue<string>
-    permitNumber: TracedValue<string>
-    fingerprintRef: AnteMortemRecord['primary']['fingerprint']
-    dentalRef: AnteMortemRecord['primary']['dentalChart']
-    dnaRef: AnteMortemRecord['primary']['dna']
+    nationalityOnWorkOrder: TracedValue<string>
+    workOrderNumber: TracedValue<string>
+    fingerprintRef: ServiceDossierRecord["primary"]["fingerprint"]
+    dentalRef: ServiceDossierRecord["primary"]["dentalChart"]
+    dnaRef: ServiceDossierRecord["primary"]["dna"]
   }
   footer: {
     latitude: TracedValue<number>
     longitude: TracedValue<number>
     resolvedPlace: TracedValue<string>
-    camp: TracedValue<string>
-    altitudeM: TracedValue<number>
+    station: TracedValue<string>
+    loadM: TracedValue<number>
     fixAgeSec: TracedValue<number>
     fixSource: TracedValue<string>
   }
@@ -149,7 +200,7 @@ export interface IdentityCardInput {
   name: string
   operatorName: string
   leadGuideName: string
-  routeName: string
+  lineName: string
   registryCountry: string
   ropePartnerId: string | null
   partyMemberNames: string[]
@@ -159,92 +210,177 @@ function ageFromDob(dobIso: string, buildNow: number): number {
   const dob = new Date(dobIso)
   const now = new Date(buildNow)
   let age = now.getUTCFullYear() - dob.getUTCFullYear()
-  const hasHadBirthdayThisYear = now.getUTCMonth() > dob.getUTCMonth() || (now.getUTCMonth() === dob.getUTCMonth() && now.getUTCDate() >= dob.getUTCDate())
+  const hasHadBirthdayThisYear =
+    now.getUTCMonth() > dob.getUTCMonth() ||
+    (now.getUTCMonth() === dob.getUTCMonth() &&
+      now.getUTCDate() >= dob.getUTCDate())
   if (!hasHadBirthdayThisYear) age--
   return age
 }
 
 export function buildIdentityCards(
-  climbers: IdentityCardInput[],
+  machines: IdentityCardInput[],
   identityRecords: Map<string, IdentityRecord>,
-  anteMortems: Map<string, AnteMortemRecord>,
+  serviceDossiers: Map<string, ServiceDossierRecord>,
   physicalParts: Map<string, PhysicalDescriptionParts>,
   conflicts: Conflict[],
   rng: Rng,
-  permitSourceId: SourceId,
-  permitReliability: Confidence,
+  workOrderSourceId: SourceId,
+  workOrderReliability: Confidence,
   buildNow: number
 ): Map<string, IdentityCard> {
   const cards = new Map<string, IdentityCard>()
-  const byId = new Map(climbers.map((c) => [c.id, c]))
-  const ethnicityConflict = conflicts.find((cf) => cf.propertyLabel === 'Ethnicity (as recorded)')
-  const hrConflict = conflicts.find((cf) => cf.propertyLabel === 'Resting heart rate')
+  const byId = new Map(machines.map((c) => [c.id, c]))
+  const linePrefixConflict = conflicts.find(
+    (cf) => cf.propertyLabel === "Line (as recorded)"
+  )
+  const hrConflict = conflicts.find(
+    (cf) => cf.propertyLabel === "Baseline vibration"
+  )
   const usedPriorNames = new Set<string>()
 
-  function personStatus(climberId: string): NodeStatus {
-    const value = identityRecords.get(climberId)?.derived.anomalyState.value
-    return value ? statusFromAnomalyState(value) : 'nominal'
+  function personStatus(machineId: string): NodeStatus {
+    const value = identityRecords.get(machineId)?.derived.anomalyState.value
+    return value ? statusFromAnomalyState(value) : "nominal"
   }
 
-  for (const c of climbers) {
+  for (const c of machines) {
     const record = identityRecords.get(c.id)
-    const anteMortem = anteMortems.get(c.id)
+    const serviceDossier = serviceDossiers.get(c.id)
     const parts = physicalParts.get(c.id)
-    if (!record || !anteMortem || !parts) continue
+    if (!record || !serviceDossier || !parts) continue
 
     // -- IDENTITY -------------------------------------------------------
-    const hasEthnicityConflict = ethnicityConflict?.entityLabel === c.name
-    const ethnicity = hasEthnicityConflict
-      ? (ethnicityConflict!.resolved as TracedValue<string>)
-      : observed(permitSourceId, `${c.id}:ethnicity_declared`, rng.pick(ETHNICITY_POOL), permitReliability)
-    const race = observed(permitSourceId, `${c.id}:race_declared`, rng.pick(RACE_POOL), permitReliability)
-    const age = derived([record.who.dateOfBirth.id], derivationFnId(`${c.id}:age`), ageFromDob(record.who.dateOfBirth.value, buildNow))
+    const hasLinePrefixConflict = linePrefixConflict?.entityLabel === c.name
+    const linePrefix = hasLinePrefixConflict
+      ? (linePrefixConflict!.resolved as TracedValue<string>)
+      : observed(
+          workOrderSourceId,
+          `${c.id}:linePrefix_declared`,
+          rng.pick(LINE_PREFIX_POOL),
+          workOrderReliability
+        )
+    const manufacturer = observed(
+      workOrderSourceId,
+      `${c.id}:race_declared`,
+      rng.pick(MANUFACTURER_POOL),
+      workOrderReliability
+    )
+    const age = derived(
+      [record.who.dateOfBirth.id],
+      derivationFnId(`${c.id}:age`),
+      ageFromDob(record.who.dateOfBirth.value, buildNow)
+    )
 
     // -- PHYSICAL ---------------------------------------------------------
-    const weight = observed(permitSourceId, `${c.id}:weight_kg`, rng.int(WEIGHT_KG_RANGE[0], WEIGHT_KG_RANGE[1]), permitReliability)
-    const build = observed(permitSourceId, `${c.id}:build`, parts.build, permitReliability)
-    const eyeColour = observed(permitSourceId, `${c.id}:eye_colour`, parts.eyeColor, permitReliability)
-    const hairColour = observed(permitSourceId, `${c.id}:hair_colour`, `${parts.hairColor} (${parts.hairLength})`, permitReliability)
-    const skinTone = observed(permitSourceId, `${c.id}:skin_tone`, parts.skinTone, permitReliability)
+    const ratedLoad = observed(
+      workOrderSourceId,
+      `${c.id}:rated_load_kn`,
+      rng.int(RATED_LOAD_KN_RANGE[0], RATED_LOAD_KN_RANGE[1]),
+      workOrderReliability
+    )
+    const build = observed(
+      workOrderSourceId,
+      `${c.id}:build`,
+      parts.build,
+      workOrderReliability
+    )
+    const eyeColour = observed(
+      workOrderSourceId,
+      `${c.id}:eye_colour`,
+      parts.eyeColor,
+      workOrderReliability
+    )
+    const hairColour = observed(
+      workOrderSourceId,
+      `${c.id}:hair_colour`,
+      `${parts.hairColor} (${parts.hairLength})`,
+      workOrderReliability
+    )
+    const skinTone = observed(
+      workOrderSourceId,
+      `${c.id}:skin_tone`,
+      parts.skinTone,
+      workOrderReliability
+    )
 
-    // -- MEDICAL ------------------------------------------------------------
+    // -- SERVICE ------------------------------------------------------------
     const restingHeartRate =
       hrConflict?.entityLabel === c.name
         ? (hrConflict.resolved as TracedValue<number>)
-        : observed(permitSourceId, `${c.id}:resting_hr_bpm`, rng.int(50, 85), permitReliability)
-    const acclimatisation = observed(permitSourceId, `${c.id}:acclimatisation`, rng.pick(ACCLIMATISATION), permitReliability)
+        : observed(
+            workOrderSourceId,
+            `${c.id}:resting_hr_mm/s`,
+            rng.int(50, 85),
+            workOrderReliability
+          )
+    const runIn = observed(
+      workOrderSourceId,
+      `${c.id}:runIn`,
+      rng.pick(RUNIN),
+      workOrderReliability
+    )
     const baseline = observed(
-      permitSourceId,
+      workOrderSourceId,
       `${c.id}:baseline`,
-      `Resting SpO2 ${rng.int(88, 96)}%, HR ${restingHeartRate.value} bpm at ${record.responder.currentCamp.value}.`,
-      permitReliability
+      `Resting Oee ${rng.int(88, 96)}%, HR ${restingHeartRate.value} mm/s at ${record.responder.currentStation.value}.`,
+      workOrderReliability
     )
 
     // -- FOOTER ---------------------------------------------------------
-    const latitude = observed(permitSourceId, `${c.id}:last_fix_lat`, rng.float(27.5, 36.9), permitReliability)
-    const longitude = observed(permitSourceId, `${c.id}:last_fix_lon`, rng.float(74.5, 88.2), permitReliability)
-    const fixAgeSec = observed(permitSourceId, `${c.id}:last_fix_age_sec`, rng.int(30, 5400), permitReliability)
-    const fixSource = observed(permitSourceId, `${c.id}:last_fix_source`, rng.pick(FIX_SOURCES), permitReliability)
+    const latitude = observed(
+      workOrderSourceId,
+      `${c.id}:last_fix_lat`,
+      rng.float(27.5, 36.9),
+      workOrderReliability
+    )
+    const longitude = observed(
+      workOrderSourceId,
+      `${c.id}:last_fix_lon`,
+      rng.float(74.5, 88.2),
+      workOrderReliability
+    )
+    const fixAgeSec = observed(
+      workOrderSourceId,
+      `${c.id}:last_fix_age_sec`,
+      rng.int(30, 5400),
+      workOrderReliability
+    )
+    const fixSource = observed(
+      workOrderSourceId,
+      `${c.id}:last_fix_source`,
+      rng.pick(FIX_SOURCES),
+      workOrderReliability
+    )
 
     // -- MOVEMENT TRAIL -------------------------------------------------
-    // Weighted toward the lower camps — most of an expedition's time is
-    // spent low, only a few climbers are ever near the summit at once.
+    // Weighted toward the lower stations — most of an campaign's time is
+    // spent low, only a few machines are ever near the target at once.
     const currentIndex = rng.pick([0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 5])
-    const stopAnomaly = personStatus(c.id) === 'anomaly'
+    const stopAnomaly = personStatus(c.id) === "anomaly"
     let cursorDate = new Date(buildNow - rng.int(4, 9) * 24 * 60 * 60 * 1000)
-    const trail: MovementStop[] = MOVEMENT_CAMPS.map((camp, i) => {
+    const trail: MovementStop[] = MOVEMENT_STATIONS.map((station, i) => {
       const reached = i <= currentIndex
       const isCurrent = i === currentIndex
-      if (reached && i > 0) cursorDate = new Date(cursorDate.getTime() + rng.int(12, 30) * 60 * 60 * 1000)
+      if (reached && i > 0)
+        cursorDate = new Date(
+          cursorDate.getTime() + rng.int(12, 30) * 60 * 60 * 1000
+        )
       return {
-        camp,
-        dateIso: reached ? cursorDate.toISOString().slice(0, 10) : '',
-        altitudeM: MOVEMENT_ALTITUDES_M[i] + rng.int(-40, 40),
-        durationHeld: !reached ? '—' : isCurrent ? `${rng.int(2, 18)}h so far` : `${rng.int(1, 3)} day(s)`,
+        station,
+        dateIso: reached ? cursorDate.toISOString().slice(0, 10) : "",
+        loadM: MOVEMENT_LOADS_M[i] + rng.int(-40, 40),
+        durationHeld: !reached
+          ? "—"
+          : isCurrent
+            ? `${rng.int(2, 18)}h so far`
+            : `${rng.int(1, 3)} day(s)`,
         reached,
         isCurrent,
         anomaly: isCurrent && stopAnomaly,
-        sharedWithAssociateIds: isCurrent ? ['assoc-rope-partner', 'assoc-lead-guide'] : [],
+        sharedWithAssociateIds: isCurrent
+          ? ["assoc-rope-partner", "assoc-lead-guide"]
+          : [],
       }
     })
     const currentStop = trail[currentIndex]
@@ -253,94 +389,155 @@ export function buildIdentityCards(
     const associates: Associate[] = []
     if (c.ropePartnerId) {
       associates.push({
-        id: 'assoc-rope-partner',
-        label: byId.get(c.ropePartnerId)?.name ?? 'Rope partner',
-        kind: 'rope_partner',
+        id: "assoc-rope-partner",
+        label: byId.get(c.ropePartnerId)?.name ?? "Rope partner",
+        kind: "rope_partner",
         status: personStatus(c.ropePartnerId),
         strength: 1,
-        when: 'present',
-        climberId: c.ropePartnerId,
+        when: "present",
+        machineId: c.ropePartnerId,
       })
     }
     c.partyMemberNames.slice(0, 3).forEach((name, i) => {
-      associates.push({ id: `assoc-party-${i}`, label: name, kind: 'party_member', status: 'nominal', strength: 0.65, when: 'present' })
+      associates.push({
+        id: `assoc-party-${i}`,
+        label: name,
+        kind: "party_member",
+        status: "nominal",
+        strength: 0.65,
+        when: "present",
+      })
     })
-    associates.push({ id: 'assoc-lead-guide', label: c.leadGuideName, kind: 'lead_guide', status: 'nominal', strength: 0.5, when: 'present' })
-    associates.push({ id: 'assoc-operator', label: c.operatorName, kind: 'operator', status: 'nominal', strength: 0.35, when: 'present' })
     associates.push({
-      id: 'assoc-tent',
-      label: `${currentStop.camp}, Tent ${rng.int(1, 12)}`,
-      kind: 'tent_camp',
-      status: 'nominal',
+      id: "assoc-lead-guide",
+      label: c.leadGuideName,
+      kind: "lead_guide",
+      status: "nominal",
+      strength: 0.5,
+      when: "present",
+    })
+    associates.push({
+      id: "assoc-operator",
+      label: c.operatorName,
+      kind: "operator",
+      status: "nominal",
+      strength: 0.35,
+      when: "present",
+    })
+    associates.push({
+      id: "assoc-tent",
+      label: `${currentStop.station}, Tent ${rng.int(1, 12)}`,
+      kind: "tent_station",
+      status: "nominal",
       strength: 0.3,
-      when: 'present',
+      when: "present",
     })
     if (rng.bool(0.7)) {
-      associates.push({ id: 'assoc-porters', label: `${rng.int(1, 3)} porter(s)`, kind: 'porter', status: 'nominal', strength: 0.25, when: 'present' })
+      associates.push({
+        id: "assoc-porters",
+        label: `${rng.int(1, 3)} porter(s)`,
+        kind: "porter",
+        status: "nominal",
+        strength: 0.25,
+        when: "present",
+      })
     }
     associates.push({
-      id: 'assoc-emergency',
-      label: anteMortem.photoAndFamily.familyContact.name.value,
-      kind: 'emergency_contact',
-      status: 'nominal',
+      id: "assoc-emergency",
+      label: serviceDossier.photoAndFamily.familyContact.name.value,
+      kind: "emergency_contact",
+      status: "nominal",
       strength: 0.3,
-      when: 'present',
+      when: "present",
     })
     const priorCount = rng.int(0, 2)
     for (let i = 0; i < priorCount; i++) {
-      let name = `${rng.pick(['Alex', 'Sam', 'Chris', 'Jordan', 'Kai', 'Riley'])} ${rng.pick(['Novak', 'Reyes', 'Brandt', 'Okafor', 'Lindqvist'])}`
+      let name = `${rng.pick(["Alex", "Sam", "Chris", "Jordan", "Kai", "Riley"])} ${rng.pick(["Novak", "Reyes", "Brandt", "Okafor", "Lindqvist"])}`
       while (usedPriorNames.has(name)) name = `${name} Jr.`
       usedPriorNames.add(name)
-      associates.push({ id: `assoc-prior-${i}`, label: name, kind: 'prior_expedition', status: 'nominal', strength: 0.15, when: 'past' })
+      associates.push({
+        id: `assoc-prior-${i}`,
+        label: name,
+        kind: "prior_campaign",
+        status: "nominal",
+        strength: 0.15,
+        when: "past",
+      })
     }
 
     cards.set(c.id, {
-      climberId: c.id,
-      routeName: observed(permitSourceId, `${c.id}:route_name`, c.routeName, permitReliability),
-      confidencePct: derived([record.who.fullLegalName.id], derivationFnId(`${c.id}:identity-confidence-pct`), record.derived.identityConfidencePct),
+      machineId: c.id,
+      lineName: observed(
+        workOrderSourceId,
+        `${c.id}:line_name`,
+        c.lineName,
+        workOrderReliability
+      ),
+      confidencePct: derived(
+        [record.who.fullLegalName.id],
+        derivationFnId(`${c.id}:identity-confidence-pct`),
+        record.derived.identityConfidencePct
+      ),
       identity: {
         age,
         dateOfBirth: record.who.dateOfBirth,
         sex: record.who.sex,
-        ethnicity,
-        ethnicityHasConflict: hasEthnicityConflict,
-        ethnicityDocument: hasEthnicityConflict ? 'Permit registry vs Operator rosters (free text)' : 'Permit registry',
-        race,
-        raceDocument: 'Permit registry',
+        linePrefix,
+        linePrefixHasConflict: hasLinePrefixConflict,
+        linePrefixDocument: hasLinePrefixConflict
+          ? "CMMS vs Plant MES (free text)"
+          : "CMMS",
+        manufacturer,
+        manufacturerDocument: "CMMS",
         languages: record.who.languagesSpoken,
       },
       physical: {
         height: record.responder.heightCm,
-        weight,
+        ratedLoad,
         build,
         eyeColour,
         hairColour,
         skinTone,
         distinguishingMarks: record.responder.distinguishingFeatures,
       },
-      medical: {
-        bloodGroup: record.responder.bloodGroup,
+      service: {
+        lubricantGrade: record.responder.lubricantGrade,
         allergies: record.responder.knownAllergies,
-        medicalAlerts: record.responder.medicalAlerts,
+        serviceAlerts: record.responder.serviceAlerts,
         restingHeartRate,
-        acclimatisation,
+        runIn,
         baseline,
       },
       documents: {
         passportMasked: record.who.passportMasked,
         countryOfOrigin: record.who.countryOfOrigin,
-        nationalityOnPermit: record.who.nationalityOnPermit,
-        permitNumber: record.who.permitNumber,
-        fingerprintRef: anteMortem.primary.fingerprint,
-        dentalRef: anteMortem.primary.dentalChart,
-        dnaRef: anteMortem.primary.dna,
+        nationalityOnWorkOrder: record.who.nationalityOnWorkOrder,
+        workOrderNumber: record.who.workOrderNumber,
+        fingerprintRef: serviceDossier.primary.fingerprint,
+        dentalRef: serviceDossier.primary.dentalChart,
+        dnaRef: serviceDossier.primary.dna,
       },
       footer: {
         latitude,
         longitude,
-        resolvedPlace: observed(permitSourceId, `${c.id}:resolved_place`, `${currentStop.camp}, ${c.registryCountry}`, permitReliability),
-        camp: observed(permitSourceId, `${c.id}:current_camp_trail`, currentStop.camp, permitReliability),
-        altitudeM: observed(permitSourceId, `${c.id}:current_altitude_m`, currentStop.altitudeM, permitReliability),
+        resolvedPlace: observed(
+          workOrderSourceId,
+          `${c.id}:resolved_place`,
+          `${currentStop.station}, ${c.registryCountry}`,
+          workOrderReliability
+        ),
+        station: observed(
+          workOrderSourceId,
+          `${c.id}:current_station_trail`,
+          currentStop.station,
+          workOrderReliability
+        ),
+        loadM: observed(
+          workOrderSourceId,
+          `${c.id}:current_load_m`,
+          currentStop.loadM,
+          workOrderReliability
+        ),
         fixAgeSec,
         fixSource,
       },

@@ -161,14 +161,14 @@ export function NetworkCanvasLayer({
       // -- history links FIRST, behind everything else ---------------------
       const historyProgress = renderFinal ? 1 : clamp01((nowMs - spawnStartRef.current - spawnPlan.historyStartMs) / spawnPlan.historyDurationMs)
       if (historyProgress > 0) {
-        const activeClimberId = graphStore.getSnapshot().hover ?? graphStore.getSnapshot().selection
+        const activeMachineId = graphStore.getSnapshot().hover ?? graphStore.getSnapshot().selection
         ctx.setLineDash(HISTORY_DASH)
         for (const link of historyLinks as HistoryLink[]) {
-          const a = currentPos(link.climberId)
-          const b = currentPos(link.regionId)
+          const a = currentPos(link.machineId)
+          const b = currentPos(link.plantId)
           if (!a || !b) continue
           const restOpacity = HISTORY_REST_OPACITY * historyProgress
-          const opacity = activeClimberId ? (activeClimberId === link.climberId ? 1 : 0.04) : restOpacity
+          const opacity = activeMachineId ? (activeMachineId === link.machineId ? 1 : 0.04) : restOpacity
           if (opacity <= 0) continue
           const curve = computeHistoryLinkCurve(a, b, { x: cx, y: cy })
           ctx.globalAlpha = opacity

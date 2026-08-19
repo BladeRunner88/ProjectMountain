@@ -27,9 +27,9 @@ export { isDomainEntity, isEnvironmentNode } from './domain'
 
 export {
   ANOMALY_RED,
-  CLIMBER_WHITE,
+  MACHINE_WHITE,
   CORE_VIGNETTE,
-  COUNTRY_COLOR,
+  countryHue,
   ENVIRONMENT_TEAL,
   GRAPH_BLACK,
   GUTTER_TRACK,

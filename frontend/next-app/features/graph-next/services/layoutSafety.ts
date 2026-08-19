@@ -10,14 +10,22 @@
 // their own `compute` in `withLayoutSafety`, once, the same way this file's
 // own placeholder layout does.
 
-import { assertFinitePoint } from './nanGuard'
-import type { GraphDataset, GraphId, Point, Size } from '../types/graph'
+import { assertFinitePoint } from "./nanGuard"
+import type { GraphDataset, GraphId, Point, Size } from "../types/graph"
 
 export function isFiniteSize(size: Size): boolean {
-  return Number.isFinite(size.width) && Number.isFinite(size.height) && size.width > 0 && size.height > 0
+  return (
+    Number.isFinite(size.width) &&
+    Number.isFinite(size.height) &&
+    size.width > 0 &&
+    size.height > 0
+  )
 }
 
-export type LayoutFn<TDataset extends GraphDataset> = (dataset: TDataset, size: Size) => ReadonlyMap<GraphId, Point>
+export type LayoutFn<TDataset extends GraphDataset> = (
+  dataset: TDataset,
+  size: Size
+) => ReadonlyMap<GraphId, Point>
 
 /**
  * Wraps a raw (possibly unsafe) layout computation with the three
@@ -27,7 +35,10 @@ export type LayoutFn<TDataset extends GraphDataset> = (dataset: TDataset, size: 
  * valid size has ever arrived), and check every produced coordinate for
  * NaN/Infinity before it's handed back.
  */
-export function withLayoutSafety<TDataset extends GraphDataset>(compute: LayoutFn<TDataset>, name: string): LayoutFn<TDataset> {
+export function withLayoutSafety<TDataset extends GraphDataset>(
+  compute: LayoutFn<TDataset>,
+  name: string
+): LayoutFn<TDataset> {
   let lastDatasetVersion: number | null = null
   let lastSize: Size | null = null
   let lastResult: ReadonlyMap<GraphId, Point> = new Map()
@@ -35,14 +46,24 @@ export function withLayoutSafety<TDataset extends GraphDataset>(compute: LayoutF
   return function layout(dataset, size) {
     if (!isFiniteSize(size)) return lastResult
 
-    const sizeChanged = !lastSize || lastSize.width !== size.width || lastSize.height !== size.height
+    const sizeChanged =
+      !lastSize ||
+      lastSize.width !== size.width ||
+      lastSize.height !== size.height
     const datasetChanged = lastDatasetVersion !== dataset.version
     if (!sizeChanged && !datasetChanged) return lastResult
 
     const raw = compute(dataset, size)
     const checked = new Map<GraphId, Point>()
     for (const [id, p] of raw) {
-      checked.set(id, assertFinitePoint(id, p, name, { width: size.width, height: size.height, datasetVersion: dataset.version }))
+      checked.set(
+        id,
+        assertFinitePoint(id, p, name, {
+          width: size.width,
+          height: size.height,
+          datasetVersion: dataset.version,
+        })
+      )
     }
 
     lastDatasetVersion = dataset.version

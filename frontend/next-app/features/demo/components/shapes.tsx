@@ -7,7 +7,7 @@ import type { NodeStatus } from '../types/domain'
 export const GRAPH_CANVAS_COLOR = '#0B0E12'
 export const TEAM_NODE_FILL = '#151A21'
 export const TEAM_NODE_STROKE = 'rgba(233,237,242,0.35)'
-export const CLIMBER_NORMAL_COLOR = NOMINAL
+export const MACHINE_NORMAL_COLOR = NOMINAL
 export const ANOMALY_COLOR = ANOMALY
 export const WATCH_COLOR = WATCH
 
@@ -33,7 +33,7 @@ export const EDGE_APPEARANCE: Record<
   { color: string; width: number; opacity: number; pulse: boolean }
 > = {
   grey: { color: '#6E7480', width: 1, opacity: 0.4, pulse: false },
-  blue: { color: CLIMBER_NORMAL_COLOR, width: 1.5, opacity: 1, pulse: false },
+  blue: { color: MACHINE_NORMAL_COLOR, width: 1.5, opacity: 1, pulse: false },
   red: { color: ANOMALY_COLOR, width: 2, opacity: 1, pulse: true },
 }
 
@@ -114,7 +114,7 @@ export function SubNodeShape({
   return (
     <g>
       {anomaly && <circle cx={x} cy={y} r={radius * 2.4} fill={ANOMALY_COLOR} opacity={0.16} />}
-      <circle cx={x} cy={y} r={radius} fill={anomaly ? ANOMALY_COLOR : CLIMBER_NORMAL_COLOR} />
+      <circle cx={x} cy={y} r={radius} fill={anomaly ? ANOMALY_COLOR : MACHINE_NORMAL_COLOR} />
       {selected && <circle cx={x} cy={y} r={radius + 3} fill="none" stroke="#FFFFFF" strokeWidth={2} />}
     </g>
   )

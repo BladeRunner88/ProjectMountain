@@ -1,28 +1,47 @@
-'use client'
+"use client"
 
-// S8.7: TERRAIN — the mountain. A real height field (route elevation
+// S8.7: TERRAIN — the mountain. A real height field (line elevation
 // profile + seeded ridge texture), rendered as ~15,000 points with a
 // hand-written isometric projection. No mesh, no fill, no shading: the
-// density of points IS the shading, same as the reference. Climbers plot
-// on top at their actual position/altitude — white nominal, amber watch,
+// density of points IS the shading, same as the reference. Machines plot
+// on top at their actual position/load — white nominal, amber watch,
 // red anomaly — and clicking one writes to the SAME graphStore selection
 // NETWORK and STRATA already read, so this is a third projection of one
 // selection, not a fourth independent widget.
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactElement, type WheelEvent } from 'react'
-import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion'
-import { graphStore } from '../stores/graphStore'
-import { CURRENT_DATASET as GRAPH_DATASET } from '../services/currentDataset'
 import {
-  buildClimberPlacements,
-  buildRouteConditions,
-  buildRouteProfiles,
-  CAMPS,
-  defaultRouteId,
-  summarizeRouteClimbers,
-} from '../services/terrainProfile'
-import { computeHeightField, noiseSeedForRoute, surfaceHeightAt } from '../services/terrainHeightField'
-import { toWorldX, toWorldZ, WORLD_HALF_WIDTH_UNITS, WORLD_LENGTH_UNITS } from '../services/terrainWorld'
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactElement,
+  type WheelEvent,
+} from "react"
+import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion"
+import { graphStore } from "../stores/graphStore"
+import { getGraphDataset } from "../services/currentDataset"
+import {
+  buildMachinePlacements,
+  buildLineConditions,
+  buildLineProfiles,
+  STATIONS,
+  defaultLineId,
+  summarizeLineMachines,
+} from "../services/terrainProfile"
+import {
+  computeHeightField,
+  noiseSeedForLine,
+  surfaceHeightAt,
+} from "../services/terrainHeightField"
+import {
+  toWorldX,
+  toWorldZ,
+  WORLD_HALF_WIDTH_UNITS,
+  WORLD_LENGTH_UNITS,
+} from "../services/terrainWorld"
 import {
   clampElevation,
   DEFAULT_ELEVATION_DEG,
@@ -33,27 +52,52 @@ import {
   projectPoint,
   rubberBandElevation,
   savePersistedCamera,
-} from '../services/terrainCamera'
-import { createRafLoop } from '../services/rafLoop'
-import { isFilterVisible } from '../services/emphasis'
-import { nextEntity, siblingInTier } from '../services/keyboardNav'
-import { computeFilterVisible } from '../services/filters'
-import { buildSearchIndex, computeSearchMatches } from '../services/search'
-import { buildTooltipIndex } from '../services/tooltipInfo'
-import { EntityTooltip } from './EntityTooltip'
-import { ANOMALY_RED, CLIMBER_WHITE, GRAPH_BLACK, WATCH_AMBER } from '../types/tokens'
-import { NOMINAL, PANEL, TEXT_DIM, TEXT_PRIMARY, TEXT_SECONDARY } from '@/features/ase/tokens'
-import type { Camera } from '../services/terrainCamera'
-import type { GraphId, Size } from '../types/graph'
+} from "../services/terrainCamera"
+import { createRafLoop } from "../services/rafLoop"
+import { isFilterVisible } from "../services/emphasis"
+import { nextEntity, siblingInTier } from "../services/keyboardNav"
+import { computeFilterVisible } from "../services/filters"
+import { buildSearchIndex, computeSearchMatches } from "../services/search"
+import { buildTooltipIndex } from "../services/tooltipInfo"
+import { EntityTooltip } from "./EntityTooltip"
+import {
+  ANOMALY_RED,
+  MACHINE_WHITE,
+  GRAPH_BLACK,
+  WATCH_AMBER,
+} from "../types/tokens"
+import {
+  NOMINAL,
+  PANEL,
+  TEXT_DIM,
+  TEXT_PRIMARY,
+  TEXT_SECONDARY,
+} from "@/features/ase/tokens"
+import type { Camera } from "../services/terrainCamera"
+import type { GraphId, Size } from "../types/graph"
+import { once } from "../services/once"
 
 // -- data derived once from the shared dataset, not per mount ---------------
-const ROUTE_PROFILES = buildRouteProfiles(GRAPH_DATASET)
-const CLIMBER_PLACEMENTS = buildClimberPlacements(GRAPH_DATASET, ROUTE_PROFILES)
-const DEFAULT_ROUTE_ID = defaultRouteId(GRAPH_DATASET, CLIMBER_PLACEMENTS)
-const ROUTE_LIST = GRAPH_DATASET.domainEntities.filter((e) => e.tier === 'route')
-const CLIMBER_BY_ID = new Map(GRAPH_DATASET.domainEntities.filter((e) => e.tier === 'climber').map((e) => [e.id, e]))
-const TOOLTIP_INDEX = buildTooltipIndex(GRAPH_DATASET)
-const SEARCH_INDEX = buildSearchIndex(GRAPH_DATASET)
+const LINE_PROFILES = once(() => buildLineProfiles(getGraphDataset()!))
+const MACHINE_PLACEMENTS = once(() =>
+  buildMachinePlacements(getGraphDataset()!, LINE_PROFILES())
+)
+const DEFAULT_LINE_ID = once(() =>
+  defaultLineId(getGraphDataset()!, MACHINE_PLACEMENTS())
+)
+const LINE_LIST = once(() =>
+  getGraphDataset()!.domainEntities.filter((e) => e.tier === "line")
+)
+const MACHINE_BY_ID = once(
+  () =>
+    new Map(
+      getGraphDataset()!
+        .domainEntities.filter((e) => e.tier === "machine")
+        .map((e) => [e.id, e])
+    )
+)
+const TOOLTIP_INDEX = once(() => buildTooltipIndex(getGraphDataset()!))
+const SEARCH_INDEX = once(() => buildSearchIndex(getGraphDataset()!))
 
 const AUTO_ROTATE_PERIOD_MS = 4 * 60 * 1000
 const AZIMUTH_SENSITIVITY = 0.006 // rad per px — 1:1-ish drag tracking
@@ -68,7 +112,7 @@ const CLICK_MOVE_THRESHOLD_PX = 5
 const CLICK_MAX_MS = 400
 const BUCKET_COUNT = 96
 const ZOOM_LABEL_THRESHOLD = 6.5
-const CLIMBER_HIT_RADIUS_PX = 14
+const MACHINE_HIT_RADIUS_PX = 14
 
 // A fixed grey palette, computed once — avoids allocating a new `rgb(...)`
 // string per point per frame (~15,000/frame); see NetworkCanvasLayer's own
@@ -92,31 +136,48 @@ export function TerrainView(): ReactElement {
   const reduced = usePrefersReducedMotion()
 
   const [size, setSize] = useState<Size>({ width: 0, height: 0 })
-  const [selectedRouteId, setSelectedRouteId] = useState<GraphId>(DEFAULT_ROUTE_ID)
+  const [selectedLineId, setSelectedLineId] =
+    useState<GraphId>(DEFAULT_LINE_ID())
   const [hasInteracted, setHasInteracted] = useState(false)
-  const [hoverTooltipPos, setHoverTooltipPos] = useState<{ x: number; y: number } | null>(null)
-  const snapshot = useSyncExternalStore(graphStore.subscribe, graphStore.getSnapshot, graphStore.getServerSnapshot)
-  const placementRouteId = snapshot.selection
-    ? CLIMBER_PLACEMENTS.get(snapshot.selection)?.routeId
+  const [hoverTooltipPos, setHoverTooltipPos] = useState<{
+    x: number
+    y: number
+  } | null>(null)
+  const snapshot = useSyncExternalStore(
+    graphStore.subscribe,
+    graphStore.getSnapshot,
+    graphStore.getServerSnapshot
+  )
+  const placementLineId = snapshot.selection
+    ? MACHINE_PLACEMENTS().get(snapshot.selection)?.lineId
     : undefined
-  if (placementRouteId && placementRouteId !== selectedRouteId) {
-    setSelectedRouteId(placementRouteId)
+  if (placementLineId && placementLineId !== selectedLineId) {
+    setSelectedLineId(placementLineId)
   }
 
   const sizeRef = useRef<Size>({ width: 0, height: 0 })
-  const defaultCamera: Camera = { azimuthRad: -0.5, elevationDeg: DEFAULT_ELEVATION_DEG, scale: INITIAL_SCALE, verticalScale: INITIAL_SCALE * VERTICAL_SCALE_RATIO }
-  const cameraRef = useRef<Camera>(loadPersistedCamera(defaultCamera, MIN_SCALE, MAX_SCALE))
+  const defaultCamera: Camera = {
+    azimuthRad: -0.5,
+    elevationDeg: DEFAULT_ELEVATION_DEG,
+    scale: INITIAL_SCALE,
+    verticalScale: INITIAL_SCALE * VERTICAL_SCALE_RATIO,
+  }
+  const cameraRef = useRef<Camera>(
+    loadPersistedCamera(defaultCamera, MIN_SCALE, MAX_SCALE)
+  )
   const draggingRef = useRef(false)
-  const dragModeRef = useRef<'azimuth' | 'elevation'>('azimuth')
+  const dragModeRef = useRef<"azimuth" | "elevation">("azimuth")
   const lastPointerRef = useRef<PointerState>({ x: 0, y: 0, t: 0 })
   const pointerDownRef = useRef<PointerState>({ x: 0, y: 0, t: 0 })
   const velocityRef = useRef({ azimuth: 0, elevation: 0 })
   const hasInteractedRef = useRef(false)
-  const climberScreenPosRef = useRef(new Map<GraphId, { sx: number; sy: number }>())
-  const hoveredClimberRef = useRef<GraphId | null>(null)
+  const machineScreenPosRef = useRef(
+    new Map<GraphId, { sx: number; sy: number }>()
+  )
+  const hoveredMachineRef = useRef<GraphId | null>(null)
 
   useEffect(() => {
-    graphStore.setViewMode('terrain')
+    graphStore.setViewMode("terrain")
   }, [])
 
   useEffect(() => {
@@ -132,7 +193,10 @@ export function TerrainView(): ReactElement {
     const el = containerRef.current
     if (!el) return
     const ro = new ResizeObserver(([entry]) => {
-      const next = { width: entry.contentRect.width, height: entry.contentRect.height }
+      const next = {
+        width: entry.contentRect.width,
+        height: entry.contentRect.height,
+      }
       sizeRef.current = next
       setSize(next)
     })
@@ -140,29 +204,64 @@ export function TerrainView(): ReactElement {
     return () => ro.disconnect()
   }, [])
 
-  const routeProfile = ROUTE_PROFILES.get(selectedRouteId) ?? ROUTE_PROFILES.get(DEFAULT_ROUTE_ID)!
-  const conditions = useMemo(() => buildRouteConditions(routeProfile.routeId), [routeProfile.routeId])
-  const climbersOnRoute = useMemo(
-    () => [...CLIMBER_PLACEMENTS.values()].filter((p) => p.routeId === routeProfile.routeId),
-    [routeProfile.routeId],
+  const lineProfile =
+    LINE_PROFILES().get(selectedLineId) ??
+    LINE_PROFILES().get(DEFAULT_LINE_ID())!
+  const conditions = useMemo(
+    () => buildLineConditions(lineProfile.lineId),
+    [lineProfile.lineId]
+  )
+  const machinesOnLine = useMemo(
+    () =>
+      [...MACHINE_PLACEMENTS().values()].filter(
+        (p) => p.lineId === lineProfile.lineId
+      ),
+    [lineProfile.lineId]
   )
   const anomalyMarkers = useMemo(
-    () => climbersOnRoute.filter((p) => CLIMBER_BY_ID.get(p.climberId)?.status === 'anomaly').map((p) => ({ progress: p.progress, lateral: p.lateral })),
-    [climbersOnRoute],
+    () =>
+      machinesOnLine
+        .filter((p) => MACHINE_BY_ID().get(p.machineId)?.status === "anomaly")
+        .map((p) => ({ progress: p.progress, lateral: p.lateral })),
+    [machinesOnLine]
   )
-  const heightField = useMemo(() => computeHeightField(routeProfile, anomalyMarkers), [routeProfile, anomalyMarkers])
-  const summary = useMemo(() => summarizeRouteClimbers(GRAPH_DATASET, CLIMBER_PLACEMENTS, routeProfile.routeId), [routeProfile.routeId])
+  const heightField = useMemo(
+    () => computeHeightField(lineProfile, anomalyMarkers),
+    [lineProfile, anomalyMarkers]
+  )
+  const summary = useMemo(
+    () =>
+      summarizeLineMachines(
+        getGraphDataset()!,
+        MACHINE_PLACEMENTS(),
+        lineProfile.lineId
+      ),
+    [lineProfile.lineId]
+  )
   const densityPerKm2 = useMemo(() => {
-    const areaKm2 = Math.max(0.05, routeProfile.lengthKm * (routeProfile.corridorWidthM / 1000))
+    const areaKm2 = Math.max(
+      0.05,
+      lineProfile.lengthKm * (lineProfile.corridorWidthM / 1000)
+    )
     return Math.round(heightField.count / areaKm2)
-  }, [routeProfile, heightField.count])
+  }, [lineProfile, heightField.count])
 
-  // S8.8: filtering "changes what is drawn" — a filtered-out climber is
+  // S8.8: filtering "changes what is drawn" — a filtered-out machine is
   // skipped entirely (not just dimmed, and not hit-testable). Search dims
   // instead, via a per-marker opacity multiplier in the draw loop below.
-  const filterVisible = useMemo(() => computeFilterVisible(GRAPH_DATASET, snapshot.filter), [snapshot.filter])
-  const searchMatches = useMemo(() => computeSearchMatches(SEARCH_INDEX, snapshot.searchQuery), [snapshot.searchQuery])
-  const visibleClimbers = useMemo(() => climbersOnRoute.filter((p) => isFilterVisible(p.climberId, filterVisible)), [climbersOnRoute, filterVisible])
+  const filterVisible = useMemo(
+    () => computeFilterVisible(getGraphDataset()!, snapshot.filter),
+    [snapshot.filter]
+  )
+  const searchMatches = useMemo(
+    () => computeSearchMatches(SEARCH_INDEX(), snapshot.searchQuery),
+    [snapshot.searchQuery]
+  )
+  const visibleMachines = useMemo(
+    () =>
+      machinesOnLine.filter((p) => isFilterVisible(p.machineId, filterVisible)),
+    [machinesOnLine, filterVisible]
+  )
 
   function markInteracted() {
     if (!hasInteractedRef.current) {
@@ -175,7 +274,7 @@ export function TerrainView(): ReactElement {
     containerRef.current?.focus()
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
     draggingRef.current = true
-    dragModeRef.current = e.shiftKey ? 'elevation' : 'azimuth'
+    dragModeRef.current = e.shiftKey ? "elevation" : "azimuth"
     const t = performance.now()
     lastPointerRef.current = { x: e.clientX, y: e.clientY, t }
     pointerDownRef.current = { x: e.clientX, y: e.clientY, t }
@@ -185,10 +284,10 @@ export function TerrainView(): ReactElement {
 
   function handlePointerMove(e: PointerEvent<HTMLCanvasElement>) {
     if (!draggingRef.current) {
-      // not rotating the camera — this is a hover pass over the climber markers
-      const hit = hitTestClimber(e.clientX, e.clientY)
-      if (hit !== hoveredClimberRef.current) {
-        hoveredClimberRef.current = hit
+      // not rotating the camera — this is a hover pass over the machine markers
+      const hit = hitTestMachine(e.clientX, e.clientY)
+      if (hit !== hoveredMachineRef.current) {
+        hoveredMachineRef.current = hit
         graphStore.setHover(hit)
       }
       setHoverTooltipPos(hit ? { x: e.clientX, y: e.clientY } : null)
@@ -199,25 +298,31 @@ export function TerrainView(): ReactElement {
     const dy = e.clientY - lastPointerRef.current.y
     const dt = Math.max(1, t - lastPointerRef.current.t)
     const camera = cameraRef.current
-    if (dragModeRef.current === 'elevation') {
-      camera.elevationDeg = rubberBandElevation(camera.elevationDeg - dy * ELEVATION_SENSITIVITY)
-      velocityRef.current.elevation = reduced ? 0 : (-dy * ELEVATION_SENSITIVITY) / dt
+    if (dragModeRef.current === "elevation") {
+      camera.elevationDeg = rubberBandElevation(
+        camera.elevationDeg - dy * ELEVATION_SENSITIVITY
+      )
+      velocityRef.current.elevation = reduced
+        ? 0
+        : (-dy * ELEVATION_SENSITIVITY) / dt
     } else {
       camera.azimuthRad += dx * AZIMUTH_SENSITIVITY
-      velocityRef.current.azimuth = reduced ? 0 : (dx * AZIMUTH_SENSITIVITY) / dt
+      velocityRef.current.azimuth = reduced
+        ? 0
+        : (dx * AZIMUTH_SENSITIVITY) / dt
     }
     lastPointerRef.current = { x: e.clientX, y: e.clientY, t }
   }
 
-  function hitTestClimber(clientX: number, clientY: number): GraphId | null {
+  function hitTestMachine(clientX: number, clientY: number): GraphId | null {
     const canvas = canvasRef.current
     if (!canvas) return null
     const rect = canvas.getBoundingClientRect()
     const localX = clientX - rect.left
     const localY = clientY - rect.top
     let hitId: GraphId | null = null
-    let hitDist = CLIMBER_HIT_RADIUS_PX
-    for (const [id, p] of climberScreenPosRef.current) {
+    let hitDist = MACHINE_HIT_RADIUS_PX
+    for (const [id, p] of machineScreenPosRef.current) {
       const d = Math.hypot(p.sx - localX, p.sy - localY)
       if (d < hitDist) {
         hitDist = d
@@ -236,7 +341,7 @@ export function TerrainView(): ReactElement {
     const dist = Math.hypot(dx, dy)
     const elapsed = t - pointerDownRef.current.t
     if (dist < CLICK_MOVE_THRESHOLD_PX && elapsed < CLICK_MAX_MS) {
-      const hit = hitTestClimber(e.clientX, e.clientY)
+      const hit = hitTestMachine(e.clientX, e.clientY)
       // S8.9: a plain click on the mountain itself (not a marker) closes
       // the investigation panel, the same "background click clears
       // selection" NETWORK/STRATA already do.
@@ -245,37 +350,48 @@ export function TerrainView(): ReactElement {
     if (wasDragging) savePersistedCamera(cameraRef.current)
   }
 
-  // S8.8 KEYBOARD: TERRAIN's climbers are canvas-drawn, not DOM nodes, so
+  // S8.8 KEYBOARD: TERRAIN's machines are canvas-drawn, not DOM nodes, so
   // there's nothing for native Tab to land on the way NETWORK/STRATA's
   // entity <g> elements do — this container traps Tab/Arrow/Enter itself
   // while focused (containerRef.current.focus() below, on pointerdown) and
   // drives the SAME graphStore.hover/selection every other view reads.
   // Scope is the full 127-entity order (nextEntity/siblingInTier), not just
-  // this route's climbers, so cycling here is consistent with what Tab
-  // does in NETWORK/STRATA — a non-climber id simply won't render a ring
+  // this line's machines, so cycling here is consistent with what Tab
+  // does in NETWORK/STRATA — a non-machine id simply won't render a ring
   // here, the same as any hover that doesn't apply to the current view.
   function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       if (snapshot.hover) graphStore.setSelection(snapshot.hover)
       return
     }
-    const arrowDirection = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : null
+    const arrowDirection =
+      e.key === "ArrowRight" || e.key === "ArrowDown"
+        ? 1
+        : e.key === "ArrowLeft" || e.key === "ArrowUp"
+          ? -1
+          : null
     if (arrowDirection !== null) {
       e.preventDefault()
-      const next = snapshot.hover ? siblingInTier(GRAPH_DATASET, snapshot.hover, arrowDirection) : nextEntity(GRAPH_DATASET, null, arrowDirection)
+      const next = snapshot.hover
+        ? siblingInTier(getGraphDataset()!, snapshot.hover, arrowDirection)
+        : nextEntity(getGraphDataset()!, null, arrowDirection)
       if (next) graphStore.setHover(next, true)
       return
     }
-    if (e.key === 'Tab') {
+    if (e.key === "Tab") {
       e.preventDefault()
-      const next = nextEntity(GRAPH_DATASET, snapshot.hover, e.shiftKey ? -1 : 1)
+      const next = nextEntity(
+        getGraphDataset()!,
+        snapshot.hover,
+        e.shiftKey ? -1 : 1
+      )
       if (next) graphStore.setHover(next, true)
     }
   }
 
   function handlePointerLeave() {
-    if (hoveredClimberRef.current) {
-      hoveredClimberRef.current = null
+    if (hoveredMachineRef.current) {
+      hoveredMachineRef.current = null
       graphStore.setHover(null)
     }
     setHoverTooltipPos(null)
@@ -285,22 +401,28 @@ export function TerrainView(): ReactElement {
     e.preventDefault()
     markInteracted()
     const camera = cameraRef.current
-    const factor = Math.min(1.15, Math.max(0.85, 1 - e.deltaY * ZOOM_SENSITIVITY))
-    const nextScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, camera.scale * factor))
+    const factor = Math.min(
+      1.15,
+      Math.max(0.85, 1 - e.deltaY * ZOOM_SENSITIVITY)
+    )
+    const nextScale = Math.min(
+      MAX_SCALE,
+      Math.max(MIN_SCALE, camera.scale * factor)
+    )
     camera.scale = nextScale
     camera.verticalScale = nextScale * VERTICAL_SCALE_RATIO
     savePersistedCamera(camera)
   }
 
   // -- the draw loop: one rAF loop per mount, stopped/restarted whenever
-  // the route (and so the height field + climbers) changes or the canvas
-  // resizes — route switches are user-triggered and rare, so re-creating
+  // the line (and so the height field + machines) changes or the canvas
+  // resizes — line switches are user-triggered and rare, so re-creating
   // the loop is simpler than threading fresh data into a long-lived one
   // through extra refs, and costs nothing observable.
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || size.width === 0 || size.height === 0) return
-    const ctx = canvas.getContext('2d')
+    const ctx = canvas.getContext("2d")
     if (!ctx) return
 
     const dpr = window.devicePixelRatio || 1
@@ -317,7 +439,7 @@ export function TerrainView(): ReactElement {
     const bucketCounts = new Int32Array(BUCKET_COUNT)
     const bucketOffsets = new Int32Array(BUCKET_COUNT)
     const cursor = new Int32Array(BUCKET_COUNT)
-    const noiseSeed = noiseSeedForRoute(routeProfile.routeId)
+    const noiseSeed = noiseSeedForLine(lineProfile.lineId)
 
     let lastFrameT: number | null = null
 
@@ -330,18 +452,28 @@ export function TerrainView(): ReactElement {
       if (!draggingRef.current) {
         if (!hasInteractedRef.current && !reduced) {
           camera.azimuthRad += ((2 * Math.PI) / AUTO_ROTATE_PERIOD_MS) * dt
-        } else if (velocityRef.current.azimuth !== 0 || velocityRef.current.elevation !== 0 || camera.elevationDeg !== clampElevation(camera.elevationDeg)) {
+        } else if (
+          velocityRef.current.azimuth !== 0 ||
+          velocityRef.current.elevation !== 0 ||
+          camera.elevationDeg !== clampElevation(camera.elevationDeg)
+        ) {
           const decay = Math.exp(-MOMENTUM_DECAY_PER_MS * dt)
           velocityRef.current.azimuth *= decay
           velocityRef.current.elevation *= decay
-          if (Math.abs(velocityRef.current.azimuth) < 1e-5) velocityRef.current.azimuth = 0
-          if (Math.abs(velocityRef.current.elevation) < 1e-5) velocityRef.current.elevation = 0
+          if (Math.abs(velocityRef.current.azimuth) < 1e-5)
+            velocityRef.current.azimuth = 0
+          if (Math.abs(velocityRef.current.elevation) < 1e-5)
+            velocityRef.current.elevation = 0
 
           camera.azimuthRad += velocityRef.current.azimuth * dt
-          const dragged = camera.elevationDeg + velocityRef.current.elevation * dt
+          const dragged =
+            camera.elevationDeg + velocityRef.current.elevation * dt
           const clamped = clampElevation(dragged)
           // spring back toward the hard limit once released past it, rather than snapping instantly
-          camera.elevationDeg = velocityRef.current.elevation !== 0 ? rubberBandElevation(dragged) : dragged + (clamped - dragged) * Math.min(1, dt / 180)
+          camera.elevationDeg =
+            velocityRef.current.elevation !== 0
+              ? rubberBandElevation(dragged)
+              : dragged + (clamped - dragged) * Math.min(1, dt / 180)
         }
       }
 
@@ -359,7 +491,7 @@ export function TerrainView(): ReactElement {
       let boxMaxSx = -Infinity
       let boxMinSy = Infinity
       let boxMaxSy = -Infinity
-      const reliefM = routeProfile.exitAltitudeM - routeProfile.entryAltitudeM
+      const reliefM = lineProfile.exitLoadM - lineProfile.entryLoadM
       for (const bx of [0, WORLD_LENGTH_UNITS]) {
         for (const bz of [-WORLD_HALF_WIDTH_UNITS, WORLD_HALF_WIDTH_UNITS]) {
           for (const by of [0, reliefM]) {
@@ -372,16 +504,21 @@ export function TerrainView(): ReactElement {
         }
       }
       const cx = size.width / 2 - (boxMinSx + boxMaxSx) / 2
-      const cy = size.height / 2 - (boxMinSy + boxMaxSy) / 2 + size.height * 0.06
+      const cy =
+        size.height / 2 - (boxMinSy + boxMaxSy) / 2 + size.height * 0.06
 
-      const [depthMin, depthMax] = depthRangeForWorld(camera, WORLD_LENGTH_UNITS, WORLD_HALF_WIDTH_UNITS)
+      const [depthMin, depthMax] = depthRangeForWorld(
+        camera,
+        WORLD_LENGTH_UNITS,
+        WORLD_HALF_WIDTH_UNITS
+      )
       const depthSpan = Math.max(1e-6, depthMax - depthMin)
 
       // Inlines terrainCamera.ts's projectPoint()/depthKey() formula rather
       // than calling them per point — cosA/sinA/elevation factors only need
       // computing ONCE per frame, not 15,000 times. The pure per-call
       // versions in terrainCamera.ts remain the source of truth (used below
-      // for the handful of climber markers, and by the unit tests); this is
+      // for the handful of machine markers, and by the unit tests); this is
       // the same "same maths, hand-inlined for the hot loop" trade
       // NetworkCanvasLayer already made for its own per-frame draw.
       const cosA = Math.cos(camera.azimuthRad)
@@ -390,11 +527,11 @@ export function TerrainView(): ReactElement {
       const depthFactor = Math.sin(elevRad)
       const heightFactor = Math.cos(elevRad)
 
-      // Projected relative to the route's own base (entry altitude), not
-      // sea level — a route entering at 3,583m would otherwise carry that
+      // Projected relative to the line's own base (entry load), not
+      // sea level — a line entering at 3,583m would otherwise carry that
       // whole offset into screenY and push the mountain off-canvas; only
       // the RELIEF (a few hundred to a few thousand metres) needs to show.
-      const baseAltitudeM = routeProfile.entryAltitudeM
+      const baseLoadM = lineProfile.entryLoadM
       const xs = heightField.x
       const ys = heightField.y
       const zs = heightField.z
@@ -403,7 +540,10 @@ export function TerrainView(): ReactElement {
         const xr = xs[i] * cosA - zs[i] * sinA
         const zr = xs[i] * sinA + zs[i] * cosA
         sxArr[i] = (xr - zr) * ISO_COS30 * camera.scale + cx
-        syArr[i] = (xr + zr) * ISO_SIN30 * camera.scale * depthFactor - (ys[i] - baseAltitudeM) * camera.verticalScale * heightFactor + cy
+        syArr[i] =
+          (xr + zr) * ISO_SIN30 * camera.scale * depthFactor -
+          (ys[i] - baseLoadM) * camera.verticalScale * heightFactor +
+          cy
 
         const depth = xr + zr
         let bucket = Math.floor(((depth - depthMin) / depthSpan) * BUCKET_COUNT)
@@ -432,7 +572,10 @@ export function TerrainView(): ReactElement {
           ctx.fillStyle = ANOMALY_RED
           ctx.globalAlpha = 0.55 + brightness[i] * 0.45
         } else {
-          const idx = Math.min(GREY_LEVELS - 1, Math.floor(brightness[i] * GREY_LEVELS))
+          const idx = Math.min(
+            GREY_LEVELS - 1,
+            Math.floor(brightness[i] * GREY_LEVELS)
+          )
           ctx.fillStyle = GREY_PALETTE[idx]
           ctx.globalAlpha = 0.45 + brightness[i] * 0.55
         }
@@ -441,29 +584,39 @@ export function TerrainView(): ReactElement {
       }
       ctx.globalAlpha = 1
 
-      // -- climbers, drawn on top --------------------------------------
+      // -- machines, drawn on top --------------------------------------
       const storeSnapshot = graphStore.getSnapshot()
       const selection = storeSnapshot.selection
       const hoveredId = storeSnapshot.hover
       const showLabels = camera.scale >= ZOOM_LABEL_THRESHOLD
-      for (const p of visibleClimbers) {
-        const entity = CLIMBER_BY_ID.get(p.climberId)
+      for (const p of visibleMachines) {
+        const entity = MACHINE_BY_ID().get(p.machineId)
         if (!entity) continue
-        const isHovered = hoveredId === p.climberId
+        const isHovered = hoveredId === p.machineId
         const isKeyboardFocus = isHovered && storeSnapshot.keyboardActive
-        const dimmed = searchMatches !== null && !searchMatches.has(p.climberId)
-        const color = entity.status === 'anomaly' ? ANOMALY_RED : p.watch ? WATCH_AMBER : CLIMBER_WHITE
+        const dimmed = searchMatches !== null && !searchMatches.has(p.machineId)
+        const color =
+          entity.status === "anomaly"
+            ? ANOMALY_RED
+            : p.watch
+              ? WATCH_AMBER
+              : MACHINE_WHITE
         const markerAlpha = dimmed ? 0.25 : 1
         const radius = isHovered ? 4.8 : 3
         const wx = toWorldX(p.progress)
         const wz = toWorldZ(p.lateral)
-        const marker = projectPoint(wx, p.altitudeM - baseAltitudeM, wz, camera)
+        const marker = projectPoint(wx, p.loadM - baseLoadM, wz, camera)
         const sx = marker.sx + cx
         const sy = marker.sy + cy
-        climberScreenPosRef.current.set(p.climberId, { sx, sy })
+        machineScreenPosRef.current.set(p.machineId, { sx, sy })
 
-        const surfaceY = surfaceHeightAt(routeProfile, p.progress, p.lateral, noiseSeed)
-        const drop = projectPoint(wx, surfaceY - baseAltitudeM, wz, camera)
+        const surfaceY = surfaceHeightAt(
+          lineProfile,
+          p.progress,
+          p.lateral,
+          noiseSeed
+        )
+        const drop = projectPoint(wx, surfaceY - baseLoadM, wz, camera)
         ctx.globalAlpha = 0.3 * markerAlpha
         ctx.strokeStyle = color
         ctx.lineWidth = 1
@@ -475,7 +628,12 @@ export function TerrainView(): ReactElement {
         ctx.globalAlpha = 0.4 * markerAlpha
         ctx.beginPath()
         p.trail.forEach((t, idx) => {
-          const proj = projectPoint(toWorldX(t.progress), t.altitudeM - baseAltitudeM, toWorldZ(t.lateral), camera)
+          const proj = projectPoint(
+            toWorldX(t.progress),
+            t.loadM - baseLoadM,
+            toWorldZ(t.lateral),
+            camera
+          )
           const px = proj.sx + cx
           const py = proj.sy + cy
           if (idx === 0) ctx.moveTo(px, py)
@@ -490,8 +648,8 @@ export function TerrainView(): ReactElement {
         ctx.arc(sx, sy, radius, 0, Math.PI * 2)
         ctx.fill()
 
-        if (selection === p.climberId) {
-          ctx.strokeStyle = CLIMBER_WHITE
+        if (selection === p.machineId) {
+          ctx.strokeStyle = MACHINE_WHITE
           ctx.lineWidth = 1.5
           ctx.beginPath()
           ctx.arc(sx, sy, radius + 4, 0, Math.PI * 2)
@@ -508,7 +666,7 @@ export function TerrainView(): ReactElement {
         if (showLabels || isHovered) {
           ctx.globalAlpha = 1
           ctx.fillStyle = TEXT_SECONDARY
-          ctx.font = '9px ui-monospace, SFMono-Regular, Menlo, monospace'
+          ctx.font = "9px ui-monospace, SFMono-Regular, Menlo, monospace"
           ctx.fillText(p.serial, sx + radius + 3, sy - 6)
         }
       }
@@ -518,7 +676,15 @@ export function TerrainView(): ReactElement {
     const loop = createRafLoop(frame)
     loop.start()
     return () => loop.stop()
-  }, [heightField, visibleClimbers, searchMatches, routeProfile, size.width, size.height, reduced])
+  }, [
+    heightField,
+    visibleMachines,
+    searchMatches,
+    lineProfile,
+    size.width,
+    size.height,
+    reduced,
+  ])
 
   return (
     <div
@@ -531,8 +697,8 @@ export function TerrainView(): ReactElement {
       {size.width > 0 && size.height > 0 && (
         <canvas
           ref={canvasRef}
-          className="absolute left-0 top-0 cursor-grab active:cursor-grabbing"
-          style={{ touchAction: 'none' }}
+          className="absolute top-0 left-0 cursor-grab active:cursor-grabbing"
+          style={{ touchAction: "none" }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -543,61 +709,98 @@ export function TerrainView(): ReactElement {
 
       {hoverTooltipPos && snapshot.hover && (
         <EntityTooltip
-          info={TOOLTIP_INDEX.get(snapshot.hover) ?? null}
+          info={TOOLTIP_INDEX().get(snapshot.hover) ?? null}
           x={hoverTooltipPos.x}
           y={hoverTooltipPos.y}
-          watch={CLIMBER_PLACEMENTS.get(snapshot.hover)?.watch ?? false}
+          watch={MACHINE_PLACEMENTS().get(snapshot.hover)?.watch ?? false}
         />
       )}
 
-      <div className="pointer-events-none absolute left-3 top-3 font-mono" style={{ fontSize: 10, color: TEXT_DIM, lineHeight: 1.6 }}>
+      <div
+        className="pointer-events-none absolute top-3 left-3 font-mono"
+        style={{ fontSize: 10, color: TEXT_DIM, lineHeight: 1.6 }}
+      >
         <select
-          value={routeProfile.routeId}
-          onChange={(e) => setSelectedRouteId(e.target.value)}
+          value={lineProfile.lineId}
+          onChange={(e) => setSelectedLineId(e.target.value)}
           className="pointer-events-auto"
-          style={{ background: 'transparent', color: TEXT_SECONDARY, border: 'none', fontSize: 11, letterSpacing: '0.05em', padding: 0, fontFamily: 'inherit' }}
+          style={{
+            background: "transparent",
+            color: TEXT_SECONDARY,
+            border: "none",
+            fontSize: 11,
+            letterSpacing: "0.05em",
+            padding: 0,
+            fontFamily: "inherit",
+          }}
         >
-          {ROUTE_LIST.map((r) => (
-            <option key={r.id} value={r.id} style={{ background: PANEL, color: TEXT_PRIMARY }}>
+          {LINE_LIST().map((r) => (
+            <option
+              key={r.id}
+              value={r.id}
+              style={{ background: PANEL, color: TEXT_PRIMARY }}
+            >
               {r.label.toUpperCase()}
             </option>
           ))}
         </select>
-        <div>{routeProfile.countryLabel}</div>
+        <div>{lineProfile.countryLabel}</div>
         <div>
-          ENTRY {routeProfile.entryAltitudeM}m · CRUX {routeProfile.cruxAltitudeM}m · EXIT {routeProfile.exitAltitudeM}m
+          ENTRY {lineProfile.entryLoadM}m · CRUX {lineProfile.cruxLoadM}m · EXIT{" "}
+          {lineProfile.exitLoadM}m
         </div>
-        <div>{routeProfile.lengthKm}km</div>
+        <div>{lineProfile.lengthKm}km</div>
       </div>
 
-      <div className="pointer-events-none absolute right-3 top-3 text-right font-mono" style={{ fontSize: 10, color: TEXT_DIM, lineHeight: 1.6 }}>
-        <div style={{ color: TEXT_SECONDARY, letterSpacing: '0.05em' }}>CONDITIONS</div>
-        <div>WIND {conditions.windKph}kph</div>
+      <div
+        className="pointer-events-none absolute top-3 right-3 text-right font-mono"
+        style={{ fontSize: 10, color: TEXT_DIM, lineHeight: 1.6 }}
+      >
+        <div style={{ color: TEXT_SECONDARY, letterSpacing: "0.05em" }}>
+          CONDITIONS
+        </div>
+        <div>WIND {conditions.vibrationMmS}kph</div>
         <div>TEMP {conditions.tempC}°C</div>
-        <div>VIS {conditions.visibilityKm}km</div>
-        <div>FREEZING {conditions.freezingLevelM}m</div>
+        <div>VIS {conditions.oeePct}km</div>
+        <div>FREEZING {conditions.cycleTimeS}m</div>
       </div>
 
-      <div className="pointer-events-none absolute bottom-3 left-3 font-mono" style={{ fontSize: 10, color: TEXT_DIM, lineHeight: 1.6 }}>
-        <div style={{ color: TEXT_SECONDARY, letterSpacing: '0.05em' }}>
-          CLIMBERS ON ROUTE — {summary.totalOnRoute}
-          {summary.anomalyCount > 0 ? ` · ${summary.anomalyCount} IN ANOMALY` : ''}
+      <div
+        className="pointer-events-none absolute bottom-3 left-3 font-mono"
+        style={{ fontSize: 10, color: TEXT_DIM, lineHeight: 1.6 }}
+      >
+        <div style={{ color: TEXT_SECONDARY, letterSpacing: "0.05em" }}>
+          MACHINES ON LINE — {summary.totalOnLine}
+          {summary.anomalyCount > 0
+            ? ` · ${summary.anomalyCount} IN ANOMALY`
+            : ""}
         </div>
-        {CAMPS.filter((c) => summary.byCamp.find((s) => s.camp === c.label && s.count > 0)).map((c) => (
+        {STATIONS.filter((c) =>
+          summary.byStation.find((s) => s.station === c.label && s.count > 0)
+        ).map((c) => (
           <div key={c.label}>
-            {c.label} — {summary.byCamp.find((s) => s.camp === c.label)?.count}
+            {c.label} —{" "}
+            {summary.byStation.find((s) => s.station === c.label)?.count}
           </div>
         ))}
       </div>
 
-      <div className="pointer-events-none absolute bottom-3 right-3 text-right font-mono" style={{ fontSize: 10, color: TEXT_DIM, lineHeight: 1.6 }}>
-        <div style={{ color: TEXT_SECONDARY, letterSpacing: '0.05em' }}>ISO 30° PROJECTION</div>
+      <div
+        className="pointer-events-none absolute right-3 bottom-3 text-right font-mono"
+        style={{ fontSize: 10, color: TEXT_DIM, lineHeight: 1.6 }}
+      >
+        <div style={{ color: TEXT_SECONDARY, letterSpacing: "0.05em" }}>
+          ISO 30° PROJECTION
+        </div>
         <div>{heightField.count.toLocaleString()} PTS</div>
         <div>~{densityPerKm2.toLocaleString()} PTS/KM²</div>
       </div>
 
       {!hasInteracted && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-8 text-center font-mono" style={{ fontSize: 10, color: TEXT_DIM, letterSpacing: '0.05em' }}>
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-8 text-center font-mono"
+          style={{ fontSize: 10, color: TEXT_DIM, letterSpacing: "0.05em" }}
+        >
           DRAG TO ROTATE · SCROLL TO ZOOM · SHIFT-DRAG TO TILT
         </div>
       )}

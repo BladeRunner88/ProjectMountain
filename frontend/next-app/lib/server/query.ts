@@ -12,7 +12,7 @@ import type { SearchResult } from "@/features/search/types/search"
 import { createQueryClient } from "@/lib/query-client"
 
 /**
- * Server-side data access for the two backend-backed routes (`/app/search`,
+ * Server-side data access for the two backend-backed lines (`/app/search`,
  * `/app/graph`).
  *
  * This module is deliberately independent of `lib/axios.ts`: that client is
@@ -52,8 +52,8 @@ function unwrapEnvelope(body: unknown): unknown {
 
 async function fetchJson(path: string): Promise<unknown> {
   const response = await fetch(`${getServerApiBaseUrl()}${path}`, {
-    // Never let a build-time or route-level cache freeze backend data into the
-    // prerendered payload: these routes must fetch per request.
+    // Never let a build-time or line-level cache freeze backend data into the
+    // prerendered payload: these lines must fetch per request.
     cache: "no-store",
     headers: { Accept: "application/json" },
     signal: AbortSignal.timeout(SERVER_FETCH_TIMEOUT_MS),
@@ -181,7 +181,7 @@ export function createServerQueryClient(): QueryClient {
 }
 
 /**
- * Warm the graph route with the detail for `focusId` when the URL deep-links to
+ * Warm the graph line with the detail for `focusId` when the URL deep-links to
  * a node — that is the one panel rendered immediately, by `SidePanel`.
  *
  * Deliberately NOT the graph itself. `/graph` returns ~18k objects and ~44k

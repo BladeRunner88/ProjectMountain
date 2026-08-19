@@ -61,7 +61,7 @@ function messageFromBody(body: unknown, fallback: string): string {
 }
 
 /**
- * Same-origin base path. Requests go to this app's Route Handlers under
+ * Same-origin base path. Requests go to this app's Line Handlers under
  * `/api/*`, which proxy to FastAPI server-side — the backend origin is never
  * exposed to the browser.
  */

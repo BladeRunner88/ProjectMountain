@@ -4,8 +4,8 @@
 // bezier filaments and branch colour against 8.2's flat placeholder ring
 // would satisfy none of 8.5's own acceptance line ("the two read as the
 // same kind of object"), so this file exists to fill that gap: a genuine
-// radial hierarchy (country -> region -> route -> operator/sensor ->
-// climber), the same proven technique src/components/demo/graph/layout.ts
+// radial hierarchy (country -> plant -> line -> operator/sensor ->
+// machine), the same proven technique src/components/demo/graph/layout.ts
 // already used for the old 113-entity graph, extended one tier further so
 // every entity's own sub-nodes fan outward from it as a terminal spray —
 // which is what actually produces the "dendritic... thousands of terminal
@@ -18,10 +18,10 @@
 // withLayoutSafety's own (dataset, size) memoisation, which only has to do
 // cheap polar-to-cartesian conversion on every resize.
 
-import { withLayoutSafety, type LayoutFn } from './layoutSafety'
-import { mulberry32, seedFromString } from './rng'
-import type { DomainDataset, DomainEntity, EntityTier } from '../types/domain'
-import type { GraphId, Point, Size } from '../types/graph'
+import { withLayoutSafety, type LayoutFn } from "./layoutSafety"
+import { mulberry32, seedFromString } from "./rng"
+import type { DomainDataset, DomainEntity, EntityTier } from "../types/domain"
+import type { GraphId, Point, Size } from "../types/graph"
 
 interface Polar {
   angleRad: number
@@ -30,11 +30,10 @@ interface Polar {
 
 const TIER_RADIUS_FRAC: Record<EntityTier, number> = {
   country: 0.08,
-  region: 0.2,
-  route: 0.32,
-  operator: 0.44,
-  climber: 0.56,
-  sensor: 0.56,
+  plant: 0.2,
+  line: 0.32,
+  machine: 0.46,
+  sensor: 0.58,
 }
 
 const SUBNODE_EXTENSION_MIN_FRAC = 0.06
@@ -50,7 +49,9 @@ function degToRad(deg: number): number {
 let cachedVersion: number | null = null
 let cachedPolar: ReadonlyMap<GraphId, Polar> | null = null
 
-function buildPolarPositions(dataset: DomainDataset): ReadonlyMap<GraphId, Polar> {
+function buildPolarPositions(
+  dataset: DomainDataset
+): ReadonlyMap<GraphId, Polar> {
   if (cachedVersion === dataset.version && cachedPolar) return cachedPolar
 
   const polar = new Map<GraphId, Polar>()
@@ -70,15 +71,18 @@ function buildPolarPositions(dataset: DomainDataset): ReadonlyMap<GraphId, Polar
   function assignWedge(entity: DomainEntity, startDeg: number, endDeg: number) {
     const centerDeg = (startDeg + endDeg) / 2
     const angleDeg = centerDeg + angleJitterDeg(entity.id, endDeg - startDeg)
-    polar.set(entity.id, { angleRad: degToRad(angleDeg), radiusFrac: TIER_RADIUS_FRAC[entity.tier] })
+    polar.set(entity.id, {
+      angleRad: degToRad(angleDeg),
+      radiusFrac: TIER_RADIUS_FRAC[entity.tier],
+    })
 
     const children = childrenOf.get(entity.id)
     if (!children || children.length === 0) return
 
-    // region -> route is always exactly 1:1 in this dataset (S8.3) — a
+    // plant -> line is always exactly 1:1 in this dataset (S8.3) — a
     // pass-through that inherits the full wedge rather than narrowing it,
     // since there's nothing to actually split among siblings.
-    if (entity.tier === 'region') {
+    if (entity.tier === "plant") {
       for (const child of children) assignWedge(child, startDeg, endDeg)
       return
     }
@@ -92,7 +96,7 @@ function buildPolarPositions(dataset: DomainDataset): ReadonlyMap<GraphId, Polar
     })
   }
 
-  const countries = dataset.domainEntities.filter((e) => e.tier === 'country')
+  const countries = dataset.domainEntities.filter((e) => e.tier === "country")
   const countryWedge = 360 / countries.length
   countries.forEach((country, i) => {
     const center = i * countryWedge
@@ -115,7 +119,9 @@ function buildPolarPositions(dataset: DomainDataset): ReadonlyMap<GraphId, Polar
     subs.forEach((sub) => {
       const rand = mulberry32(seedFromString(sub.id, 77))
       const angleOffsetRad = (rand() - 0.5) * degToRad(SUBNODE_ANGLE_SPREAD_DEG)
-      const extension = SUBNODE_EXTENSION_MIN_FRAC + rand() * (SUBNODE_EXTENSION_MAX_FRAC - SUBNODE_EXTENSION_MIN_FRAC)
+      const extension =
+        SUBNODE_EXTENSION_MIN_FRAC +
+        rand() * (SUBNODE_EXTENSION_MAX_FRAC - SUBNODE_EXTENSION_MIN_FRAC)
       polar.set(sub.id, {
         angleRad: parentPolar.angleRad + angleOffsetRad,
         radiusFrac: Math.min(0.96, parentPolar.radiusFrac + extension),
@@ -128,14 +134,17 @@ function buildPolarPositions(dataset: DomainDataset): ReadonlyMap<GraphId, Polar
   return polar
 }
 
-// S8.4b: "offset from its region at 90° to the branch axis, radius +90px,
+// S8.4b: "offset from its plant at 90° to the branch axis, radius +90px,
 // so it visibly branches SIDEWAYS rather than continuing outward." A local
-// Cartesian offset from the region's own resolved position — NOT a second
+// Cartesian offset from the plant's own resolved position — NOT a second
 // point on the same polar circle — is what keeps it visually anchored
-// beside its region instead of landing who-knows-where around the ring.
+// beside its plant instead of landing who-knows-where around the ring.
 const ENVIRONMENT_OFFSET_PX = 90
 
-function computeNetworkPositions(dataset: DomainDataset, size: Size): ReadonlyMap<GraphId, Point> {
+function computeNetworkPositions(
+  dataset: DomainDataset,
+  size: Size
+): ReadonlyMap<GraphId, Point> {
   const polar = buildPolarPositions(dataset)
   const cx = size.width / 2
   const cy = size.height / 2
@@ -143,24 +152,30 @@ function computeNetworkPositions(dataset: DomainDataset, size: Size): ReadonlyMa
   const map = new Map<GraphId, Point>()
   for (const [id, p] of polar) {
     const r = p.radiusFrac * halfMin
-    map.set(id, { x: cx + r * Math.cos(p.angleRad), y: cy + r * Math.sin(p.angleRad) })
+    map.set(id, {
+      x: cx + r * Math.cos(p.angleRad),
+      y: cy + r * Math.sin(p.angleRad),
+    })
   }
 
   for (const env of dataset.environmentNodes) {
-    const regionPolar = polar.get(env.regionId)
-    const regionPos = map.get(env.regionId)
-    if (!regionPolar || !regionPos) continue
-    const perpAngle = regionPolar.angleRad + Math.PI / 2
+    const plantPolar = polar.get(env.plantId)
+    const plantPos = map.get(env.plantId)
+    if (!plantPolar || !plantPos) continue
+    const perpAngle = plantPolar.angleRad + Math.PI / 2
     map.set(env.id, {
-      x: regionPos.x + ENVIRONMENT_OFFSET_PX * Math.cos(perpAngle),
-      y: regionPos.y + ENVIRONMENT_OFFSET_PX * Math.sin(perpAngle),
+      x: plantPos.x + ENVIRONMENT_OFFSET_PX * Math.cos(perpAngle),
+      y: plantPos.y + ENVIRONMENT_OFFSET_PX * Math.sin(perpAngle),
     })
   }
 
   return map
 }
 
-export const networkLayout: LayoutFn<DomainDataset> = withLayoutSafety(computeNetworkPositions, 'networkLayout')
+export const networkLayout: LayoutFn<DomainDataset> = withLayoutSafety(
+  computeNetworkPositions,
+  "networkLayout"
+)
 
 /** Test-only: clears the polar-position cache so successive tests with different datasets don't see a stale tree. */
 export function resetNetworkLayoutCache(): void {

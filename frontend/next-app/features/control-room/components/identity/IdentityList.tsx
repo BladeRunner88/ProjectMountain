@@ -31,7 +31,7 @@ import type { IdentityRecord } from '@/features/ase/services/identityRecord'
 import type { TracedValue } from '@/features/ase/services/traced'
 import { compareValues, computeVisibleRange, focusRingStyle, useFocusRing } from '@/features/control-room'
 
-type SortColumn = 'status' | 'serial' | 'name' | 'operator' | 'route' | 'camp' | 'confidence' | 'updated'
+type SortColumn = 'status' | 'serial' | 'name' | 'operator' | 'line' | 'station' | 'confidence' | 'updated'
 type SortDirection = 'asc' | 'desc'
 type StateFilter = 'all' | 'anomaly' | 'watch' | 'awaiting-review'
 
@@ -44,10 +44,10 @@ interface ListRow {
   name: string
   operatorTv: TracedValue<string>
   operator: string
-  routeTv: TracedValue<string>
-  route: string
-  campTv: TracedValue<string>
-  camp: string
+  lineTv: TracedValue<string>
+  line: string
+  stationTv: TracedValue<string>
+  station: string
   confidenceTv: TracedValue<number>
   confidencePct: number
   updatedTv: IdentityRecord['responder']['lastKnownPosition']
@@ -70,12 +70,12 @@ export function IdentityList({
   onSelectPerson,
 }: {
   dataset: Dataset
-  onSelectPerson: (climberId: string) => void
+  onSelectPerson: (machineId: string) => void
 }): ReactElement {
   const [search, setSearch] = useState('')
   const [stateFilter, setStateFilter] = useState<StateFilter>('all')
   const [operatorFilter, setOperatorFilter] = useState('')
-  const [routeFilter, setRouteFilter] = useState('')
+  const [lineFilter, setLineFilter] = useState('')
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const { focused: searchFocused, handlers: searchHandlers } = useFocusRing()
@@ -96,10 +96,10 @@ export function IdentityList({
         name: record.who.fullLegalName.value,
         operatorTv: record.contacts.operatorName,
         operator: record.contacts.operatorName.value,
-        routeTv: card.routeName,
-        route: card.routeName.value,
-        campTv: card.footer.camp,
-        camp: card.footer.camp.value,
+        lineTv: card.lineName,
+        line: card.lineName.value,
+        stationTv: card.footer.station,
+        station: card.footer.station.value,
         confidenceTv: card.confidencePct,
         confidencePct: record.derived.identityConfidencePct,
         updatedTv: record.responder.lastKnownPosition,
@@ -111,7 +111,7 @@ export function IdentityList({
   }, [dataset])
 
   const operators = useMemo(() => Array.from(new Set(rows.map((r) => r.operator))).sort(), [rows])
-  const routes = useMemo(() => Array.from(new Set(rows.map((r) => r.route))).sort(), [rows])
+  const lines = useMemo(() => Array.from(new Set(rows.map((r) => r.line))).sort(), [rows])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -121,10 +121,10 @@ export function IdentityList({
       if (stateFilter === 'watch' && r.status !== 'watch') return false
       if (stateFilter === 'awaiting-review' && !r.awaitingReview) return false
       if (operatorFilter && r.operator !== operatorFilter) return false
-      if (routeFilter && r.route !== routeFilter) return false
+      if (lineFilter && r.line !== lineFilter) return false
       return true
     })
-  }, [rows, search, stateFilter, operatorFilter, routeFilter])
+  }, [rows, search, stateFilter, operatorFilter, lineFilter])
 
   const sorted = useMemo(() => {
     const copy = [...filtered]
@@ -143,10 +143,10 @@ export function IdentityList({
           return compareValues(a.name, b.name) * dir
         case 'operator':
           return compareValues(a.operator, b.operator) * dir
-        case 'route':
-          return compareValues(a.route, b.route) * dir
-        case 'camp':
-          return compareValues(a.camp, b.camp) * dir
+        case 'line':
+          return compareValues(a.line, b.line) * dir
+        case 'station':
+          return compareValues(a.station, b.station) * dir
         case 'confidence':
           return (a.confidencePct - b.confidencePct) * dir
         case 'updated':
@@ -201,9 +201,9 @@ export function IdentityList({
           />
         ))}
         {operatorFilter ? <RemovableChip label={`Operator: ${operatorFilter}`} onRemove={() => setOperatorFilter('')} /> : null}
-        {routeFilter ? <RemovableChip label={`Route: ${routeFilter}`} onRemove={() => setRouteFilter('')} /> : null}
+        {lineFilter ? <RemovableChip label={`Line: ${lineFilter}`} onRemove={() => setLineFilter('')} /> : null}
         <FilterSelect label="By operator" value={operatorFilter} options={operators} onChange={setOperatorFilter} />
-        <FilterSelect label="By route" value={routeFilter} options={routes} onChange={setRouteFilter} />
+        <FilterSelect label="By line" value={lineFilter} options={lines} onChange={setLineFilter} />
       </div>
 
       <div style={{ marginTop: SPACE_16 }}>
@@ -311,8 +311,8 @@ const COLUMNS: { id: SortColumn; label: string; flex: number }[] = [
   { id: 'serial', label: 'Serial', flex: 1 },
   { id: 'name', label: 'Name', flex: 2 },
   { id: 'operator', label: 'Operator', flex: 1.6 },
-  { id: 'route', label: 'Route', flex: 1.6 },
-  { id: 'camp', label: 'Camp', flex: 1.2 },
+  { id: 'line', label: 'Line', flex: 1.6 },
+  { id: 'station', label: 'Station', flex: 1.2 },
   { id: 'confidence', label: 'Confidence', flex: 1 },
   { id: 'updated', label: 'Updated', flex: 1 },
 ]
@@ -471,10 +471,10 @@ function Row({ row, top, onSelect }: { row: ListRow; top: number; onSelect: () =
         <Metric traced={row.operatorTv} label={`${row.name}'s operator`} />
       </span>
       <span style={{ flex: 1.6, color: TEXT_SECONDARY }}>
-        <Metric traced={row.routeTv} label={`${row.name}'s route`} />
+        <Metric traced={row.lineTv} label={`${row.name}'s line`} />
       </span>
       <span style={{ flex: 1.2, color: TEXT_SECONDARY }}>
-        <Metric traced={row.campTv} label={`${row.name}'s camp`} />
+        <Metric traced={row.stationTv} label={`${row.name}'s station`} />
       </span>
       <span className="font-mono" style={{ flex: 1 }}>
         <Metric traced={row.confidenceTv} label={`${row.name}'s identity confidence`} format={(v) => `${v}%`} />

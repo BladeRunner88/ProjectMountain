@@ -1,10 +1,10 @@
 // S8.8: one shared "serial" generator, reused everywhere an entity needs a
 // short deterministic identifier tag — the hover tooltip (NETWORK/STRATA),
-// TERRAIN's climber labels (S8.7, refactored here so both call sites can
+// TERRAIN's machine labels (S8.7, refactored here so both call sites can
 // never disagree about a given id's serial), and search matching.
 
-import { seedFromString } from './rng'
-import type { GraphId } from '../types/graph'
+import { seedFromString } from "./rng"
+import type { GraphId } from "../types/graph"
 
 export function serialFor(id: GraphId): string {
   return `•••${1000 + ((seedFromString(id, 9001) >>> 0) % 9000)}`

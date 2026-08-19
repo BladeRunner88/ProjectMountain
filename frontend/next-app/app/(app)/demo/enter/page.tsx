@@ -5,7 +5,7 @@ import { DemoEnter } from "@/features/demo/components/DemoEnter"
 
 export const metadata: Metadata = {
   title: "Demo — Isildur",
-  description: "Enter the ASE expedition demo.",
+  description: "Enter the ASE campaign demo.",
 }
 
 export default function DemoEnterPage(): ReactElement {

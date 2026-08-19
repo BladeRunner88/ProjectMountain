@@ -1,6 +1,6 @@
 export type {
-  Climber,
-  ClimberVitals,
+  Machine,
+  MachineReadings,
   Company,
   Country,
   Environment,
@@ -8,11 +8,11 @@ export type {
   Finding,
   GraphSelection,
   NodeStatus,
-  Region,
+  Plant,
   SourceId,
 } from './types'
 
-export { climbers, companies, countries, environments, regions } from './services/dataset'
+export { machines, companies, countries, environments, plants } from './services/dataset'
 export {
   GraphSimulationProvider,
   useGraphSimulationContext,

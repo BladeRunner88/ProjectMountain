@@ -73,7 +73,7 @@ function asAccessForm(values: Partial<AccessFormValues>): AccessFormValues {
     addressLine1: values.addressLine1 ?? ACCESS_FORM_DEFAULTS.addressLine1,
     addressLine2: values.addressLine2 ?? ACCESS_FORM_DEFAULTS.addressLine2,
     city: values.city ?? ACCESS_FORM_DEFAULTS.city,
-    stateRegion: values.stateRegion ?? ACCESS_FORM_DEFAULTS.stateRegion,
+    statePlant: values.statePlant ?? ACCESS_FORM_DEFAULTS.statePlant,
     postalCode: values.postalCode ?? ACCESS_FORM_DEFAULTS.postalCode,
     businessDescription:
       values.businessDescription ?? ACCESS_FORM_DEFAULTS.businessDescription,

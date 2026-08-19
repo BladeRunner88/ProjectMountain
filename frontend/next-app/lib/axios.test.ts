@@ -82,7 +82,7 @@ describe("ApiError", () => {
 })
 
 describe("getApiBaseUrl", () => {
-  it("is the same-origin Route Handler path", () => {
+  it("is the same-origin Line Handler path", () => {
     expect(getApiBaseUrl()).toBe(API_BASE_PATH)
     expect(getApiBaseUrl()).toBe("/api")
   })

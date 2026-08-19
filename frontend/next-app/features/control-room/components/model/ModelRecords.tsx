@@ -24,10 +24,10 @@ import { EvidenceTable, type EvidenceRow, useFocusRing, focusRingStyle } from '@
 
 const KIND_LABEL: Record<ThingKind, string> = {
   country: 'Country',
-  region: 'Region',
-  route: 'Route',
+  plant: 'Plant',
+  line: 'Line',
   operator: 'Operator',
-  climber: 'Climber',
+  machine: 'Machine',
   sensor: 'Sensor',
 }
 

@@ -78,7 +78,7 @@ describe('resolveRangeMerge', () => {
     clearRegistry()
     const a = observed(sourceA, 'pressure', 862, sourceReliability(0.9))
     const b = observed(sourceB, 'pressure', 871, sourceReliability(0.9))
-    const fn = conflictFnSlug('route', 'pressure')
+    const fn = conflictFnSlug('line', 'pressure')
     expect(resolveRangeMerge(a, b, fn).value).toEqual({ min: 862, max: 871 })
     expect(resolveRangeMerge(b, a, fn).value).toEqual({ min: 862, max: 871 })
   })

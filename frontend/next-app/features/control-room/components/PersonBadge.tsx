@@ -10,19 +10,19 @@ import { useFocusRing } from '../hooks/useFocusRing'
 import { focusRingStyle } from '../services/focusRing'
 
 export interface PersonBadgeProps {
-  climberId: string
+  machineId: string
   name: string
   serial: string
 }
 
-export function PersonBadge({ climberId, name, serial }: PersonBadgeProps): ReactElement {
+export function PersonBadge({ machineId, name, serial }: PersonBadgeProps): ReactElement {
   const { select } = useSelection()
   const router = useRouter()
   const { focused, handlers } = useFocusRing()
 
   function activate(e: MouseEvent): void {
     e.stopPropagation()
-    select({ kind: 'identity', climberId })
+    select({ kind: 'identity', machineId })
     router.push(tabHref('identity'))
   }
 

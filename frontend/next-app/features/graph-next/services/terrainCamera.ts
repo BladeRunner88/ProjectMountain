@@ -1,9 +1,9 @@
 // S8.7: a hand-written isometric projection + orbit-camera maths — no
 // three.js, no camera library. The fixed 30° isometric transform S8.7
 // specifies is applied AFTER rotating the world by the camera's azimuth
-// (around the vertical/altitude axis) and folding in its elevation (camera
-// pitch): near elevation's low end the view reads side-on and altitude
-// shows fully; near its high end it reads top-down and altitude flattens
+// (around the vertical/load axis) and folding in its elevation (camera
+// pitch): near elevation's low end the view reads side-on and load
+// shows fully; near its high end it reads top-down and load flattens
 // out, the same way a real orbit camera would.
 
 // Exported (not just used internally) so TerrainView's own hot per-point
@@ -26,7 +26,12 @@ export interface Camera {
   verticalScale: number
 }
 
-export function projectPoint(x: number, y: number, z: number, camera: Camera): { sx: number; sy: number } {
+export function projectPoint(
+  x: number,
+  y: number,
+  z: number,
+  camera: Camera
+): { sx: number; sy: number } {
   const cosA = Math.cos(camera.azimuthRad)
   const sinA = Math.sin(camera.azimuthRad)
   const xr = x * cosA - z * sinA
@@ -35,7 +40,9 @@ export function projectPoint(x: number, y: number, z: number, camera: Camera): {
   const depthFactor = Math.sin(elevRad)
   const heightFactor = Math.cos(elevRad)
   const sx = (xr - zr) * ISO_COS30 * camera.scale
-  const sy = (xr + zr) * ISO_SIN30 * camera.scale * depthFactor - y * camera.verticalScale * heightFactor
+  const sy =
+    (xr + zr) * ISO_SIN30 * camera.scale * depthFactor -
+    y * camera.verticalScale * heightFactor
   return { sx, sy }
 }
 
@@ -47,7 +54,11 @@ export function depthKey(x: number, z: number, camera: Camera): number {
 }
 
 /** depthKey is linear in (x, z), so its extremes over a world rectangle occur at the rectangle's corners — four evaluations, no per-point scan needed to bucket a whole frame's points by depth. */
-export function depthRangeForWorld(camera: Camera, lengthUnits: number, halfWidthUnits: number): [number, number] {
+export function depthRangeForWorld(
+  camera: Camera,
+  lengthUnits: number,
+  halfWidthUnits: number
+): [number, number] {
   const corners: [number, number][] = [
     [0, -halfWidthUnits],
     [0, halfWidthUnits],
@@ -72,11 +83,17 @@ export function clampElevation(deg: number): number {
 export function rubberBandElevation(deg: number): number {
   if (deg < ELEVATION_MIN_DEG) {
     const over = ELEVATION_MIN_DEG - deg
-    return ELEVATION_MIN_DEG - RUBBER_BAND_RANGE_DEG * (1 - Math.exp(-over / RUBBER_BAND_RANGE_DEG))
+    return (
+      ELEVATION_MIN_DEG -
+      RUBBER_BAND_RANGE_DEG * (1 - Math.exp(-over / RUBBER_BAND_RANGE_DEG))
+    )
   }
   if (deg > ELEVATION_MAX_DEG) {
     const over = deg - ELEVATION_MAX_DEG
-    return ELEVATION_MAX_DEG + RUBBER_BAND_RANGE_DEG * (1 - Math.exp(-over / RUBBER_BAND_RANGE_DEG))
+    return (
+      ELEVATION_MAX_DEG +
+      RUBBER_BAND_RANGE_DEG * (1 - Math.exp(-over / RUBBER_BAND_RANGE_DEG))
+    )
   }
   return deg
 }
@@ -93,26 +110,40 @@ const ELEVATION_HARD_MAX = ELEVATION_MAX_DEG + RUBBER_BAND_RANGE_DEG * 2
 const SCALE_HARD_MIN = 0.5
 const SCALE_HARD_MAX = 30
 
-export function isValidCamera(c: unknown, minScale: number, maxScale: number): c is Camera {
-  if (!c || typeof c !== 'object') return false
+export function isValidCamera(
+  c: unknown,
+  minScale: number,
+  maxScale: number
+): c is Camera {
+  if (!c || typeof c !== "object") return false
   const v = c as Record<string, unknown>
   const fields = [v.azimuthRad, v.elevationDeg, v.scale, v.verticalScale]
-  if (fields.some((f) => typeof f !== 'number' || !Number.isFinite(f))) return false
+  if (fields.some((f) => typeof f !== "number" || !Number.isFinite(f)))
+    return false
   const azimuthRad = v.azimuthRad as number
   const elevationDeg = v.elevationDeg as number
   const scale = v.scale as number
   const verticalScale = v.verticalScale as number
   if (!Number.isFinite(azimuthRad)) return false
-  if (elevationDeg < ELEVATION_HARD_MIN || elevationDeg > ELEVATION_HARD_MAX) return false
-  if (scale < Math.min(SCALE_HARD_MIN, minScale) || scale > Math.max(SCALE_HARD_MAX, maxScale)) return false
+  if (elevationDeg < ELEVATION_HARD_MIN || elevationDeg > ELEVATION_HARD_MAX)
+    return false
+  if (
+    scale < Math.min(SCALE_HARD_MIN, minScale) ||
+    scale > Math.max(SCALE_HARD_MAX, maxScale)
+  )
+    return false
   if (verticalScale <= 0) return false
   return true
 }
 
-const CAMERA_STORAGE_KEY = 'isildur_graph_terrain_camera'
+const CAMERA_STORAGE_KEY = "isildur_graph_terrain_camera"
 
-export function loadPersistedCamera(defaultCamera: Camera, minScale: number, maxScale: number): Camera {
-  if (typeof localStorage === 'undefined') return defaultCamera
+export function loadPersistedCamera(
+  defaultCamera: Camera,
+  minScale: number,
+  maxScale: number
+): Camera {
+  if (typeof localStorage === "undefined") return defaultCamera
   try {
     const raw = localStorage.getItem(CAMERA_STORAGE_KEY)
     if (!raw) return defaultCamera
@@ -124,7 +155,7 @@ export function loadPersistedCamera(defaultCamera: Camera, minScale: number, max
 }
 
 export function savePersistedCamera(camera: Camera): void {
-  if (typeof localStorage === 'undefined') return
+  if (typeof localStorage === "undefined") return
   try {
     localStorage.setItem(CAMERA_STORAGE_KEY, JSON.stringify(camera))
   } catch {

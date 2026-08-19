@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactElement } from 'react'
 
 const MESSAGE =
-  'Resolving entities... 5 countries - 14 routes - 30 operators - 50 individuals - 14 environmental sensors'
+  'Resolving entities... 5 countries - 14 lines - 30 operators - 50 individuals - 14 environmental sensors'
 
 export function ResolvingTicker(): ReactElement | null {
   const [visibleChars, setVisibleChars] = useState(0)

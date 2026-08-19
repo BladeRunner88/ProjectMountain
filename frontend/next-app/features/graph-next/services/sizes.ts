@@ -3,14 +3,13 @@
 // carry a 1px darker ring (their own outline, not an emphasis ring); sub-
 // nodes do not.
 
-import type { EntityTier } from '../types/domain'
+import type { EntityTier } from "../types/domain"
 
 export const TIER_RADIUS_PX: Record<EntityTier, number> = {
   country: 5.5,
-  region: 3.5,
-  route: 2.75,
-  operator: 1.75,
-  climber: 1.5,
+  plant: 3.5,
+  line: 2.75,
+  machine: 1.5,
   // S8.5N's own SIZE list doesn't name sensors — a scope decision, disclosed:
   // sensors keep operators' size, the same pairing this file already had
   // before this block (both were 1.75 already).
@@ -28,10 +27,9 @@ export const ENVIRONMENT_RADIUS_PX = 2
 
 export const DRIFT_AMPLITUDE_BY_TIER: Record<EntityTier, number> = {
   country: 1,
-  region: 2,
-  route: 3,
-  operator: 4,
-  climber: 5,
+  plant: 2,
+  line: 3,
+  machine: 5,
   sensor: 4,
 }
 export const SUBNODE_DRIFT_AMPLITUDE = 7

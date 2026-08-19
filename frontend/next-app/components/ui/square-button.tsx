@@ -29,7 +29,7 @@ const BASE =
 type SquareButtonProps = {
   tone?: Tone
   /**
-   * Internal route or external URL. `isExternalHref` decides which of
+   * Internal line or external URL. `isExternalHref` decides which of
    * `next/link` and a plain anchor renders it.
    */
   href?: string

@@ -30,12 +30,12 @@ function CompassGlyph({ bearingDeg }: { bearingDeg: number }): ReactElement {
 
 export function Conditions({
   tempC,
-  windKph,
-  windBearingDeg,
+  vibrationMmS,
+  vibrationBearingDeg,
 }: {
   tempC: number
-  windKph: number
-  windBearingDeg: number
+  vibrationMmS: number
+  vibrationBearingDeg: number
 }): ReactElement {
   return (
     <div className="flex items-center gap-10">
@@ -49,9 +49,9 @@ export function Conditions({
         </p>
       </div>
       <div className="flex flex-col gap-3">
-        <PanelLabel>Wind</PanelLabel>
+        <PanelLabel>Vibration</PanelLabel>
         <p className="font-mono text-[40px] leading-none tabular-nums" style={{ color: TEXT_PRIMARY }}>
-          {windKph}
+          {vibrationMmS}
           <span className="ml-1 text-[16px]" style={{ color: TEXT_SECONDARY }}>
             kph
           </span>
@@ -59,7 +59,7 @@ export function Conditions({
       </div>
       <div className="flex flex-col items-center gap-3">
         <PanelLabel>Bearing</PanelLabel>
-        <CompassGlyph bearingDeg={windBearingDeg} />
+        <CompassGlyph bearingDeg={vibrationBearingDeg} />
       </div>
     </div>
   )

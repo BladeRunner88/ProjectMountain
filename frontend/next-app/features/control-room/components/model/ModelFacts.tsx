@@ -22,10 +22,10 @@ import { useFocusRing, focusRingStyle } from '@/features/control-room'
 
 const KIND_LABEL: Record<ThingKind, string> = {
   country: 'Country',
-  region: 'Region',
-  route: 'Route',
+  plant: 'Plant',
+  line: 'Line',
   operator: 'Operator',
-  climber: 'Climber',
+  machine: 'Machine',
   sensor: 'Sensor',
 }
 
@@ -55,7 +55,7 @@ export function ModelFacts({
       <div style={{ marginTop: SPACE_32 }}>
         <p style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>{KIND_LABEL[kind].toUpperCase()} — ITS OWN FACTS</p>
         <FactTable facts={ownFacts} />
-        {kind === 'climber' ? (
+        {kind === 'machine' ? (
           <p style={{ ...TYPE_CAPTION, color: TEXT_DIM, marginTop: SPACE_8, textTransform: 'none', letterSpacing: 'normal' }}>
             {ontology.serialCollisionCount} serial{ontology.serialCollisionCount === 1 ? '' : 's'} collided on issue and{' '}
             {ontology.serialCollisionCount === 1 ? 'was' : 'were'} resolved by incrementing BBB.

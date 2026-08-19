@@ -193,8 +193,8 @@ function TableRow({
     >
       <span style={{ flex: 0.9, color, paddingLeft: SPACE_8 }}>{SEVERITY_LABEL[rule.severity]}</span>
       <span style={{ flex: 2.4 }}>
-        {detection.subject.kind === 'climber' ? (
-          <PersonBadge climberId={detection.subject.climberId} name={detection.subject.name} serial={detection.subject.serial} />
+        {detection.subject.kind === 'machine' ? (
+          <PersonBadge machineId={detection.subject.machineId} name={detection.subject.name} serial={detection.subject.serial} />
         ) : (
           <span style={{ color: TEXT_PRIMARY }}>{subjectLabel(detection.subject)}</span>
         )}
@@ -334,7 +334,7 @@ function WhoItWasDetectedOn({
   engine: DetectionEngineState
   dataset: Dataset
 }): ReactElement {
-  if (detection.subject.kind !== 'climber') {
+  if (detection.subject.kind !== 'machine') {
     return (
       <div style={{ marginTop: SPACE_24 }}>
         <p style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>WHO OR WHAT IT WAS DETECTED ON</p>
@@ -343,9 +343,9 @@ function WhoItWasDetectedOn({
     )
   }
 
-  const { climberId } = detection.subject
-  const record = dataset.identityRecords.get(climberId)
-  const card = dataset.identityCards.get(climberId)
+  const { machineId } = detection.subject
+  const record = dataset.identityRecords.get(machineId)
+  const card = dataset.identityCards.get(machineId)
   const ropePartners = card?.associates.filter((a) => a.kind === 'rope_partner') ?? []
 
   const cluster = engine.detections.filter(
@@ -353,19 +353,19 @@ function WhoItWasDetectedOn({
       d.id !== detection.id &&
       !d.suppressed &&
       d.ruleId === detection.ruleId &&
-      d.subject.kind === 'climber' &&
-      dataset.identityCards.get(d.subject.climberId)?.routeName.value === card?.routeName.value
+      d.subject.kind === 'machine' &&
+      dataset.identityCards.get(d.subject.machineId)?.lineName.value === card?.lineName.value
   )
 
   return (
     <div style={{ marginTop: SPACE_24 }}>
       <p style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>WHO IT WAS DETECTED ON</p>
       <div style={{ marginTop: SPACE_8 }}>
-        <PersonBadge climberId={climberId} name={detection.subject.name} serial={detection.subject.serial} />
+        <PersonBadge machineId={machineId} name={detection.subject.name} serial={detection.subject.serial} />
       </div>
       {record && card ? (
         <p style={{ ...TYPE_BODY, color: TEXT_SECONDARY, marginTop: SPACE_8, textTransform: 'none', letterSpacing: 'normal' }}>
-          {record.contacts.operatorName.value} · {card.routeName.value} · {card.footer.camp.value} · last known position{' '}
+          {record.contacts.operatorName.value} · {card.lineName.value} · {card.footer.station.value} · last known position{' '}
           {card.footer.resolvedPlace.value}
         </p>
       ) : null}
@@ -375,12 +375,12 @@ function WhoItWasDetectedOn({
           <p style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>ROPE PARTNER</p>
           <div className="flex flex-wrap" style={{ gap: SPACE_8, marginTop: SPACE_8 }}>
             {ropePartners.map((p) =>
-              p.climberId ? (
+              p.machineId ? (
                 <div key={p.id} className="flex items-center" style={{ gap: SPACE_8 }}>
                   <PersonBadge
-                    climberId={p.climberId}
+                    machineId={p.machineId}
                     name={p.label}
-                    serial={dataset.identityRecords.get(p.climberId)?.serial.value ?? ''}
+                    serial={dataset.identityRecords.get(p.machineId)?.serial.value ?? ''}
                   />
                   <span style={{ ...TYPE_CAPTION, color: p.status === 'anomaly' ? ANOMALY : p.status === 'watch' ? WATCH : TEXT_DIM }}>
                     {p.status}
@@ -398,11 +398,11 @@ function WhoItWasDetectedOn({
 
       {cluster.length > 0 ? (
         <div style={{ marginTop: SPACE_16 }}>
-          <p style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>ALSO FIRING THIS RULE ON THE SAME ROUTE — {cluster.length} MORE</p>
+          <p style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>ALSO FIRING THIS RULE ON THE SAME LINE — {cluster.length} MORE</p>
           <div className="flex flex-wrap" style={{ gap: SPACE_8, marginTop: SPACE_8 }}>
             {cluster.map((d) =>
-              d.subject.kind === 'climber' ? (
-                <PersonBadge key={d.id} climberId={d.subject.climberId} name={d.subject.name} serial={d.subject.serial} />
+              d.subject.kind === 'machine' ? (
+                <PersonBadge key={d.id} machineId={d.subject.machineId} name={d.subject.name} serial={d.subject.serial} />
               ) : null
             )}
           </div>

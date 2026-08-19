@@ -10,7 +10,7 @@
 // any of these figures — a source's health score stays a health score, it
 // never becomes a claim about outcomes; (2) A/B testing a backup source
 // against a primary — this dataset has exactly one real outage case
-// (Weather feed) to reason from, nowhere near enough cases to run a
+// (Metrology lab) to reason from, nowhere near enough cases to run a
 // controlled comparison honestly.
 
 import { allTraced, resolveOrThrow } from './graph'
@@ -133,7 +133,7 @@ export interface CounterfactualScenario {
 export interface FragileConclusion {
   id: string
   label: string
-  climberId: string | null
+  machineId: string | null
   sourceName: string
   confidencePct: number
   className: ExposureConclusionClass
@@ -173,7 +173,7 @@ export interface ConfidenceFloor {
 // -- Simulation ------------------------------------------------------------
 
 export interface NamedFragilePerson {
-  climberId: string
+  machineId: string
   name: string
   serial: string
 }
@@ -229,8 +229,8 @@ export interface ExposureSourceInput {
 }
 
 /** One real conclusion, already built elsewhere in the dataset, tagged with which class it belongs to for the Matrix/Fragility/Staleness/Simulation panels to bucket by. */
-export interface ExposureClimberMarker {
-  climberId: string | null
+export interface ExposureMachineMarker {
+  machineId: string | null
   name: string | null
   serial: string | null
   label: string
@@ -241,24 +241,24 @@ export interface ExposureClimberMarker {
 export interface BuildExposureInput {
   /** Exactly the six sources Exposure's own panels enumerate, in EXPOSURE_SOURCE_NAMES order. */
   sources: ExposureSourceInput[]
-  markers: ExposureClimberMarker[]
+  markers: ExposureMachineMarker[]
   buildNowMs: number
 }
 
 // -- domain-grounded constants --------------------------------------------
 // How long a reading from each KIND of source stays trustworthy as
 // "current" before it counts as stale — a wearable's oxygen reading is
-// worthless after minutes; a permit registry entry is still current after a
+// worthless after minutes; a CMMS entry is still current after a
 // day. Not a single universal window, because these sources genuinely don't
 // decay at the same rate.
 
 const USEFUL_WINDOW_SEC: Record<string, number> = {
-  'Wearable oximeter': 5 * 60,
-  'GPS tracker': 10 * 60,
-  'Weather feed': 30 * 60,
-  'Radio check-in log': 60 * 60,
-  'Permit registry': 24 * 3600,
-  'Manual observation': 12 * 3600,
+  'OT historian': 5 * 60,
+  'Plant MES': 10 * 60,
+  'Metrology lab': 30 * 60,
+  'Inline QC': 60 * 60,
+  'CMMS': 24 * 3600,
+  'Service contractor': 12 * 3600,
 }
 
 function usefulWindowFor(name: string): number {
@@ -270,12 +270,12 @@ function windowLabel(sec: number): string {
   return `${Math.round(sec / 3600)} h`
 }
 
-/** The real domain pairing behind each source's own physiological/positional counterpart — what a compounding-failure scenario (S9.12's third counterfactual) removes alongside the primary source, and what a backup-source recommendation names. Permit registry and radio check-in log have no natural pair in this domain and are left out rather than forcing one. */
+/** The real domain pairing behind each source's own physiological/positional counterpart — what a compounding-failure scenario (S9.12's third counterfactual) removes alongside the primary source, and what a backup-source recommendation names. CMMS and Inline QC have no natural pair in this domain and are left out rather than forcing one. */
 const DOMAIN_PAIR: Record<string, string> = {
-  'Wearable oximeter': 'Manual observation',
-  'Manual observation': 'Wearable oximeter',
-  'GPS tracker': 'Weather feed',
-  'Weather feed': 'GPS tracker',
+  'OT historian': 'Service contractor',
+  'Service contractor': 'OT historian',
+  'Plant MES': 'Metrology lab',
+  'Metrology lab': 'Plant MES',
 }
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -335,7 +335,7 @@ function buildUptimeHistory(id: SourceId, degraded: boolean): number[] {
  * they're scoped to `markers` (the same real conclusions Matrix/Staleness/
  * Simulation bucket by) — not the raw graph closure.
  */
-function buildSourceHealth(s: ExposureSourceInput, markers: ExposureClimberMarker[]): SourceHealth {
+function buildSourceHealth(s: ExposureSourceInput, markers: ExposureMachineMarker[]): SourceHealth {
   const windowSec = usefulWindowFor(s.def.name)
   const ageSec = s.lastSyncAgeSec.value
   const freshnessPct = Math.round(clamp(100 - (ageSec / windowSec) * 100, 0, 100))
@@ -394,7 +394,7 @@ function buildAlerts(healths: SourceHealth[], buildNowMs: number): HealthAlert[]
   })
 }
 
-function buildMatrix(sources: ExposureSourceInput[], markers: ExposureClimberMarker[]): MatrixRow[] {
+function buildMatrix(sources: ExposureSourceInput[], markers: ExposureMachineMarker[]): MatrixRow[] {
   return sources.map((s) => {
     const depIds = new Set(dependentsOfSource(s.def.id))
     const totalDependents = depIds.size
@@ -407,7 +407,7 @@ function buildMatrix(sources: ExposureSourceInput[], markers: ExposureClimberMar
   })
 }
 
-function bucketByFragility(markers: ExposureClimberMarker[]): { fragile: FragileConclusion[]; corroborated: CorroboratedConclusion[] } {
+function bucketByFragility(markers: ExposureMachineMarker[]): { fragile: FragileConclusion[]; corroborated: CorroboratedConclusion[] } {
   const fragile: FragileConclusion[] = []
   const corroborated: CorroboratedConclusion[] = []
   for (const m of markers) {
@@ -419,7 +419,7 @@ function bucketByFragility(markers: ExposureClimberMarker[]): { fragile: Fragile
       fragile.push({
         id: `fragile-${m.marker.id}`,
         label: m.label,
-        climberId: m.climberId,
+        machineId: m.machineId,
         sourceName: rootSource ?? m.label,
         confidencePct,
         className: m.className,
@@ -500,7 +500,7 @@ export function computeFragilityScenarios(marker: TracedValue<unknown>, sources:
   return scenarios
 }
 
-function buildStaleness(sources: ExposureSourceInput[], markers: ExposureClimberMarker[]): StalenessRow[] {
+function buildStaleness(sources: ExposureSourceInput[], markers: ExposureMachineMarker[]): StalenessRow[] {
   return sources.map((s) => {
     const windowSec = usefulWindowFor(s.def.name)
     const ageSec = s.lastSyncAgeSec.value
@@ -519,11 +519,11 @@ function buildStaleness(sources: ExposureSourceInput[], markers: ExposureClimber
 
 /** A refresh's own projected latency is not a single point — this is what the Staleness panel's "simulate refresh" action shows instead of a fake instant 0s. Deterministic per source (human-entered sources genuinely take longer to refresh than a sensor poll), not randomised per click. */
 export function projectedRefreshRangeSec(sourceName: string): { lowSec: number; highSec: number } {
-  const latencyBase = sourceName === 'Permit registry' ? 300 : sourceName === 'Manual observation' ? 180 : sourceName === 'Radio check-in log' ? 60 : 15
+  const latencyBase = sourceName === 'CMMS' ? 300 : sourceName === 'Service contractor' ? 180 : sourceName === 'Inline QC' ? 60 : 15
   return { lowSec: Math.round(latencyBase * 0.5), highSec: Math.round(latencyBase * 1.8) }
 }
 
-function buildConfidenceFloors(markers: ExposureClimberMarker[]): ConfidenceFloor[] {
+function buildConfidenceFloors(markers: ExposureMachineMarker[]): ConfidenceFloor[] {
   const floorPct = Math.round(CONFIDENCE_FLOOR_DEFAULT * 100)
   return EXPOSURE_CLASS_ORDER.map((className) => {
     const classConfidencesPct = markers.filter((m) => m.className === className).map((m) => Math.round(confidence(m.marker) * 100))
@@ -532,24 +532,24 @@ function buildConfidenceFloors(markers: ExposureClimberMarker[]): ConfidenceFloo
   })
 }
 
-function peopleAffected(depIds: Set<TracedId>, markers: ExposureClimberMarker[]): NamedFragilePerson[] {
-  const byClimber = new Map<string, NamedFragilePerson>()
+function peopleAffected(depIds: Set<TracedId>, markers: ExposureMachineMarker[]): NamedFragilePerson[] {
+  const byMachine = new Map<string, NamedFragilePerson>()
   for (const m of markers) {
-    if (m.climberId && m.name && m.serial && depIds.has(m.marker.id)) {
-      byClimber.set(m.climberId, { climberId: m.climberId, name: m.name, serial: m.serial })
+    if (m.machineId && m.name && m.serial && depIds.has(m.marker.id)) {
+      byMachine.set(m.machineId, { machineId: m.machineId, name: m.name, serial: m.serial })
     }
   }
-  return [...byClimber.values()].slice(0, 8)
+  return [...byMachine.values()].slice(0, 8)
 }
 
-function backupCoverage(depIds: Set<TracedId>, markers: ExposureClimberMarker[]): number {
+function backupCoverage(depIds: Set<TracedId>, markers: ExposureMachineMarker[]): number {
   const relevant = markers.filter((m) => depIds.has(m.marker.id))
   if (relevant.length === 0) return 100
   const corroboratedAlready = relevant.filter((m) => cost(m.marker).sourcesTouched > 1).length
   return Math.round((corroboratedAlready / relevant.length) * 100)
 }
 
-function buildSimulations(sources: ExposureSourceInput[], markers: ExposureClimberMarker[]): SimulationScenario[] {
+function buildSimulations(sources: ExposureSourceInput[], markers: ExposureMachineMarker[]): SimulationScenario[] {
   const floorPct = Math.round(CONFIDENCE_FLOOR_DEFAULT * 100)
   return sources.map((s) => {
     const depIds = new Set(dependentsOfSource(s.def.id))

@@ -85,7 +85,7 @@ export function RevisionQueue({ state, role, onSelectItem }: { state: RevisionSt
       who: 'You',
       actionKind: action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : action === 'correct' ? 'corrected' : action === 'annotate' ? 'annotated' : 'deferred',
       actionLabel: `${action} — ${item.what}`,
-      aboutClimberId: item.aboutClimberIds[0] ?? null,
+      aboutMachineId: item.aboutMachineIds[0] ?? null,
       aboutSerial: null,
       aboutLabel: item.about,
       whatChanged: reason || item.recommendation.action,

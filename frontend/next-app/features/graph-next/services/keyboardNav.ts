@@ -3,11 +3,15 @@
 // (wired at GraphNext level) so the ordering itself is unit-testable
 // without a DOM.
 
-import type { DomainDataset } from '../types/domain'
-import type { GraphId } from '../types/graph'
+import type { DomainDataset } from "../types/domain"
+import type { GraphId } from "../types/graph"
 
 /** Tab / Shift+Tab — cycles through all 127 domain entities in their dataset's own stable order. */
-export function nextEntity(dataset: DomainDataset, currentId: GraphId | null, direction: 1 | -1): GraphId | null {
+export function nextEntity(
+  dataset: DomainDataset,
+  currentId: GraphId | null,
+  direction: 1 | -1
+): GraphId | null {
   const list = dataset.domainEntities
   if (list.length === 0) return null
   if (!currentId) return direction === 1 ? list[0].id : list[list.length - 1].id
@@ -18,7 +22,11 @@ export function nextEntity(dataset: DomainDataset, currentId: GraphId | null, di
 }
 
 /** Arrow keys — moves to the next/previous entity of the SAME tier as `currentId`, wrapping. */
-export function siblingInTier(dataset: DomainDataset, currentId: GraphId, direction: 1 | -1): GraphId | null {
+export function siblingInTier(
+  dataset: DomainDataset,
+  currentId: GraphId,
+  direction: 1 | -1
+): GraphId | null {
   const current = dataset.domainEntities.find((e) => e.id === currentId)
   if (!current) return null
   const siblings = dataset.domainEntities.filter((e) => e.tier === current.tier)

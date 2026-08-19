@@ -8,6 +8,6 @@ export const metadata: Metadata = {
   description: "A contact form is coming soon.",
 }
 
-export default function ContactRoute(): ReactElement {
+export default function ContactLine(): ReactElement {
   return <ContactPage />
 }

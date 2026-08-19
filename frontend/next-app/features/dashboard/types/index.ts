@@ -8,7 +8,7 @@ export interface SourceRow {
   degraded: boolean
 }
 
-export interface CampTemp {
+export interface StationTemp {
   label: string
   tempC: number
 }

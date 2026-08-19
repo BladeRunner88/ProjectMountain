@@ -6,7 +6,7 @@ import { DemoWorkspace } from "@/features/demo/components/DemoWorkspace"
 
 export const metadata: Metadata = {
   title: "Demo workspace — Isildur",
-  description: "Expedition graph demo workspace.",
+  description: "Campaign graph demo workspace.",
 }
 
 export default function DemoWorkspacePage(): ReactElement {

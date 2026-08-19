@@ -68,12 +68,12 @@ function ControlRoomChrome({ children }: { children: ReactNode }): ReactElement 
         router.push(t.href)
       },
     }))
-    const entityItems: CommandItem[] = dataset.climbers.map((c) => ({
+    const entityItems: CommandItem[] = dataset.machines.map((c) => ({
       id: `entity:${c.id}`,
       kind: 'entity' as const,
       label: tracedDisplayString(c.name),
       sublabel: c.findingId ? 'Flagged' : 'Clean',
-      onSelect: () => select({ kind: 'identity', climberId: c.id }),
+      onSelect: () => select({ kind: 'identity', machineId: c.id }),
     }))
     return [...tabItems, ...entityItems]
   }, [router, dataset, select])

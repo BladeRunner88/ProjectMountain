@@ -1,10 +1,10 @@
-export type NodeStatus = 'nominal' | 'watch' | 'anomaly'
+export type NodeStatus = "nominal" | "watch" | "anomaly"
 
-export interface Climber {
+export interface Machine {
   id: string
   name: string
   companyId: string
-  ethnicity: string
+  linePrefix: string
   from: string
   dob: string
   mountainsClimbed: number
@@ -12,9 +12,9 @@ export interface Climber {
   ambientPressure_hPa: number
   timeToEBC: string
   restingHr: number
-  baseHr: number
-  baseSpO2: number
-  bloodPressure: { systolic: number; diastolic: number }
+  baseVibration: number
+  baseOee: number
+  hydraulicPressure: { supplyBar: number; returnBar: number }
   anomaly: boolean
   anomalyReason?: string
 }
@@ -23,35 +23,35 @@ export interface Country {
   id: string
   name: string
   isMajor: boolean
-  activeExpeditions: number
-  permitsIssued: number
+  activeCampaigns: number
+  workOrdersIssued: number
 }
 
-export interface Region {
+export interface Plant {
   id: string
   name: string
   countryId: string
   lengthKm: number
-  maxAltitudeM: number
-  partiesOnRoute: number
+  maxLoadM: number
+  partiesOnLine: number
 }
 
 export interface Company {
   id: string
   name: string
-  regionId: string
+  plantId: string
   guidesActive: number
-  safetyRating: 'A' | 'B' | 'C'
+  safetyRating: "A" | "B" | "C"
 }
 
 export interface Environment {
   id: string
-  regionId: string
+  plantId: string
   tempC: number
-  windKph: number
-  visibilityM: number
+  vibrationMmS: number
+  effectivenessM: number
   snowfallCm24h: number
-  freezingLevelM: number
-  altitudeBandLowM: number
-  altitudeBandHighM: number
+  cycleTimeS: number
+  loadBandLowM: number
+  loadBandHighM: number
 }

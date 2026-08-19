@@ -1,14 +1,14 @@
 export type {
-  Climber,
+  Machine,
   Company,
   Country,
   Environment,
   NodeStatus,
-  Region,
+  Plant,
 } from './domain'
 
 export type {
-  ClimberVitals,
+  MachineReadings,
   EnvironmentReading,
   Finding,
   GraphSelection,

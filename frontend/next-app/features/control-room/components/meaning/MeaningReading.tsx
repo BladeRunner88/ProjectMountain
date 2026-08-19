@@ -109,16 +109,16 @@ function ReadingHeader({ reading }: { reading: Reading }): ReactElement {
   const { about } = reading
 
   function activateAbout(): void {
-    if (about.kind !== 'climber') return
-    select({ kind: 'identity', climberId: about.climberId })
-    const params = new URLSearchParams({ sub: 'source-records', climberId: about.climberId })
+    if (about.kind !== 'machine') return
+    select({ kind: 'identity', machineId: about.machineId })
+    const params = new URLSearchParams({ sub: 'source-records', machineId: about.machineId })
     router.push(`${tabHref('identity')}?${params.toString()}`)
   }
 
   return (
     <div style={{ marginBottom: SPACE_24 }}>
       <p style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>ABOUT</p>
-      {about.kind === 'climber' ? (
+      {about.kind === 'machine' ? (
         <button type="button" onClick={activateAbout} className="pressable" style={{ marginTop: SPACE_8 }}>
           <span style={{ ...TYPE_DISPLAY, color: TEXT_PRIMARY }}>{about.label}</span>{' '}
           <span className="font-mono" style={{ ...TYPE_BODY, color: TEXT_DIM }}>

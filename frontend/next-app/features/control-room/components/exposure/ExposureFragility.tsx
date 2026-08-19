@@ -67,7 +67,7 @@ export function ExposureFragility({ state, role }: { state: ExposureState; role:
                 who: 'You',
                 actionKind: 'annotated',
                 actionLabel: 'flagged a fragile conclusion for review',
-                aboutClimberId: selected.climberId,
+                aboutMachineId: selected.machineId,
                 aboutSerial: null,
                 aboutLabel: selected.label,
                 whatChanged: `Single-source conclusion (${selected.sourceName}) flagged for corroboration review.`,

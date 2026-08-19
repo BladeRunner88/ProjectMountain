@@ -41,11 +41,11 @@ export function StepAddress({
         error={errors.city}
       />
       <TextField
-        label="State or region"
-        value={form.stateRegion}
-        onChange={(v) => setField("stateRegion", v)}
-        onBlur={() => onBlurField("stateRegion")}
-        error={errors.stateRegion}
+        label="State or plant"
+        value={form.statePlant}
+        onChange={(v) => setField("statePlant", v)}
+        onBlur={() => onBlurField("statePlant")}
+        error={errors.statePlant}
       />
       <TextField
         label="Postal code"

@@ -21,7 +21,7 @@ import {
 import { allUnboundFieldKeys, type ContextEngineState, type ContextRule, type EntityType } from '@/features/ase/services/contextEngine'
 import { focusRingStyle, useFocusRing } from '@/features/control-room'
 
-const ENTITY_ORDER: EntityType[] = ['Climber', 'Route', 'Sensor', 'Operator']
+const ENTITY_ORDER: EntityType[] = ['Machine', 'Line', 'Sensor', 'Operator']
 
 function isEntityType(value: string): value is EntityType {
   return (ENTITY_ORDER as readonly string[]).includes(value)
@@ -112,7 +112,7 @@ function AddRuleForm({
   const [prevPrefill, setPrevPrefill] = useState(prefillField)
   const [meaning, setMeaning] = useState('')
   const [authority, setAuthority] = useState('')
-  const [entityType, setEntityType] = useState<EntityType>('Climber')
+  const [entityType, setEntityType] = useState<EntityType>('Machine')
   const { focused: fieldFocused, handlers: fieldHandlers } = useFocusRing()
   const { focused: meaningFocused, handlers: meaningHandlers } = useFocusRing()
   const { focused: authorityFocused, handlers: authorityHandlers } = useFocusRing()

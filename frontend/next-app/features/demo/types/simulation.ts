@@ -1,25 +1,25 @@
 import type { NodeStatus } from './domain'
 
-export interface ClimberVitals {
-  spo2: number
-  hr: number
+export interface MachineReadings {
+  oee: number
+  vibration: number
 }
 
 export interface EnvironmentReading {
   tempC: number
-  windKph: number
-  windBearingDeg: number
-  visibilityM: number
+  vibrationMmS: number
+  vibrationBearingDeg: number
+  effectivenessM: number
   snowfallCm24h: number
-  freezingLevelM: number
+  cycleTimeS: number
 }
 
 export type SourceId =
   | 'sensor-mesh'
   | 'weather-feed'
-  | 'permit-registry'
-  | 'operator-rosters'
-  | 'medical-logs'
+  | 'workOrder-registry'
+  | 'operator-registers'
+  | 'service-logs'
 
 export interface Finding {
   id: string
@@ -32,5 +32,5 @@ export interface Finding {
 }
 
 export type GraphSelection =
-  | { type: 'climber'; id: string }
+  | { type: 'machine'; id: string }
   | { type: 'environment'; id: string }

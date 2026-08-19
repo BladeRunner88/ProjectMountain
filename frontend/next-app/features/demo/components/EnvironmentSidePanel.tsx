@@ -5,38 +5,38 @@ import type { ReactElement } from 'react'
 import { CloseIcon } from '@/components/ui/icons'
 
 import { exposureLevel } from '../services/environmentDisplay'
-import type { Climber, Environment, NodeStatus, Region } from '../types/domain'
+import type { Machine, Environment, NodeStatus, Plant } from '../types/domain'
 import type { EnvironmentReading } from '../types/simulation'
-import { PanelShell, Row, SectionHeading, Sparkline } from './ClimberSidePanel'
-import { ANOMALY_COLOR, CLIMBER_NORMAL_COLOR } from './shapes'
+import { PanelShell, Row, SectionHeading, Sparkline } from './MachineSidePanel'
+import { ANOMALY_COLOR, MACHINE_NORMAL_COLOR } from './shapes'
 
 export function EnvironmentSidePanel({
   environment,
-  region,
+  plant,
   reading,
   status,
-  windHistory,
-  exposedClimbers,
-  climberStatus,
+  vibrationHistory,
+  exposedMachines,
+  machineStatus,
   onClose,
 }: {
   environment: Environment
-  region: Region | undefined
+  plant: Plant | undefined
   reading: EnvironmentReading | undefined
   status: NodeStatus
-  windHistory: number[]
-  exposedClimbers: Climber[]
-  climberStatus: ReadonlyMap<string, NodeStatus>
+  vibrationHistory: number[]
+  exposedMachines: Machine[]
+  machineStatus: ReadonlyMap<string, NodeStatus>
   onClose: () => void
 }): ReactElement {
   const anomalous = status === 'anomaly'
-  const statusColor = anomalous ? ANOMALY_COLOR : CLIMBER_NORMAL_COLOR
+  const statusColor = anomalous ? ANOMALY_COLOR : MACHINE_NORMAL_COLOR
 
   return (
     <PanelShell onClose={onClose}>
       <div className="flex items-start justify-between border-b border-white/10 px-6 py-5">
         <div>
-          <h2 className="text-[18px] font-semibold text-white">{region?.name ?? 'Environment'} sensor</h2>
+          <h2 className="text-[18px] font-semibold text-white">{plant?.name ?? 'Environment'} sensor</h2>
           <p className="mt-1 text-[13px] font-medium" style={{ color: statusColor }}>
             {anomalous ? 'Anomaly' : 'Nominal'}
           </p>
@@ -56,16 +56,16 @@ export function EnvironmentSidePanel({
           <section className="flex flex-col gap-1">
             <SectionHeading>Readings</SectionHeading>
             <div className="mt-1 divide-y divide-white/[0.06]">
-              <Row label="Temperature" value={`${reading.tempC}C`} />
-              <Row label="Wind" value={`${reading.windKph} kph`} />
-              <Row label="Visibility" value={`${reading.visibilityM}m`} />
+              <Row label="Spindle temp" value={`${reading.tempC}C`} />
+              <Row label="Vibration" value={`${reading.vibrationMmS} kph`} />
+              <Row label="Effectiveness" value={`${reading.effectivenessM}m`} />
               <Row label="Snowfall (24h)" value={`${reading.snowfallCm24h}cm`} />
-              <Row label="Freezing level" value={`${reading.freezingLevelM}m`} />
+              <Row label="Cycle time" value={`${reading.cycleTimeS}m`} />
               <Row
-                label="Altitude band"
-                value={`${environment.altitudeBandLowM}-${environment.altitudeBandHighM}m`}
+                label="Load band"
+                value={`${environment.loadBandLowM}-${environment.loadBandHighM}m`}
               />
-              <Row label="Exposure" value={exposureLevel(environment.altitudeBandHighM)} />
+              <Row label="Exposure" value={exposureLevel(environment.loadBandHighM)} />
             </div>
           </section>
         )}
@@ -80,31 +80,31 @@ export function EnvironmentSidePanel({
                 </span>
               }
             >
-              Wind (24 readings)
+              Vibration (24 readings)
             </SectionHeading>
-            <Sparkline values={windHistory} min={0} max={140} color={statusColor} />
+            <Sparkline values={vibrationHistory} min={0} max={140} color={statusColor} />
           </section>
         )}
 
         <section className="flex flex-col gap-1">
-          <SectionHeading>{`Exposed on this route (${exposedClimbers.length})`}</SectionHeading>
+          <SectionHeading>{`Exposed on this line (${exposedMachines.length})`}</SectionHeading>
           <div className="mt-1 divide-y divide-white/[0.06]">
-            {exposedClimbers.map((climber) => {
-              const climberAnomalous = climberStatus.get(climber.id) === 'anomaly'
+            {exposedMachines.map((machine) => {
+              const machineAnomalous = machineStatus.get(machine.id) === 'anomaly'
               return (
-                <div key={climber.id} className="flex items-center justify-between gap-4 py-1.5">
-                  <span className="text-[13px] text-white/80">{climber.name}</span>
+                <div key={machine.id} className="flex items-center justify-between gap-4 py-1.5">
+                  <span className="text-[13px] text-white/80">{machine.name}</span>
                   <span
                     className="text-[11px] font-medium uppercase tracking-[0.05em]"
-                    style={{ color: climberAnomalous ? ANOMALY_COLOR : CLIMBER_NORMAL_COLOR }}
+                    style={{ color: machineAnomalous ? ANOMALY_COLOR : MACHINE_NORMAL_COLOR }}
                   >
-                    {climberAnomalous ? 'Anomaly' : 'Nominal'}
+                    {machineAnomalous ? 'Anomaly' : 'Nominal'}
                   </span>
                 </div>
               )
             })}
-            {exposedClimbers.length === 0 && (
-              <p className="py-1.5 text-[13px] text-white/45">No climbers currently on this route.</p>
+            {exposedMachines.length === 0 && (
+              <p className="py-1.5 text-[13px] text-white/45">No machines currently on this line.</p>
             )}
           </div>
         </section>

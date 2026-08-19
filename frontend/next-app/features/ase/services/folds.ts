@@ -304,7 +304,7 @@ function narrateHop(hop: ProvenanceHop): string {
  * The provenance walk rendered as one readable, chronological sentence —
  * the single most important piece of copy in the product: what a client
  * reads when they ask how ASE knows something. Example shape: "This came
- * from the permit registry at 23:14, was reformatted to a standard date,
+ * from the CMMS at 23:14, was reformatted to a standard date,
  * then merged with two other records."
  */
 export function renderProvenance(hops: ProvenanceHop[]): string {

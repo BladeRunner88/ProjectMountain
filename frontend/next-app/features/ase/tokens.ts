@@ -29,7 +29,7 @@ export const HUMAN = '#A78BFA' // anything a person asserted or corrected
 
 // -- type ---------------------------------------------------------------
 // Three sizes, two families, no exceptions. Font family itself is applied
-// via Tailwind's `font-mono`/default-sans utilities at the call site (family
+// via Tailvibration's `font-mono`/default-sans utilities at the call site (family
 // isn't a colour/size/spacing value); size, weight, and tracking come from
 // here. Monospace is reserved for measured values inside a Metric, IDs,
 // timestamps, and code — prose in monospace is what made the old build read
@@ -152,9 +152,9 @@ export const Z_COMMAND_PALETTE = 100
 // ring/wire colour, drawn from the five meaning colours above instead).
 
 export const MAP_HEADER_COUNTRY = '#B5642E'
-export const MAP_HEADER_ROUTE = '#6D4FA8'
+export const MAP_HEADER_LINE = '#6D4FA8'
 export const MAP_HEADER_OPERATOR = '#2C6EA8'
-export const MAP_HEADER_CLIMBER = '#2C7A55'
+export const MAP_HEADER_MACHINE = '#2C7A55'
 export const MAP_HEADER_SENSOR = '#237F86'
 export const MAP_HEADER_RULE = '#3A404E'
 export const MAP_GRID_LINE = '#14171C'

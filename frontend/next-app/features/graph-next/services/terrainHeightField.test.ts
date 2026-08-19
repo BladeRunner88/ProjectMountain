@@ -1,24 +1,29 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import { buildGraphDataset, GRAPH_SEED } from './dataset'
-import { buildRouteProfiles } from './terrainProfile'
-import { computeHeightField, POINT_COUNT, resetHeightFieldCache } from './terrainHeightField'
-import { WORLD_HALF_WIDTH_UNITS, WORLD_LENGTH_UNITS } from './terrainWorld'
+import { beforeEach, describe, expect, it } from "vitest"
+import { buildGraphDataset, GRAPH_SEED } from "./dataset"
+import { buildLineProfiles } from "./terrainProfile"
+import {
+  computeHeightField,
+  POINT_COUNT,
+  resetHeightFieldCache,
+} from "./terrainHeightField"
+import { WORLD_HALF_WIDTH_UNITS, WORLD_LENGTH_UNITS } from "./terrainWorld"
+import { graphTestWorld } from "@/features/graph-next/testing/graphWorld"
 
-describe('terrainHeightField (S8.7)', () => {
-  const dataset = buildGraphDataset(GRAPH_SEED)
-  const profiles = buildRouteProfiles(dataset)
+describe("terrainHeightField (S8.7)", () => {
+  const dataset = buildGraphDataset(graphTestWorld(), GRAPH_SEED)
+  const profiles = buildLineProfiles(dataset)
   const profile = [...profiles.values()][0]
 
   beforeEach(() => resetHeightFieldCache())
 
-  it('generates a point cloud in the 12,000-20,000 band S8.7 asks for', () => {
+  it("generates a point cloud in the 12,000-20,000 band S8.7 asks for", () => {
     const field = computeHeightField(profile, [])
     expect(field.count).toBe(POINT_COUNT)
     expect(field.count).toBeGreaterThanOrEqual(12000)
     expect(field.count).toBeLessThanOrEqual(20000)
   })
 
-  it('every point stays within the route corridor world bounds', () => {
+  it("every point stays within the line corridor world bounds", () => {
     const field = computeHeightField(profile, [])
     for (let i = 0; i < field.count; i++) {
       expect(field.x[i]).toBeGreaterThanOrEqual(0)
@@ -28,7 +33,7 @@ describe('terrainHeightField (S8.7)', () => {
     }
   })
 
-  it("the surface tracks the route's own altitude range, not an arbitrary one", () => {
+  it("the surface tracks the line's own load range, not an arbitrary one", () => {
     const field = computeHeightField(profile, [])
     let min = Infinity
     let max = -Infinity
@@ -36,12 +41,12 @@ describe('terrainHeightField (S8.7)', () => {
       if (field.y[i] < min) min = field.y[i]
       if (field.y[i] > max) max = field.y[i]
     }
-    const range = profile.exitAltitudeM - profile.entryAltitudeM
-    expect(min).toBeGreaterThan(profile.entryAltitudeM - range * 0.3)
-    expect(max).toBeLessThan(profile.exitAltitudeM + range * 0.1)
+    const range = profile.exitLoadM - profile.entryLoadM
+    expect(min).toBeGreaterThan(profile.entryLoadM - range * 0.3)
+    expect(max).toBeLessThan(profile.exitLoadM + range * 0.1)
   })
 
-  it('is deterministic — same route, same profile, same field on every build', () => {
+  it("is deterministic — same line, same profile, same field on every build", () => {
     const a = computeHeightField(profile, [])
     resetHeightFieldCache()
     const b = computeHeightField(profile, [])
@@ -50,19 +55,24 @@ describe('terrainHeightField (S8.7)', () => {
     expect(Array.from(a.z)).toEqual(Array.from(b.z))
   })
 
-  it('memoises per route — a second call for the same route returns the same object', () => {
+  it("memoises per line — a second call for the same line returns the same object", () => {
     const a = computeHeightField(profile, [])
     const b = computeHeightField(profile, [])
     expect(a).toBe(b)
   })
 
-  it('marks points red near a supplied anomaly, and none red with no anomaly', () => {
+  it("marks points red near a supplied anomaly, and none red with no anomaly", () => {
     const withoutAnomaly = computeHeightField(profile, [])
-    const anomalyCount = Array.from(withoutAnomaly.anomaly).reduce((a, b) => a + b, 0)
+    const anomalyCount = Array.from(withoutAnomaly.anomaly).reduce(
+      (a, b) => a + b,
+      0
+    )
     expect(anomalyCount).toBe(0)
 
     resetHeightFieldCache()
-    const withAnomaly = computeHeightField(profile, [{ progress: 0.5, lateral: 0 }])
+    const withAnomaly = computeHeightField(profile, [
+      { progress: 0.5, lateral: 0 },
+    ])
     const flagged = Array.from(withAnomaly.anomaly).reduce((a, b) => a + b, 0)
     expect(flagged).toBeGreaterThan(0)
   })

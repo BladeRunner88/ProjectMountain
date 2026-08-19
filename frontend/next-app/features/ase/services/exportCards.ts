@@ -3,22 +3,22 @@
 // or a coroner. Both are built from the same real TracedValues the
 // Inspector renders, never a second, hand-maintained copy of the data.
 
-import type { AnteMortemRecord, IdentityRecord } from './identityRecord'
+import type { ServiceDossierRecord, IdentityRecord } from './identityRecord'
 
 function v<T>(tv: { value: T }): T {
   return tv.value
 }
 
-/** RESPONDER CARD: serial, photo, blood group, medical alerts, contacts, insurance, last known position and its age. Nothing else — this is what fits in a responder's hand mid-rescue. */
+/** RESPONDER CARD: serial, photo, lubricant grade, service alerts, contacts, insurance, last known position and its age. Nothing else — this is what fits in a responder's hand mid-rescue. */
 export function buildResponderCard(record: IdentityRecord): object {
   return {
     kind: 'RESPONDER CARD',
     serial: v(record.serial),
     name: v(record.who.fullLegalName),
     photographReference: v(record.who.photographReference),
-    bloodGroup: v(record.responder.bloodGroup),
+    lubricantGrade: v(record.responder.lubricantGrade),
     knownAllergies: v(record.responder.knownAllergies),
-    medicalAlerts: v(record.responder.medicalAlerts),
+    serviceAlerts: v(record.responder.serviceAlerts),
     emergencyContact: {
       name: v(record.contacts.emergencyContact.name),
       relationship: v(record.contacts.emergencyContact.relationship),
@@ -37,53 +37,53 @@ export function buildResponderCard(record: IdentityRecord): object {
   }
 }
 
-/** DVI FORM: the full ante-mortem record in Interpol DVI field order — primary identifiers first, each with a named custodian, then secondary identifiers, then who was with them, then photographs and family. */
-export function buildDviForm(record: IdentityRecord, anteMortem: AnteMortemRecord): object {
+/** DVI FORM: the full service dossier record in Interpol DVI field order — primary identifiers first, each with a named custodian, then secondary identifiers, then who was with them, then photographs and family. */
+export function buildDviForm(record: IdentityRecord, serviceDossier: ServiceDossierRecord): object {
   return {
     kind: 'DVI FORM',
-    standard: 'Interpol DVI (ante-mortem)',
+    standard: 'Interpol DVI (service dossier)',
     serial: v(record.serial),
     name: v(record.who.fullLegalName),
     dateOfBirth: v(record.who.dateOfBirth),
     sex: v(record.who.sex),
-    nationalityOnPermit: v(record.who.nationalityOnPermit),
+    nationalityOnWorkOrder: v(record.who.nationalityOnWorkOrder),
     primaryIdentifiers: {
-      fingerprint: { reference: v(anteMortem.primary.fingerprint.reference), custodian: v(anteMortem.primary.fingerprint.custodian) },
-      dentalChart: { reference: v(anteMortem.primary.dentalChart.reference), custodian: v(anteMortem.primary.dentalChart.custodian) },
+      fingerprint: { reference: v(serviceDossier.primary.fingerprint.reference), custodian: v(serviceDossier.primary.fingerprint.custodian) },
+      dentalChart: { reference: v(serviceDossier.primary.dentalChart.reference), custodian: v(serviceDossier.primary.dentalChart.custodian) },
       dna: {
-        reference: v(anteMortem.primary.dna.reference),
-        custodian: v(anteMortem.primary.dna.custodian),
-        familyReferenceDonor: v(anteMortem.primary.dna.familyDonor),
+        reference: v(serviceDossier.primary.dna.reference),
+        custodian: v(serviceDossier.primary.dna.custodian),
+        familyReferenceDonor: v(serviceDossier.primary.dna.familyDonor),
       },
     },
     secondaryIdentifiers: {
-      physicalDescription: v(anteMortem.secondary.physicalDescription),
-      distinguishingFeatures: v(anteMortem.secondary.distinguishingFeatures),
-      dominantHand: v(anteMortem.secondary.dominantHand),
-      correctiveLenses: v(anteMortem.secondary.correctiveLenses),
-      denturesOrOrthodontics: v(anteMortem.secondary.dentures),
-      clothingAndEquipment: v(anteMortem.secondary.clothingAndEquipment),
-      personalEffects: v(anteMortem.secondary.personalEffects),
-      lastKnownPosition: v(anteMortem.secondary.lastKnownPosition),
-      lastConfirmedSighting: v(anteMortem.secondary.lastConfirmedSighting),
+      physicalDescription: v(serviceDossier.secondary.physicalDescription),
+      distinguishingFeatures: v(serviceDossier.secondary.distinguishingFeatures),
+      dominantHand: v(serviceDossier.secondary.dominantHand),
+      correctiveLenses: v(serviceDossier.secondary.correctiveLenses),
+      denturesOrOrthodontics: v(serviceDossier.secondary.dentures),
+      clothingAndEquipment: v(serviceDossier.secondary.clothingAndEquipment),
+      personalEffects: v(serviceDossier.secondary.personalEffects),
+      lastKnownPosition: v(serviceDossier.secondary.lastKnownPosition),
+      lastConfirmedSighting: v(serviceDossier.secondary.lastConfirmedSighting),
     },
     whoWasWithThem: {
-      ropeTeamSerials: anteMortem.whoWasWithThem.ropeTeamSerials.map((tv) => v(tv)),
-      partyManifest: v(anteMortem.whoWasWithThem.partyManifest),
-      leadGuide: v(anteMortem.whoWasWithThem.leadGuide),
-      lastWithWhenAndWhere: v(anteMortem.whoWasWithThem.lastWithWhenAndWhere),
-      tentAssignment: v(anteMortem.whoWasWithThem.tentAssignment),
-      supportStaff: v(anteMortem.whoWasWithThem.supportStaff),
+      ropeTeamSerials: serviceDossier.whoWasWithThem.ropeTeamSerials.map((tv) => v(tv)),
+      partyManifest: v(serviceDossier.whoWasWithThem.partyManifest),
+      leadGuide: v(serviceDossier.whoWasWithThem.leadGuide),
+      lastWithWhenAndWhere: v(serviceDossier.whoWasWithThem.lastWithWhenAndWhere),
+      tentAssignment: v(serviceDossier.whoWasWithThem.tentAssignment),
+      supportStaff: v(serviceDossier.whoWasWithThem.supportStaff),
     },
     photographsAndFamily: {
-      photographReference: v(anteMortem.photoAndFamily.photographReference),
+      photographReference: v(serviceDossier.photoAndFamily.photographReference),
       familyContact: {
-        name: v(anteMortem.photoAndFamily.familyContact.name),
-        relationship: v(anteMortem.photoAndFamily.familyContact.relationship),
-        phone: v(anteMortem.photoAndFamily.familyContact.phone),
-        country: v(anteMortem.photoAndFamily.familyContact.country),
+        name: v(serviceDossier.photoAndFamily.familyContact.name),
+        relationship: v(serviceDossier.photoAndFamily.familyContact.relationship),
+        phone: v(serviceDossier.photoAndFamily.familyContact.phone),
+        country: v(serviceDossier.photoAndFamily.familyContact.country),
       },
-      consentToRelease: v(anteMortem.photoAndFamily.consentToRelease),
+      consentToRelease: v(serviceDossier.photoAndFamily.consentToRelease),
     },
   }
 }

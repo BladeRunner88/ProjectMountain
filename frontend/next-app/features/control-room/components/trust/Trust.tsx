@@ -37,7 +37,7 @@ const PILLS: { id: TrustPill; label: string }[] = [
 ]
 
 // S9.13 (complete build): the last tab, and the only one whose subject is
-// the SYSTEM rather than the expedition — see trust.ts's own header for
+// the SYSTEM rather than the campaign — see trust.ts's own header for
 // why it holds plain structured data instead of TracedValue chains. Four
 // pills switch the main content; Performance and Known Limitations are
 // STANDING sections that render underneath regardless of which pill is

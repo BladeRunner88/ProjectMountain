@@ -1,27 +1,45 @@
-'use client'
+"use client"
 
-import { useEffect, useMemo, type ReactNode } from 'react'
-import { tickOnce } from '../services/dataset'
-import { Rng } from '../services/rng'
-import { type DatasetValue, useDatasetStore } from '../stores/datasetStore'
+import { useEffect, useMemo, type ReactElement, type ReactNode } from "react"
+
+import { ErrorState } from "@/components/ui/error-state"
+import { LoadingState } from "@/components/ui/loading-state"
+
+import { tickOnce } from "../services/dataset"
+import { Rng } from "../services/rng"
+import { describeWorldError } from "../services/world"
+import { type DatasetValue, useDatasetStore } from "../stores/datasetStore"
+import { useWorldQuery } from "./useWorldQuery"
 
 const TICK_INTERVAL_MS = 5000
 const LIVE_TICK_SEED = 20260804717
 
-export type { AuditEntry, DatasetValue, RevisionEntry } from '../stores/datasetStore'
+export type {
+  AuditEntry,
+  DatasetValue,
+  RevisionEntry,
+} from "../stores/datasetStore"
 
 /**
- * Owns the live graph singleton and the 5s tick. Must wrap any tree that
- * calls `useDataset`. `buildDataset` is not pure (it `clearRegistry()`s), so
- * initialization is guarded the same way the old DatasetProvider used a ref:
- * once per JS realm, surviving StrictMode remounts because the store is
- * module-level.
+ * Owns the live graph singleton and the 5s tick.
+ *
+ * The world — every plant, line, machine, sensor, vendor feed and pipeline
+ * stage — is fetched from the backend before anything is built. Nothing
+ * renders against invented entities: until the world arrives there is a
+ * loading state, and if it cannot be fetched there is an error rather than a
+ * fabricated fallback.
  */
-export function DatasetProvider({ children }: { children: ReactNode }): ReactNode {
-  if (!useDatasetStore.getState().dataset) {
-    useDatasetStore.getState().initialize()
-  }
+export function DatasetProvider({
+  children,
+}: {
+  children: ReactNode
+}): ReactElement {
+  const { data: world, isPending, isError, error, refetch } = useWorldQuery()
   const dataset = useDatasetStore((s) => s.dataset)
+
+  useEffect(() => {
+    if (world) useDatasetStore.getState().initialize(world)
+  }, [world])
 
   useEffect(() => {
     if (!dataset) return undefined
@@ -33,14 +51,29 @@ export function DatasetProvider({ children }: { children: ReactNode }): ReactNod
     return (): void => clearInterval(interval)
   }, [dataset])
 
-  return children
+  if (isError) {
+    return (
+      <ErrorState
+        variant="dark"
+        message={describeWorldError(
+          error,
+          "The Control Room could not load its world."
+        )}
+        onRetry={() => void refetch()}
+      />
+    )
+  }
+  if (isPending || !dataset) {
+    return <LoadingState variant="dark" label="Loading the plant" />
+  }
+  return <>{children}</>
 }
 
 export function useDataset(): DatasetValue {
   const snapshot = useDatasetStore()
   return useMemo((): DatasetValue => {
     if (!snapshot.dataset) {
-      throw new Error('useDataset must be used within DatasetProvider')
+      throw new Error("useDataset must be used within DatasetProvider")
     }
     return {
       dataset: snapshot.dataset,

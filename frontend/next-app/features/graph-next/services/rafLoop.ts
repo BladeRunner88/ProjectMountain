@@ -6,7 +6,7 @@
 // sequence is start() -> stop() -> start(), which is exactly the pattern
 // this is built to handle correctly, not a special case.
 
-import { IS_DEV } from './env'
+import { IS_DEV } from "./env"
 
 export interface RafLoop {
   start(): void
@@ -27,8 +27,10 @@ export function createRafLoop(onFrame: (nowMs: number) => void): RafLoop {
   function start() {
     if (running) {
       if (IS_DEV) {
-         
-        console.assert(false, '[graph] rafLoop.start() called while already running — a second loop must never stack on the first')
+        console.assert(
+          false,
+          "[graph] rafLoop.start() called while already running — a second loop must never stack on the first"
+        )
       }
       return
     }

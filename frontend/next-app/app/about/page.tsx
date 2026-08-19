@@ -8,6 +8,6 @@ export const metadata: Metadata = {
   description: "More on our story is coming soon.",
 }
 
-export default function AboutRoute(): ReactElement {
+export default function AboutLine(): ReactElement {
   return <AboutPage />
 }

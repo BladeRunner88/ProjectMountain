@@ -1,4 +1,4 @@
-import type { Climber, Company, Country, Environment, NodeStatus, Region } from '../types/domain'
+import type { Machine, Company, Country, Environment, NodeStatus, Plant } from '../types/domain'
 
 export interface Point {
   x: number
@@ -9,9 +9,9 @@ export const CANVAS_SIZE = 2400
 export const CENTER: Point = { x: CANVAS_SIZE / 2, y: CANVAS_SIZE / 2 }
 
 const R_COUNTRY = 480
-const R_REGION = 650
+const R_PLANT = 650
 const R_COMPANY = 800
-const R_CLIMBER = 930
+const R_MACHINE = 930
 const ENV_PERP_OFFSET = 70
 const JITTER_PX = 8
 const WEDGE_MARGIN = 0.82
@@ -19,20 +19,20 @@ const WEDGE_MARGIN = 0.82
 export const NODE_SIZE = {
   country: 46,
   countryMajorScale: 1.4,
-  region: 26,
+  plant: 26,
   company: 14,
-  climber: 8,
+  machine: 8,
   environment: 20,
 }
 
-export type Tier = 'country' | 'region' | 'environment' | 'company' | 'climber'
+export type Tier = 'country' | 'plant' | 'environment' | 'company' | 'machine'
 
 export const SPAWN_TIER_DELAY: Record<Tier, number> = {
   country: 0,
-  region: 250,
+  plant: 250,
   environment: 400,
   company: 550,
-  climber: 800,
+  machine: 800,
 }
 export const SPAWN_STAGGER_PER_NODE = 12
 export const SPAWN_NODE_DURATION = 800
@@ -40,9 +40,9 @@ export const EDGE_REVEAL_DURATION = 320
 
 export const DRIFT_AMPLITUDE: Record<Tier, number> = {
   country: 2,
-  region: 4,
+  plant: 4,
   company: 6,
-  climber: 8,
+  machine: 8,
   environment: 5,
 }
 
@@ -132,9 +132,9 @@ function worstStatus(a: NodeStatus, b: NodeStatus): NodeStatus {
 
 export function buildHierarchyLayout(
   countryList: Country[],
-  regionList: Region[],
+  plantList: Plant[],
   companyList: Company[],
-  climberList: Climber[],
+  machineList: Machine[],
   environmentList: Environment[]
 ): HierarchyLayout {
   const positions = new Map<string, Point>()
@@ -155,12 +155,12 @@ export function buildHierarchyLayout(
   }
 
   const countryLanded = tierLandedTime('country', countryList.length)
-  const regionLanded = tierLandedTime('region', regionList.length)
+  const plantLanded = tierLandedTime('plant', plantList.length)
   const environmentLanded = tierLandedTime('environment', environmentList.length)
   const companyLanded = tierLandedTime('company', companyList.length)
-  const climberLanded = tierLandedTime('climber', climberList.length)
+  const machineLanded = tierLandedTime('machine', machineList.length)
 
-  const environmentByRegion = new Map(environmentList.map((e) => [e.regionId, e]))
+  const environmentByPlant = new Map(environmentList.map((e) => [e.plantId, e]))
   const countryWedgeWidth = 360 / countryList.length
 
   countryList.forEach((country, ci) => {
@@ -173,46 +173,46 @@ export function buildHierarchyLayout(
     sizes.set(country.id, country.isMajor ? NODE_SIZE.country * NODE_SIZE.countryMajorScale : NODE_SIZE.country)
     setNodeMeta(country.id, 'country', ci)
 
-    const countryRegions = regionList.filter((r) => r.countryId === country.id)
-    const regionWedges = splitWedge(countryWedge.start, countryWedge.end, countryRegions.length)
+    const countryPlants = plantList.filter((r) => r.countryId === country.id)
+    const plantWedges = splitWedge(countryWedge.start, countryWedge.end, countryPlants.length)
 
-    countryRegions.forEach((region, ri) => {
-      const regionIndexGlobal = regionList.indexOf(region)
-      edges.push({ source: country.id, target: region.id, kind: 'structure', revealTier: 'region', revealDelay: regionLanded })
-      parentOf.set(region.id, country.id)
-      const rw = regionWedges[ri]
+    countryPlants.forEach((plant, ri) => {
+      const plantIndexGlobal = plantList.indexOf(plant)
+      edges.push({ source: country.id, target: plant.id, kind: 'structure', revealTier: 'plant', revealDelay: plantLanded })
+      parentOf.set(plant.id, country.id)
+      const rw = plantWedges[ri]
       if (!rw) return
 
-      const rBase = pointAt(rw.center, R_REGION)
-      const rj = jitter(seedFromId(region.id, 2))
-      const regionPos = { x: rBase.x + rj.x, y: rBase.y + rj.y }
-      positions.set(region.id, regionPos)
-      sizes.set(region.id, NODE_SIZE.region)
-      setNodeMeta(region.id, 'region', regionIndexGlobal)
+      const rBase = pointAt(rw.center, R_PLANT)
+      const rj = jitter(seedFromId(plant.id, 2))
+      const plantPos = { x: rBase.x + rj.x, y: rBase.y + rj.y }
+      positions.set(plant.id, plantPos)
+      sizes.set(plant.id, NODE_SIZE.plant)
+      setNodeMeta(plant.id, 'plant', plantIndexGlobal)
 
-      const env = environmentByRegion.get(region.id)
+      const env = environmentByPlant.get(plant.id)
       if (env) {
         const envIndexGlobal = environmentList.indexOf(env)
         const tangent = tangentAt(rw.center)
         const ej = jitter(seedFromId(env.id, 5))
         positions.set(env.id, {
-          x: regionPos.x + tangent.x * ENV_PERP_OFFSET + ej.x,
-          y: regionPos.y + tangent.y * ENV_PERP_OFFSET + ej.y,
+          x: plantPos.x + tangent.x * ENV_PERP_OFFSET + ej.x,
+          y: plantPos.y + tangent.y * ENV_PERP_OFFSET + ej.y,
         })
         sizes.set(env.id, NODE_SIZE.environment)
         setNodeMeta(env.id, 'environment', envIndexGlobal)
-        parentOf.set(env.id, region.id)
-        edges.push({ source: region.id, target: env.id, kind: 'structure', revealTier: 'environment', revealDelay: environmentLanded })
+        parentOf.set(env.id, plant.id)
+        edges.push({ source: plant.id, target: env.id, kind: 'structure', revealTier: 'environment', revealDelay: environmentLanded })
         edges.push({ source: env.id, target: country.id, kind: 'weather', revealTier: 'environment', revealDelay: environmentLanded })
       }
 
-      const regionCompanies = companyList.filter((c) => c.regionId === region.id)
-      const companyWedges = splitWedge(rw.start, rw.end, regionCompanies.length)
+      const plantCompanies = companyList.filter((c) => c.plantId === plant.id)
+      const companyWedges = splitWedge(rw.start, rw.end, plantCompanies.length)
 
-      regionCompanies.forEach((company, coi) => {
+      plantCompanies.forEach((company, coi) => {
         const companyIndexGlobal = companyList.indexOf(company)
-        edges.push({ source: region.id, target: company.id, kind: 'structure', revealTier: 'company', revealDelay: companyLanded })
-        parentOf.set(company.id, region.id)
+        edges.push({ source: plant.id, target: company.id, kind: 'structure', revealTier: 'company', revealDelay: companyLanded })
+        parentOf.set(company.id, plant.id)
         const cw = companyWedges[coi]
         if (!cw) return
 
@@ -222,20 +222,20 @@ export function buildHierarchyLayout(
         sizes.set(company.id, NODE_SIZE.company)
         setNodeMeta(company.id, 'company', companyIndexGlobal)
 
-        const companyClimbers = climberList.filter((cl) => cl.companyId === company.id)
-        const climberWedges = splitWedge(cw.start, cw.end, companyClimbers.length)
+        const companyMachines = machineList.filter((cl) => cl.companyId === company.id)
+        const machineWedges = splitWedge(cw.start, cw.end, companyMachines.length)
 
-        companyClimbers.forEach((climber, li) => {
-          const climberIndexGlobal = climberList.indexOf(climber)
-          edges.push({ source: company.id, target: climber.id, kind: 'structure', revealTier: 'climber', revealDelay: climberLanded })
-          parentOf.set(climber.id, company.id)
-          const climberWedge = climberWedges[li]
-          if (!climberWedge) return
-          const lBase = pointAt(climberWedge.center, R_CLIMBER)
-          const lj = jitter(seedFromId(climber.id, 4))
-          positions.set(climber.id, { x: lBase.x + lj.x, y: lBase.y + lj.y })
-          sizes.set(climber.id, NODE_SIZE.climber)
-          setNodeMeta(climber.id, 'climber', climberIndexGlobal)
+        companyMachines.forEach((machine, li) => {
+          const machineIndexGlobal = machineList.indexOf(machine)
+          edges.push({ source: company.id, target: machine.id, kind: 'structure', revealTier: 'machine', revealDelay: machineLanded })
+          parentOf.set(machine.id, company.id)
+          const machineWedge = machineWedges[li]
+          if (!machineWedge) return
+          const lBase = pointAt(machineWedge.center, R_MACHINE)
+          const lj = jitter(seedFromId(machine.id, 4))
+          positions.set(machine.id, { x: lBase.x + lj.x, y: lBase.y + lj.y })
+          sizes.set(machine.id, NODE_SIZE.machine)
+          setNodeMeta(machine.id, 'machine', machineIndexGlobal)
         })
       })
     })
@@ -252,14 +252,14 @@ export function buildHierarchyLayout(
 
 export function computeStatusOf(
   layout: Pick<HierarchyLayout, 'parentOf' | 'tierOf'>,
-  climberStatus: ReadonlyMap<string, NodeStatus>,
+  machineStatus: ReadonlyMap<string, NodeStatus>,
   environmentStatus: ReadonlyMap<string, NodeStatus>
 ): Map<string, NodeStatus> {
   const { parentOf, tierOf } = layout
   const statusOf = new Map<string, NodeStatus>()
 
-  for (const [climberId, status] of climberStatus) {
-    statusOf.set(climberId, status)
+  for (const [machineId, status] of machineStatus) {
+    statusOf.set(machineId, status)
   }
   for (const [envId, status] of environmentStatus) {
     statusOf.set(envId, status)
@@ -281,34 +281,34 @@ export function computeStatusOf(
     return map
   }
 
-  const climbersByCompany = childrenByParent('climber')
+  const machinesByCompany = childrenByParent('machine')
   for (const companyId of idsOfTier('company')) {
-    const anomalousClimbers = (climbersByCompany.get(companyId) ?? []).filter(
+    const anomalousMachines = (machinesByCompany.get(companyId) ?? []).filter(
       (id) => statusOf.get(id) === 'anomaly'
     ).length
     statusOf.set(
       companyId,
-      anomalousClimbers === 0 ? 'nominal' : anomalousClimbers === 1 ? 'watch' : 'anomaly'
+      anomalousMachines === 0 ? 'nominal' : anomalousMachines === 1 ? 'watch' : 'anomaly'
     )
   }
 
-  const companiesByRegion = childrenByParent('company')
-  const environmentsByRegion = childrenByParent('environment')
-  for (const regionId of idsOfTier('region')) {
+  const companiesByPlant = childrenByParent('company')
+  const environmentsByPlant = childrenByParent('environment')
+  for (const plantId of idsOfTier('plant')) {
     let worst: NodeStatus = 'nominal'
-    for (const id of companiesByRegion.get(regionId) ?? []) {
+    for (const id of companiesByPlant.get(plantId) ?? []) {
       worst = worstStatus(worst, statusOf.get(id) ?? 'nominal')
     }
-    for (const id of environmentsByRegion.get(regionId) ?? []) {
+    for (const id of environmentsByPlant.get(plantId) ?? []) {
       worst = worstStatus(worst, statusOf.get(id) ?? 'nominal')
     }
-    statusOf.set(regionId, worst)
+    statusOf.set(plantId, worst)
   }
 
-  const regionsByCountry = childrenByParent('region')
+  const plantsByCountry = childrenByParent('plant')
   for (const countryId of idsOfTier('country')) {
     let worst: NodeStatus = 'nominal'
-    for (const id of regionsByCountry.get(countryId) ?? []) {
+    for (const id of plantsByCountry.get(countryId) ?? []) {
       worst = worstStatus(worst, statusOf.get(id) ?? 'nominal')
     }
     statusOf.set(countryId, worst)

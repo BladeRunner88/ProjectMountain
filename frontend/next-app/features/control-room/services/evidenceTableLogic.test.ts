@@ -9,7 +9,7 @@ describe('hasRenderableWhy', () => {
   })
 
   it('accepts a real sentence', () => {
-    expect(hasRenderableWhy('Blood oxygen below the safe floor for 9 minutes.')).toBe(true)
+    expect(hasRenderableWhy('Effectiveness below the safe floor for 9 minutes.')).toBe(true)
   })
 })
 

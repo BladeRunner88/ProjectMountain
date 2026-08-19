@@ -19,7 +19,8 @@ export function mulberry32(seed: number): () => number {
 
 export function seedFromString(s: string, salt: number): number {
   let h = salt
-  for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0
+  for (let i = 0; i < s.length; i++)
+    h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0
   return h
 }
 
@@ -38,7 +39,10 @@ export function seededShuffle<T>(items: T[], rand: () => number): T[] {
 }
 
 /** Weighted pick from a `{ key: weight }` table — weights need not sum to 1. */
-export function weightedPick<K extends string>(rand: () => number, weights: Record<K, number>): K {
+export function weightedPick<K extends string>(
+  rand: () => number,
+  weights: Record<K, number>
+): K {
   const entries = Object.entries(weights) as [K, number][]
   const total = entries.reduce((sum, [, w]) => sum + w, 0)
   let roll = rand() * total

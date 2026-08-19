@@ -1,11 +1,11 @@
-import type { Climber, Environment, NodeStatus } from '../types/domain'
+import type { Machine, Environment, NodeStatus } from '../types/domain'
 import type { EnvironmentReading, Finding, SourceId } from '../types/simulation'
 
-export const CLIMBER_TICK_MS = 1500
+export const MACHINE_TICK_MS = 1500
 export const ENVIRONMENT_TICK_MS = 4000
 export const TRANSITION_TICK_MS = 12000
 
-export const CLIMBER_HISTORY_LENGTH = 40
+export const MACHINE_HISTORY_LENGTH = 40
 export const WIND_HISTORY_LENGTH = 24
 export const FINDINGS_CAP = 40
 export const FLASH_DURATION_MS = 600
@@ -17,10 +17,10 @@ export const ROTATION_SEED = 424242
 
 export const INITIAL_ANOMALY_ENVIRONMENT_INDICES = new Set([1, 6, 11])
 
-export type LeafKind = 'climber' | 'environment'
+export type LeafKind = 'machine' | 'environment'
 
 export interface StatusState {
-  climberStatus: Map<string, NodeStatus>
+  machineStatus: Map<string, NodeStatus>
   environmentStatus: Map<string, NodeStatus>
   anomalyCount: number
   rotationIndex: number
@@ -82,16 +82,16 @@ export function wrapDeg(deg: number): number {
 export function nextReading(prev: EnvironmentReading): EnvironmentReading {
   return {
     tempC: clamp(prev.tempC + jitterInt(2), -35, 15),
-    windKph: clamp(prev.windKph + jitterInt(8), 0, 140),
-    windBearingDeg: wrapDeg(prev.windBearingDeg + jitterInt(12)),
-    visibilityM: clamp(prev.visibilityM + jitterInt(300), 20, 10000),
+    vibrationMmS: clamp(prev.vibrationMmS + jitterInt(8), 0, 140),
+    vibrationBearingDeg: wrapDeg(prev.vibrationBearingDeg + jitterInt(12)),
+    effectivenessM: clamp(prev.effectivenessM + jitterInt(300), 20, 10000),
     snowfallCm24h: clamp(prev.snowfallCm24h + jitterInt(3), 0, 100),
-    freezingLevelM: prev.freezingLevelM,
+    cycleTimeS: prev.cycleTimeS,
   }
 }
 
 export function nextLeafStatus(kind: LeafKind, current: NodeStatus): NodeStatus {
-  if (kind === 'climber') return current === 'anomaly' ? 'nominal' : 'anomaly'
+  if (kind === 'machine') return current === 'anomaly' ? 'nominal' : 'anomaly'
   if (current === 'nominal') return 'watch'
   if (current === 'watch') return 'anomaly'
   return 'nominal'
@@ -115,7 +115,7 @@ export function advanceRotation(
     if (id === undefined) continue
     const kind = kindOf.get(id)
     if (kind === undefined) continue
-    const statusMap = kind === 'climber' ? prev.climberStatus : prev.environmentStatus
+    const statusMap = kind === 'machine' ? prev.machineStatus : prev.environmentStatus
     const current = statusMap.get(id)
     if (current === undefined) continue
     const to = nextLeafStatus(kind, current)
@@ -123,12 +123,12 @@ export function advanceRotation(
     if (delta > 0 && prev.anomalyCount + delta > ANOMALY_COUNT_MAX) continue
     if (delta < 0 && prev.anomalyCount + delta < ANOMALY_COUNT_MIN) continue
 
-    const climberStatus = kind === 'climber' ? new Map(prev.climberStatus).set(id, to) : prev.climberStatus
+    const machineStatus = kind === 'machine' ? new Map(prev.machineStatus).set(id, to) : prev.machineStatus
     const environmentStatus = kind === 'environment' ? new Map(prev.environmentStatus).set(id, to) : prev.environmentStatus
 
     return {
       next: {
-        climberStatus,
+        machineStatus,
         environmentStatus,
         anomalyCount: prev.anomalyCount + delta,
         rotationIndex: (idx + 1) % rotation.length,
@@ -141,30 +141,30 @@ export function advanceRotation(
 
 export function buildFinding(
   transition: Transition,
-  climberById: ReadonlyMap<string, Climber>,
+  machineById: ReadonlyMap<string, Machine>,
   environmentById: ReadonlyMap<string, Environment>,
-  regionNameByEnvironmentId: ReadonlyMap<string, string>,
-  windKph: number
+  plantNameByEnvironmentId: ReadonlyMap<string, string>,
+  vibrationMmS: number
 ): Finding {
   const level = transition.to
   let message: string
   let subjectName: string
-  if (transition.kind === 'climber') {
-    const climber = climberById.get(transition.id)
-    subjectName = climber?.name ?? transition.id
+  if (transition.kind === 'machine') {
+    const machine = machineById.get(transition.id)
+    subjectName = machine?.name ?? transition.id
     message =
       transition.to === 'anomaly'
-        ? `${subjectName} - SpO2/HR outside safe range`
-        : `${subjectName} - vitals returned to baseline`
+        ? `${subjectName} - Oee/HR outside safe range`
+        : `${subjectName} - readings returned to baseline`
   } else {
     const env = environmentById.get(transition.id)
-    const regionName = env ? (regionNameByEnvironmentId.get(env.id) ?? 'Unknown route') : 'Unknown route'
-    subjectName = regionName
-    if (transition.to === 'watch') message = `${regionName} - conditions deteriorating (wind ${windKph} kph)`
-    else if (transition.to === 'anomaly') message = `${regionName} - wind ${windKph} kph exceeds operating threshold`
-    else message = `${regionName} - conditions normalized`
+    const plantName = env ? (plantNameByEnvironmentId.get(env.id) ?? 'Unknown line') : 'Unknown line'
+    subjectName = plantName
+    if (transition.to === 'watch') message = `${plantName} - conditions deteriorating (vibration ${vibrationMmS} kph)`
+    else if (transition.to === 'anomaly') message = `${plantName} - vibration ${vibrationMmS} kph exceeds operating threshold`
+    else message = `${plantName} - conditions normalized`
   }
-  const source: SourceId = transition.kind === 'climber' ? 'sensor-mesh' : 'weather-feed'
+  const source: SourceId = transition.kind === 'machine' ? 'sensor-mesh' : 'weather-feed'
   return {
     id: `${transition.id}-${Date.now()}`,
     time: nowTimeString(),
@@ -176,18 +176,18 @@ export function buildFinding(
   }
 }
 
-export function buildInitialClimberVitals(
-  climberList: Climber[]
-): Map<string, { spo2: number; hr: number }> {
-  return new Map(climberList.map((c) => [c.id, { spo2: c.baseSpO2, hr: c.baseHr }]))
+export function buildInitialMachineReadings(
+  machineList: Machine[]
+): Map<string, { oee: number; vibration: number }> {
+  return new Map(machineList.map((c) => [c.id, { oee: c.baseOee, vibration: c.baseVibration }]))
 }
 
-export function buildInitialSpo2History(climberList: Climber[]): Map<string, number[]> {
-  return new Map(climberList.map((c) => [c.id, Array(CLIMBER_HISTORY_LENGTH).fill(c.baseSpO2)]))
+export function buildInitialOeeHistory(machineList: Machine[]): Map<string, number[]> {
+  return new Map(machineList.map((c) => [c.id, Array(MACHINE_HISTORY_LENGTH).fill(c.baseOee)]))
 }
 
-export function buildInitialHrHistory(climberList: Climber[]): Map<string, number[]> {
-  return new Map(climberList.map((c) => [c.id, Array(CLIMBER_HISTORY_LENGTH).fill(c.baseHr)]))
+export function buildInitialHrHistory(machineList: Machine[]): Map<string, number[]> {
+  return new Map(machineList.map((c) => [c.id, Array(MACHINE_HISTORY_LENGTH).fill(c.baseVibration)]))
 }
 
 export function buildInitialEnvironmentReadings(
@@ -198,29 +198,29 @@ export function buildInitialEnvironmentReadings(
       e.id,
       {
         tempC: e.tempC,
-        windKph: e.windKph,
-        windBearingDeg: wrapDeg(i * 137),
-        visibilityM: e.visibilityM,
+        vibrationMmS: e.vibrationMmS,
+        vibrationBearingDeg: wrapDeg(i * 137),
+        effectivenessM: e.effectivenessM,
         snowfallCm24h: e.snowfallCm24h,
-        freezingLevelM: e.freezingLevelM,
+        cycleTimeS: e.cycleTimeS,
       },
     ])
   )
 }
 
-export function buildInitialWindHistory(environmentList: Environment[]): Map<string, number[]> {
-  return new Map(environmentList.map((e) => [e.id, Array(WIND_HISTORY_LENGTH).fill(e.windKph)]))
+export function buildInitialVibrationHistory(environmentList: Environment[]): Map<string, number[]> {
+  return new Map(environmentList.map((e) => [e.id, Array(WIND_HISTORY_LENGTH).fill(e.vibrationMmS)]))
 }
 
 export function buildInitialStatusState(
-  climberList: Climber[],
+  machineList: Machine[],
   environmentList: Environment[]
 ): StatusState {
-  const climberStatus = new Map<string, NodeStatus>()
+  const machineStatus = new Map<string, NodeStatus>()
   let anomalyCount = 0
-  for (const c of climberList) {
+  for (const c of machineList) {
     const status: NodeStatus = c.anomaly ? 'anomaly' : 'nominal'
-    climberStatus.set(c.id, status)
+    machineStatus.set(c.id, status)
     if (status === 'anomaly') anomalyCount++
   }
   const environmentStatus = new Map<string, NodeStatus>()
@@ -229,22 +229,22 @@ export function buildInitialStatusState(
     environmentStatus.set(e.id, status)
     if (status === 'anomaly') anomalyCount++
   })
-  return { climberStatus, environmentStatus, anomalyCount, rotationIndex: 0 }
+  return { machineStatus, environmentStatus, anomalyCount, rotationIndex: 0 }
 }
 
-export function buildRotation(climberList: Climber[], environmentList: Environment[]): string[] {
+export function buildRotation(machineList: Machine[], environmentList: Environment[]): string[] {
   return seededShuffle(
-    [...climberList.map((c) => c.id), ...environmentList.map((e) => e.id)],
+    [...machineList.map((c) => c.id), ...environmentList.map((e) => e.id)],
     ROTATION_SEED
   )
 }
 
 export function buildKindOf(
-  climberList: Climber[],
+  machineList: Machine[],
   environmentList: Environment[]
 ): Map<string, LeafKind> {
   const map = new Map<string, LeafKind>()
-  for (const c of climberList) map.set(c.id, 'climber')
+  for (const c of machineList) map.set(c.id, 'machine')
   for (const e of environmentList) map.set(e.id, 'environment')
   return map
 }

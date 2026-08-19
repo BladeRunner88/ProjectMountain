@@ -1,10 +1,10 @@
 import type { ReactElement } from 'react'
 
 import type { Finding } from '../types/simulation'
-import { ANOMALY_COLOR, CLIMBER_NORMAL_COLOR, WATCH_COLOR } from './shapes'
+import { ANOMALY_COLOR, MACHINE_NORMAL_COLOR, WATCH_COLOR } from './shapes'
 
 const LEVEL_COLOR: Record<Finding['level'], string> = {
-  nominal: CLIMBER_NORMAL_COLOR,
+  nominal: MACHINE_NORMAL_COLOR,
   watch: WATCH_COLOR,
   anomaly: ANOMALY_COLOR,
 }

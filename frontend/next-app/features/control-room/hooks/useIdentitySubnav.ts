@@ -20,9 +20,9 @@ export function isIdentitySubTab(value: string): value is IdentitySubTab {
 
 export interface IdentitySubnavValue {
   sub: IdentitySubTab
-  climberId: string | null
+  machineId: string | null
   setSub: (sub: IdentitySubTab) => void
-  setPerson: (climberId: string, moveToSourceRecords: boolean) => void
+  setPerson: (machineId: string, moveToSourceRecords: boolean) => void
 }
 
 export function useIdentitySubnav(): IdentitySubnavValue {
@@ -32,18 +32,18 @@ export function useIdentitySubnav(): IdentitySubnavValue {
 
   const subRaw = searchParams.get('sub')
   const sub: IdentitySubTab = subRaw !== null && isIdentitySubTab(subRaw) ? subRaw : 'list'
-  const climberId = searchParams.get('climberId')
+  const machineId = searchParams.get('machineId')
 
   const replaceQuery = useCallback(
-    (next: { sub?: IdentitySubTab; climberId?: string | null }): void => {
+    (next: { sub?: IdentitySubTab; machineId?: string | null }): void => {
       const params = new URLSearchParams(searchParams.toString())
       if (next.sub !== undefined) params.set('sub', next.sub)
-      if (next.climberId !== undefined) {
-        if (next.climberId) params.set('climberId', next.climberId)
-        else params.delete('climberId')
+      if (next.machineId !== undefined) {
+        if (next.machineId) params.set('machineId', next.machineId)
+        else params.delete('machineId')
       }
       const qs = params.toString()
-      // `usePathname()` is a plain string, so typedRoutes cannot check this one
+      // `usePathname()` is a plain string, so typedLines cannot check this one
       // statically — the cast is the documented escape hatch for non-literal hrefs.
       const href = (qs ? `${pathname}?${qs}` : pathname) as Route
       router.replace(href, { scroll: false })
@@ -61,12 +61,12 @@ export function useIdentitySubnav(): IdentitySubnavValue {
   const setPerson = useCallback(
     (id: string, moveToSourceRecords: boolean): void => {
       replaceQuery({
-        climberId: id,
+        machineId: id,
         ...(moveToSourceRecords ? { sub: 'source-records' as const } : {}),
       })
     },
     [replaceQuery]
   )
 
-  return { sub, climberId, setSub, setPerson }
+  return { sub, machineId, setSub, setPerson }
 }

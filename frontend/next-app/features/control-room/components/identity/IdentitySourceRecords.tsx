@@ -29,7 +29,7 @@ import { Metric, useDataset, useSelection } from '@/features/ase/client'
 import type { Dataset } from '@/features/ase/services/dataset'
 import { statusFromAnomalyState, type Associate, type IdentityCard, type PersonStatus } from '@/features/ase/services/identityCard'
 import { edgeColor, edgeDashArray, nodeVisual } from '@/features/ase/services/nodeLanguage'
-import { isAnteMortemUnsealed, type IdentityRecord } from '@/features/ase/services/identityRecord'
+import { isServiceDossierUnsealed, type IdentityRecord } from '@/features/ase/services/identityRecord'
 import { maskedSerial } from '@/features/ase/services/serial'
 import type { Conflict } from '@/features/ase/services/conflict'
 import type { TracedValue } from '@/features/ase/services/traced'
@@ -39,27 +39,27 @@ const STATUS_COLOR: Record<PersonStatus, string> = { nominal: NOMINAL, watch: WA
 
 export function IdentitySourceRecords({
   dataset,
-  climberId,
+  machineId,
   onSelectPerson,
 }: {
   dataset: Dataset
-  climberId: string
-  onSelectPerson: (climberId: string) => void
+  machineId: string
+  onSelectPerson: (machineId: string) => void
 }): ReactElement {
   const { openIncidents } = useDataset()
-  const record = dataset.identityRecords.get(climberId)
-  const anteMortem = dataset.anteMortems.get(climberId)
-  const card = dataset.identityCards.get(climberId)
+  const record = dataset.identityRecords.get(machineId)
+  const serviceDossier = dataset.serviceDossiers.get(machineId)
+  const card = dataset.identityCards.get(machineId)
 
-  if (!record || !anteMortem || !card) {
+  if (!record || !serviceDossier || !card) {
     return <p style={{ ...TYPE_BODY, color: TEXT_DIM }}>No source record for this person.</p>
   }
 
   const status = statusFromAnomalyState(record.derived.anomalyState.value)
-  const unsealed = isAnteMortemUnsealed(record, openIncidents.has(climberId))
-  const ethnicityConflict = card.identity.ethnicityHasConflict
+  const unsealed = isServiceDossierUnsealed(record, openIncidents.has(machineId))
+  const linePrefixConflict = card.identity.linePrefixHasConflict
     ? dataset.conflicts.find(
-        (cf) => cf.propertyLabel === 'Ethnicity (as recorded)' && cf.entityLabel === record.who.fullLegalName.value
+        (cf) => cf.propertyLabel === 'Line (as recorded)' && cf.entityLabel === record.who.fullLegalName.value
       )
     : undefined
 
@@ -70,7 +70,7 @@ export function IdentitySourceRecords({
         card={card}
         status={status}
         unsealed={unsealed}
-        ethnicityConflict={ethnicityConflict}
+        linePrefixConflict={linePrefixConflict}
       />
       <AssociatesAndTrail card={card} status={status} dataset={dataset} onSelectPerson={onSelectPerson} />
     </div>
@@ -82,13 +82,13 @@ function IdentityCardPanel({
   card,
   status,
   unsealed,
-  ethnicityConflict,
+  linePrefixConflict,
 }: {
   record: IdentityRecord
   card: IdentityCard
   status: PersonStatus
   unsealed: boolean
-  ethnicityConflict: Conflict | undefined
+  linePrefixConflict: Conflict | undefined
 }): ReactElement {
   return (
     <div
@@ -119,18 +119,18 @@ function IdentityCardPanel({
           <FieldMetric label="Date of birth" traced={card.identity.dateOfBirth} />
           <FieldMetric label="Sex" traced={card.identity.sex} />
           <FieldMetric
-            label="Ethnicity"
-            traced={card.identity.ethnicity}
-            sub={`As recorded — ${card.identity.ethnicityDocument}`}
-            conflict={ethnicityConflict}
+            label="Line"
+            traced={card.identity.linePrefix}
+            sub={`As recorded — ${card.identity.linePrefixDocument}`}
+            conflict={linePrefixConflict}
           />
-          <FieldMetric label="Race" traced={card.identity.race} sub={`As recorded — ${card.identity.raceDocument}`} />
+          <FieldMetric label="Race" traced={card.identity.manufacturer} sub={`As recorded — ${card.identity.manufacturerDocument}`} />
           <FieldMetric label="Languages" traced={card.identity.languages} />
         </CardColumn>
 
         <CardColumn heading="Physical">
           <FieldMetric label="Height" traced={card.physical.height} format={(v) => `${v}cm`} />
-          <FieldMetric label="Weight" traced={card.physical.weight} format={(v) => `${v}kg`} />
+          <FieldMetric label="Weight" traced={card.physical.ratedLoad} format={(v) => `${v}kg`} />
           <FieldMetric label="Build" traced={card.physical.build} />
           <FieldMetric label="Eye colour" traced={card.physical.eyeColour} />
           <FieldMetric label="Hair colour" traced={card.physical.hairColour} />
@@ -138,20 +138,20 @@ function IdentityCardPanel({
           <FieldMetric label="Distinguishing marks" traced={card.physical.distinguishingMarks} />
         </CardColumn>
 
-        <CardColumn heading="Medical">
-          <FieldMetric label="Blood group" traced={card.medical.bloodGroup} />
-          <FieldMetric label="Allergies" traced={card.medical.allergies} />
-          <FieldMetric label="Medical alerts" traced={card.medical.medicalAlerts} />
-          <FieldMetric label="Resting heart rate" traced={card.medical.restingHeartRate} format={(v) => `${v} bpm`} />
-          <FieldMetric label="Acclimatisation" traced={card.medical.acclimatisation} />
-          <FieldMetric label="Baseline" traced={card.medical.baseline} />
+        <CardColumn heading="Service">
+          <FieldMetric label="Lubricant grade" traced={card.service.lubricantGrade} />
+          <FieldMetric label="Allergies" traced={card.service.allergies} />
+          <FieldMetric label="Service alerts" traced={card.service.serviceAlerts} />
+          <FieldMetric label="Baseline vibration" traced={card.service.restingHeartRate} format={(v) => `${v} mm/s`} />
+          <FieldMetric label="RunIn" traced={card.service.runIn} />
+          <FieldMetric label="Baseline" traced={card.service.baseline} />
         </CardColumn>
 
         <CardColumn heading="Documents">
           <FieldMetric label="Passport" traced={card.documents.passportMasked} />
           <FieldMetric label="Country of origin" traced={card.documents.countryOfOrigin} />
-          <FieldMetric label="Nationality on permit" traced={card.documents.nationalityOnPermit} />
-          <FieldMetric label="Permit number" traced={card.documents.permitNumber} />
+          <FieldMetric label="Nationality on workOrder" traced={card.documents.nationalityOnWorkOrder} />
+          <FieldMetric label="WorkOrder number" traced={card.documents.workOrderNumber} />
           <ReferenceOrSealed label="Fingerprint" unsealed={unsealed} ref_={card.documents.fingerprintRef} />
           <ReferenceOrSealed label="Dental" unsealed={unsealed} ref_={card.documents.dentalRef} />
           <ReferenceOrSealed label="DNA" unsealed={unsealed} ref_={card.documents.dnaRef} />
@@ -268,8 +268,8 @@ function FooterStrip({ card }: { card: IdentityCard }): ReactElement {
         <Metric traced={card.footer.longitude} label="Last fix longitude" format={(v) => v.toFixed(4)} />
       </span>
       <Metric traced={card.footer.resolvedPlace} label="Resolved place" />
-      <Metric traced={card.footer.camp} label="Camp" />
-      <Metric traced={card.footer.altitudeM} label="Altitude" format={(v) => `${v}m`} />
+      <Metric traced={card.footer.station} label="Station" />
+      <Metric traced={card.footer.loadM} label="Load" format={(v) => `${v}m`} />
       <span style={{ color: fixColor }}>
         <Metric traced={card.footer.fixAgeSec} label="Age of last fix" format={(v) => `${formatFixAge(v)} old`} />
       </span>
@@ -297,7 +297,7 @@ function AssociatesAndTrail({
   card: IdentityCard
   status: PersonStatus
   dataset: Dataset
-  onSelectPerson: (climberId: string) => void
+  onSelectPerson: (machineId: string) => void
 }): ReactElement {
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [connectors, setConnectors] = useState<{ id: string; x1: number; y1: number; x2: number; y2: number }[]>([])
@@ -313,12 +313,12 @@ function AssociatesAndTrail({
       for (const stop of card.trail) {
         for (const assocId of stop.sharedWithAssociateIds) {
           const nodeEl = node.querySelector(`[data-node-id="${assocId}"]`)
-          const stopEl = node.querySelector(`[data-trail-stop="${CSS.escape(stop.camp)}"]`)
+          const stopEl = node.querySelector(`[data-trail-stop="${CSS.escape(stop.station)}"]`)
           if (!nodeEl || !stopEl) continue
           const nodeRect = nodeEl.getBoundingClientRect()
           const stopRect = stopEl.getBoundingClientRect()
           next.push({
-            id: `${assocId}-${stop.camp}`,
+            id: `${assocId}-${stop.station}`,
             x1: nodeRect.left + nodeRect.width / 2 - wrapperRect.left,
             y1: nodeRect.top + nodeRect.height / 2 - wrapperRect.top,
             x2: stopRect.left + stopRect.width / 2 - wrapperRect.left,
@@ -356,7 +356,7 @@ function NodeChart({
   card: IdentityCard
   status: PersonStatus
   dataset: Dataset
-  onSelectPerson: (climberId: string) => void
+  onSelectPerson: (machineId: string) => void
 }): ReactElement {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const associates = card.associates
@@ -376,8 +376,8 @@ function NodeChart({
       <div className="flex items-center justify-between">
         <p style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>KNOWN ASSOCIATES</p>
         <div className="flex items-center" style={{ gap: SPACE_16 }}>
-          <Legend swatch="solid" label="Present — this ascent" />
-          <Legend swatch="dashed" label="Past — prior expeditions" />
+          <Legend swatch="solid" label="Present — this rampUp" />
+          <Legend swatch="dashed" label="Past — prior campaigns" />
         </div>
       </div>
       {associates.length === 0 ? (
@@ -406,7 +406,7 @@ function NodeChart({
               x={a.x}
               y={a.y}
               dimmed={dimmed(a.id)}
-              resolvedRecord={a.climberId ? dataset.identityRecords.get(a.climberId) : undefined}
+              resolvedRecord={a.machineId ? dataset.identityRecords.get(a.machineId) : undefined}
               onHover={(hovered) => setHoveredId(hovered ? a.id : null)}
               onSelectPerson={onSelectPerson}
             />
@@ -460,10 +460,10 @@ function AssociateNode({
   dimmed: boolean
   resolvedRecord: IdentityRecord | undefined
   onHover: (hovered: boolean) => void
-  onSelectPerson: (climberId: string) => void
+  onSelectPerson: (machineId: string) => void
 }): ReactElement {
   const r = 10 + associate.strength * 18
-  const partnerId = associate.kind === 'rope_partner' ? associate.climberId : undefined
+  const partnerId = associate.kind === 'rope_partner' ? associate.machineId : undefined
   const visual = nodeVisual(associate.status)
   const isAnomaly = resolvedRecord ? statusFromAnomalyState(resolvedRecord.derived.anomalyState.value) === 'anomaly' : false
   const tooltip = resolvedRecord
@@ -510,14 +510,14 @@ function MovementTrail({ card }: { card: IdentityCard }): ReactElement {
         {card.trail.map((stop, i) => {
           const prev = card.trail[i - 1]
           return (
-            <div key={stop.camp} className="flex flex-1 flex-col items-center">
+            <div key={stop.station} className="flex flex-1 flex-col items-center">
               <div className="flex w-full items-center">
                 {i > 0 ? (
                   <div style={{ flex: 1, height: BORDER_WIDTH, background: prev?.reached ? TEXT_SECONDARY : HAIRLINE }} />
                 ) : null}
                 <span
                   aria-hidden
-                  data-trail-stop={stop.camp}
+                  data-trail-stop={stop.station}
                   style={{
                     width: 14,
                     height: 14,
@@ -532,7 +532,7 @@ function MovementTrail({ card }: { card: IdentityCard }): ReactElement {
                 ) : null}
               </div>
               <p style={{ ...TYPE_CAPTION, color: stop.isCurrent ? TEXT_PRIMARY : TEXT_DIM, marginTop: SPACE_8, textAlign: 'center' }}>
-                {stop.camp}
+                {stop.station}
               </p>
               <p
                 style={{
@@ -544,7 +544,7 @@ function MovementTrail({ card }: { card: IdentityCard }): ReactElement {
                   textAlign: 'center',
                 }}
               >
-                {stop.reached ? `${stop.dateIso} · ${stop.altitudeM}m · ${stop.durationHeld}` : `${stop.altitudeM}m`}
+                {stop.reached ? `${stop.dateIso} · ${stop.loadM}m · ${stop.durationHeld}` : `${stop.loadM}m`}
               </p>
               {stop.sharedWithAssociateIds.length > 0 ? (
                 <p

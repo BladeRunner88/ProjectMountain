@@ -9,13 +9,13 @@ export {
 } from './graphStore'
 
 export {
-  vitalsStore,
-  createVitalsStore,
+  readingsStore,
+  createReadingsStore,
   BUFFER_SIZE,
-  type VitalsSnapshot,
-  type VitalsStore,
-  type VitalsTrend,
-} from './vitalsStore'
+  type ReadingsSnapshot,
+  type ReadingsStore,
+  type ReadingsTrend,
+} from './readingsStore'
 
 export {
   environmentStore,

@@ -42,22 +42,22 @@ const RISK_TO_STATUS: Record<RiskLevel, NodeStatus> = { critical: 'anomaly', ele
 
 export function PredictionForecast({
   state,
-  climberId,
+  machineId,
   onSelectPerson,
 }: {
   state: PredictionState
-  climberId: string
-  onSelectPerson: (climberId: string) => void
+  machineId: string
+  onSelectPerson: (machineId: string) => void
 }): ReactElement {
   const { logRevision } = useDataset()
-  const p = state.predictions.get(climberId)
+  const p = state.predictions.get(machineId)
   if (!p) return <p style={{ ...TYPE_BODY, color: TEXT_DIM }}>No prediction for this person.</p>
   if (p.drivers.length === 0) return <p style={{ ...TYPE_BODY, color: TEXT_DIM }}>No traceable drivers — this prediction does not render.</p>
 
   const totalContribution = p.drivers.reduce((sum, d) => sum + d.contributionPct, 0)
 
   const rec: Recommendation = {
-    id: `forecast-${p.climberId}`,
+    id: `forecast-${p.machineId}`,
     action: p.recommendedAction.action,
     why: p.recommendedAction.why,
     confidencePct: p.recommendedAction.confidencePct,
@@ -146,13 +146,13 @@ function DecisionCapacitySection({
           label="ENVIRONMENTAL LOAD"
           value={cognitive.environmentalLoad.toUpperCase()}
           color={LOAD_COLOR[cognitive.environmentalLoad]}
-          note="wind noise, cold pain, visibility stress"
+          note="vibration noise, cold pain, effectiveness stress"
         />
         <LoadCard
           label="PHYSIOLOGICAL LOAD"
           value={cognitive.physiologicalLoad.toUpperCase()}
           color={LOAD_COLOR[cognitive.physiologicalLoad]}
-          note="hypoxia, fatigue, cold"
+          note="underperformance, fatigue, cold"
         />
         <LoadCard
           label="DECISION CAPACITY"
@@ -343,7 +343,7 @@ function ClusterSection({
   onSelectPerson,
 }: {
   cluster: ClusterMember[]
-  onSelectPerson: (climberId: string) => void
+  onSelectPerson: (machineId: string) => void
 }): ReactElement {
   const members = cluster
   return (
@@ -361,7 +361,7 @@ function ClusterSection({
             const visual = nodeVisual(status)
             const y = 30 + i * 56
             return (
-              <g key={m.climberId} onClick={() => onSelectPerson(m.climberId)} style={{ cursor: 'pointer' }}>
+              <g key={m.machineId} onClick={() => onSelectPerson(m.machineId)} style={{ cursor: 'pointer' }}>
                 {i > 0 ? <line x1={20} y1={30} x2={20} y2={y} stroke={visual.fill} strokeWidth={1.5} opacity={0.5} /> : null}
                 {visual.ring ? <circle cx={20} cy={y} r={10} fill="none" stroke={visual.ring} strokeWidth={2} /> : null}
                 <circle cx={20} cy={y} r={7} fill={visual.fill} />

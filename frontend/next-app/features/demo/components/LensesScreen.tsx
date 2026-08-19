@@ -8,7 +8,7 @@ export const LENS_OPTIONS = [
   'Live telemetry',
   'Anomaly detection',
   'Team structure',
-  'Route progression',
+  'Line progression',
   'Physiological risk',
   'Supply and logistics',
 ] as const

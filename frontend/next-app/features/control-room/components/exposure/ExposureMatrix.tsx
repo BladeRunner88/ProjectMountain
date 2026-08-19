@@ -101,7 +101,7 @@ export function ExposureMatrix({ state, role }: { state: ExposureState; role: Ro
                 who: 'You',
                 actionKind: 'annotated',
                 actionLabel: 'flagged a Matrix cell for review',
-                aboutClimberId: null,
+                aboutMachineId: null,
                 aboutSerial: null,
                 aboutLabel: `${selected.source} → ${selected.className}`,
                 whatChanged: `Flagged the ${selected.source} / ${selected.className} exposure cell for a closer look.`,

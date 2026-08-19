@@ -12,7 +12,7 @@ export type AccessFormValues = {
   addressLine1: string
   addressLine2: string
   city: string
-  stateRegion: string
+  statePlant: string
   postalCode: string
   businessDescription: string
   useCase: string
@@ -55,7 +55,7 @@ export const ACCESS_FORM_DEFAULTS: AccessFormValues = {
   addressLine1: "",
   addressLine2: "",
   city: "",
-  stateRegion: "",
+  statePlant: "",
   postalCode: "",
   businessDescription: "",
   useCase: "",

@@ -17,34 +17,34 @@
 // looks like — same separation this file has always kept.
 //
 // PARENT-POP EPISODES: a parent that buds more than once across the reveal
-// (a region buds its own environment node in stage 3, then its route in
+// (a plant buds its own environment node in stage 3, then its line in
 // stage 4 — two separate litters) gets ONE swell/relax episode per litter,
 // not one continuous swell spanning the whole reveal — "stays slightly
 // swollen until its LAST child [of that litter] has left," not until the
 // entire reveal ends. Rendered on a SEPARATE outer <g> layer from the
 // node's own arrival animation (its inner <g>), so a node that is
 // simultaneously still settling from its OWN arrival and beginning to
-// swell as a parent (S8.5N's stage 4 deliberately overlaps routes landing
+// swell as a parent (S8.5N's stage 4 deliberately overlaps lines landing
 // with operators already budding) never fights itself for the same CSS
 // `transform` — the two effects compose by nested-<g> multiplication, not
 // by two animations racing on one element.
 
-import type { DomainDataset, DomainEntity } from '../types/domain'
-import type { GraphId } from '../types/graph'
+import type { DomainDataset, DomainEntity } from "../types/domain"
+import type { GraphId } from "../types/graph"
 
 export const STAGE_START_MS = {
   countries: 0,
-  regions: 2000,
+  plants: 2000,
   environment: 3100,
-  routesOperators: 3900,
-  climbers: 5200,
+  linesOperators: 3900,
+  machines: 5200,
   records: 6400,
 } as const
 
 // -- PRIMITIVE A: the major pop (countries) ------------------------------
 export const POP_A_DURATION_MS = 680
-export const POP_A_EASE_IN = 'cubic-bezier(0.42, 0.00, 0.58, 1.00)'
-export const POP_A_EASE_OUT = 'cubic-bezier(0.16, 1.00, 0.30, 1.00)'
+export const POP_A_EASE_IN = "cubic-bezier(0.42, 0.00, 0.58, 1.00)"
+export const POP_A_EASE_OUT = "cubic-bezier(0.16, 1.00, 0.30, 1.00)"
 export const COUNTRY_STAGGER_MS = 220
 export const COUNTRY_NAME_DELAY_AFTER_LAND_MS = 200
 export const COUNTRY_NAME_FADE_MS = 300
@@ -56,25 +56,26 @@ export const BUD_PARENT_SWELL_MS = 160
 export const BUD_PARENT_SWELL_SCALE = 1.14
 export const BUD_PARENT_RELAX_MS = 220
 export const BUD_CHILD_MIGRATE_MS = 380
-export const BUD_CHILD_MIGRATE_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'
+export const BUD_CHILD_MIGRATE_EASING = "cubic-bezier(0.22, 1, 0.36, 1)"
 export const BUD_CHILD_SETTLE_MS = 260
 export const BUD_CHILD_TOTAL_MS = BUD_CHILD_MIGRATE_MS + BUD_CHILD_SETTLE_MS // 640
 export const BUD_CHILD_START_SCALE = 0.15
 export const BUD_CHILD_MIGRATE_END_SCALE = 0.85
 export const BUD_CHILD_SETTLE_PEAK_SCALE = 1.1
 
-export const REGION_STAGGER_MS = 90
-/** Region:route is always exactly 1:1 (S8.3/8.4) — nothing to stagger WITHIN a single-child litter, so this staggers ACROSS the flat list of all 14 routes instead, which is what gives stage 4 a spread worth "overlapping" against. */
-export const ROUTE_STAGGER_MS = 45
-export const OPERATOR_STAGGER_MS = 45
-export const CLIMBER_STAGGER_MS = 30
-export const ROUTES_OPERATORS_OVERLAP_MS = 300
+export const PLANT_STAGGER_MS = 90
+/** Staggered ACROSS the flat list of lines, not within each plant's litter — that spread is what stage 5's overlap is measured against. */
+export const LINE_STAGGER_MS = 45
+export const MACHINE_STAGGER_MS = 30
+/** Sensors bud with their machine, fanning out just behind it. */
+export const SENSOR_STAGGER_MS = 12
 
 // -- anomaly: arrives normal, then becomes wrong -------------------------
 export const ANOMALY_TURN_RED_DELAY_MS = 200
 export const ANOMALY_TURN_RED_DURATION_MS = 200
 export const ANOMALY_FLUSH_TOTAL_MS = 340
-export const ANOMALY_FLUSH_HOPS = 4
+/** machine -> line -> plant -> country. Was 4, describing a chain with an `operator` rung that no longer exists, so the flush ran 255ms of its intended 340. */
+export const ANOMALY_FLUSH_HOPS = 3
 
 // -- stage 6: the spore release -------------------------------------------
 export const SUBNODE_MASS_DURATION_MS = 900
@@ -105,9 +106,9 @@ export interface SpawnPlan {
   budParentId: ReadonlyMap<GraphId, GraphId>
   /** Parent id -> every swell/relax episode it goes through as it buds its own children, in temporal order. */
   parentPopEpisodes: ReadonlyMap<GraphId, ParentPopEpisode[]>
-  /** Anomalous climber id -> when it turns red (always AFTER it has already settled normally). */
+  /** Anomalous machine id -> when it turns red (always AFTER it has already settled normally). */
   anomalyTurnRedMs: ReadonlyMap<GraphId, number>
-  /** "parentId->childId" edge key -> when that hop's flush-to-red starts, outward (nearest the climber) to inward (nearest the country). */
+  /** "parentId->childId" edge key -> when that hop's flush-to-red starts, outward (nearest the machine) to inward (nearest the country). */
   anomalyFlushDelayMs: ReadonlyMap<string, number>
   subNodeStartMs: number
   subNodeDurationMs: number
@@ -123,14 +124,22 @@ function pluralCount(n: number, singular: string, plural: string): string {
   return `${n.toLocaleString()} ${n === 1 ? singular : plural}`
 }
 
-function pushEpisode(map: Map<GraphId, ParentPopEpisode[]>, parentId: GraphId, swellStart: number, relaxStart: number) {
+function pushEpisode(
+  map: Map<GraphId, ParentPopEpisode[]>,
+  parentId: GraphId,
+  swellStart: number,
+  relaxStart: number
+) {
   const list = map.get(parentId)
   const episode = { swellStart, relaxStart }
   if (list) list.push(episode)
   else map.set(parentId, [episode])
 }
 
-function groupBy<T>(items: readonly T[], keyOf: (item: T) => GraphId): Map<GraphId, T[]> {
+function groupBy<T>(
+  items: readonly T[],
+  keyOf: (item: T) => GraphId
+): Map<GraphId, T[]> {
   const map = new Map<GraphId, T[]>()
   for (const item of items) {
     const key = keyOf(item)
@@ -142,7 +151,9 @@ function groupBy<T>(items: readonly T[], keyOf: (item: T) => GraphId): Map<Graph
 }
 
 export function buildSpawnPlan(dataset: DomainDataset): SpawnPlan {
-  const byId = new Map<GraphId, DomainEntity>(dataset.domainEntities.map((e) => [e.id, e]))
+  const byId = new Map<GraphId, DomainEntity>(
+    dataset.domainEntities.map((e) => [e.id, e])
+  )
 
   const countryPopDelayMs = new Map<GraphId, number>()
   const countryNameDelayMs = new Map<GraphId, number>()
@@ -151,113 +162,148 @@ export function buildSpawnPlan(dataset: DomainDataset): SpawnPlan {
   const parentPopEpisodes = new Map<GraphId, ParentPopEpisode[]>()
 
   // -- stage 1: countries — PRIMITIVE A, staggered 220ms -------------------
-  const countries = dataset.domainEntities.filter((e) => e.tier === 'country')
+  const countries = dataset.domainEntities.filter((e) => e.tier === "country")
   countries.forEach((c, i) => {
     const pop = STAGE_START_MS.countries + i * COUNTRY_STAGGER_MS
     countryPopDelayMs.set(c.id, pop)
-    countryNameDelayMs.set(c.id, pop + POP_A_DURATION_MS + COUNTRY_NAME_DELAY_AFTER_LAND_MS)
+    countryNameDelayMs.set(
+      c.id,
+      pop + POP_A_DURATION_MS + COUNTRY_NAME_DELAY_AFTER_LAND_MS
+    )
   })
 
-  // -- stage 2: regions — budded from countries, staggered 90ms within country, all countries simultaneous --
-  const regionsByCountry = groupBy(
-    dataset.domainEntities.filter((e) => e.tier === 'region'),
-    (r) => r.countryId,
+  // -- stage 2: plants — budded from countries, staggered 90ms within country, all countries simultaneous --
+  const plantsByCountry = groupBy(
+    dataset.domainEntities.filter((e) => e.tier === "plant"),
+    (r) => r.countryId
   )
-  for (const [countryId, list] of regionsByCountry) {
-    const starts = list.map((region, j) => {
-      const start = STAGE_START_MS.regions + j * REGION_STAGGER_MS
-      budStartMs.set(region.id, start)
-      budParentId.set(region.id, region.parentId!)
+  for (const [countryId, list] of plantsByCountry) {
+    const starts = list.map((plant, j) => {
+      const start = STAGE_START_MS.plants + j * PLANT_STAGGER_MS
+      budStartMs.set(plant.id, start)
+      budParentId.set(plant.id, plant.parentId!)
       return start
     })
-    pushEpisode(parentPopEpisodes, countryId, Math.min(...starts) - BUD_PARENT_SWELL_MS, Math.max(...starts))
+    pushEpisode(
+      parentPopEpisodes,
+      countryId,
+      Math.min(...starts) - BUD_PARENT_SWELL_MS,
+      Math.max(...starts)
+    )
   }
 
-  // -- stage 3: environment — one per region, all simultaneous, sideways --
+  // -- stage 3: environment — one per plant, all simultaneous, sideways --
   for (const env of dataset.environmentNodes) {
     const start = STAGE_START_MS.environment
     budStartMs.set(env.id, start)
-    budParentId.set(env.id, env.regionId)
-    pushEpisode(parentPopEpisodes, env.regionId, start - BUD_PARENT_SWELL_MS, start)
+    budParentId.set(env.id, env.plantId)
+    pushEpisode(
+      parentPopEpisodes,
+      env.plantId,
+      start - BUD_PARENT_SWELL_MS,
+      start
+    )
   }
 
-  // -- stage 4: routes then operators (+ sensors), overlapping by 300ms ---
-  // Region:route is 1:1, so "stagger 45ms" has nothing to stagger WITHIN a
-  // litter — applied across the flat list of all 14 routes instead, which
-  // is what gives this stage the spread the 300ms overlap is measured
-  // against.
-  const routes = dataset.domainEntities.filter((e) => e.tier === 'route')
-  routes.forEach((route, i) => {
-    const start = STAGE_START_MS.routesOperators + i * ROUTE_STAGGER_MS
-    budStartMs.set(route.id, start)
-    budParentId.set(route.id, route.parentId!)
-    pushEpisode(parentPopEpisodes, route.parentId!, start - BUD_PARENT_SWELL_MS, start)
+  // -- stage 4: lines, budded from their plant ---------------------------
+  // Staggered across the flat list rather than within each plant's litter:
+  // that is what gives this stage a spread wide enough for the next stage's
+  // overlap to be measured against.
+  const lines = dataset.domainEntities.filter((e) => e.tier === "line")
+  const lineStartById = new Map<GraphId, number>()
+  lines.forEach((line, i) => {
+    const start = STAGE_START_MS.linesOperators + i * LINE_STAGGER_MS
+    budStartMs.set(line.id, start)
+    budParentId.set(line.id, line.parentId!)
+    lineStartById.set(line.id, start)
   })
 
-  // Operators start simultaneously across every route (the same "all parent
-  // groups branch together, stagger WITHIN the group" pattern every other
-  // stage uses) at a single shared moment computed to land 300ms before
-  // routes would otherwise all be considered landed.
-  const operatorStageStart = STAGE_START_MS.routesOperators + BUD_CHILD_TOTAL_MS - ROUTES_OPERATORS_OVERLAP_MS
-  const operatorsByRoute = groupBy(
-    dataset.domainEntities.filter((e) => e.tier === 'operator'),
-    (o) => o.parentId!,
-  )
-  const sensorByRoute = new Map<GraphId, DomainEntity>()
-  for (const sensor of dataset.domainEntities) {
-    if (sensor.tier === 'sensor' && sensor.parentId) sensorByRoute.set(sensor.parentId, sensor)
-  }
-  for (const route of routes) {
-    const operators = operatorsByRoute.get(route.id) ?? []
-    const starts = operators.map((operator, k) => {
-      const start = operatorStageStart + k * OPERATOR_STAGGER_MS
-      budStartMs.set(operator.id, start)
-      budParentId.set(operator.id, operator.parentId!)
-      return start
-    })
-    const sensor = sensorByRoute.get(route.id)
-    if (sensor) {
-      budStartMs.set(sensor.id, operatorStageStart)
-      budParentId.set(sensor.id, sensor.parentId!)
-      starts.push(operatorStageStart)
-    }
-    if (starts.length > 0) pushEpisode(parentPopEpisodes, route.id, Math.min(...starts) - BUD_PARENT_SWELL_MS, Math.max(...starts))
+  // ONE swell/relax episode per litter, not one per child. A plant with three
+  // lines used to get three episodes for a single litter — the module's own
+  // contract above says one, and plant:line being 1:1 in the old invented
+  // world is the only reason nobody noticed.
+  for (const [plantId, litter] of groupBy(lines, (line) => line.parentId!)) {
+    const starts = litter.map((line) => lineStartById.get(line.id)!)
+    pushEpisode(
+      parentPopEpisodes,
+      plantId,
+      Math.min(...starts) - BUD_PARENT_SWELL_MS,
+      Math.max(...starts)
+    )
   }
 
-  // -- stage 5: climbers — staggered 30ms within operator, all operators simultaneous --
-  const climbersByOperator = groupBy(
-    dataset.domainEntities.filter((e) => e.tier === 'climber'),
-    (c) => c.parentId!,
+  // -- stage 5: machines, budded from their line, with their own sensors ---
+  // At STAGE_START_MS.machines with MACHINE_STAGGER_MS. Both constants were
+  // dead: machines were being budded from the removed operator slot at
+  // 4240ms while the ticker announced them at 5200ms, so they appeared a
+  // full second before anything said they had.
+  const machinesByLine = groupBy(
+    dataset.domainEntities.filter((e) => e.tier === "machine"),
+    (machine) => machine.parentId!
   )
-  for (const [operatorId, list] of climbersByOperator) {
-    const starts = list.map((climber, m) => {
-      const start = STAGE_START_MS.climbers + m * CLIMBER_STAGGER_MS
-      budStartMs.set(climber.id, start)
-      budParentId.set(climber.id, climber.parentId!)
+
+  // Sensors are MOUNTED_ON a machine, so they bud from the machine they sit
+  // on. They used to hang off a line, which now has no sensors at all.
+  const sensorsByMachine = groupBy(
+    dataset.domainEntities.filter((e) => e.tier === "sensor" && e.parentId),
+    (sensor) => sensor.parentId!
+  )
+
+  for (const [lineId, machines] of machinesByLine) {
+    const starts = machines.map((machine, k) => {
+      const start = STAGE_START_MS.machines + k * MACHINE_STAGGER_MS
+      budStartMs.set(machine.id, start)
+      budParentId.set(machine.id, machine.parentId!)
+
+      const sensors = sensorsByMachine.get(machine.id) ?? []
+      const sensorStarts = sensors.map((sensor, n) => {
+        const sensorStart = start + n * SENSOR_STAGGER_MS
+        budStartMs.set(sensor.id, sensorStart)
+        budParentId.set(sensor.id, sensor.parentId!)
+        return sensorStart
+      })
+      if (sensorStarts.length > 0)
+        pushEpisode(
+          parentPopEpisodes,
+          machine.id,
+          Math.min(...sensorStarts) - BUD_PARENT_SWELL_MS,
+          Math.max(...sensorStarts)
+        )
       return start
     })
-    pushEpisode(parentPopEpisodes, operatorId, Math.min(...starts) - BUD_PARENT_SWELL_MS, Math.max(...starts))
+    if (starts.length > 0)
+      pushEpisode(
+        parentPopEpisodes,
+        lineId,
+        Math.min(...starts) - BUD_PARENT_SWELL_MS,
+        Math.max(...starts)
+      )
   }
+
+  // Machines and their sensors bud with their line above; there is no separate
+  // stage below it, because there is no operator rung between line and machine.
 
   // -- anomaly: arrives normal, turns red 200ms after settling, then its
-  // ancestor chain flushes red outward (nearest the climber) to inward
+  // ancestor chain flushes red outward (nearest the machine) to inward
   // (nearest the country) over 340ms. --
   const anomalyTurnRedMs = new Map<GraphId, number>()
   const anomalyFlushDelayMs = new Map<string, number>()
-  for (const climberId of dataset.anomalyClimberIds) {
-    const bud = budStartMs.get(climberId)
+  for (const machineId of dataset.anomalyMachineIds) {
+    const bud = budStartMs.get(machineId)
     if (bud === undefined) continue
     const turnRed = bud + BUD_CHILD_TOTAL_MS + ANOMALY_TURN_RED_DELAY_MS
-    anomalyTurnRedMs.set(climberId, turnRed)
-    let current: DomainEntity | undefined = byId.get(climberId)
+    anomalyTurnRedMs.set(machineId, turnRed)
+    let current: DomainEntity | undefined = byId.get(machineId)
     let hop = 0
     while (current && current.parentId !== null) {
       const key = `${current.parentId}->${current.id}`
-      const delay = turnRed + hop * (ANOMALY_FLUSH_TOTAL_MS / ANOMALY_FLUSH_HOPS)
+      const delay =
+        turnRed + hop * (ANOMALY_FLUSH_TOTAL_MS / ANOMALY_FLUSH_HOPS)
       const existing = anomalyFlushDelayMs.get(key)
-      // a shared upper edge (two anomalous climbers under the same
-      // operator, say) flushes at whichever climber reaches it FIRST.
-      if (existing === undefined || delay < existing) anomalyFlushDelayMs.set(key, delay)
+      // A shared upper edge (two anomalous machines on the same line, say)
+      // flushes at whichever machine reaches it FIRST.
+      if (existing === undefined || delay < existing)
+        anomalyFlushDelayMs.set(key, delay)
       current = byId.get(current.parentId)
       hop++
     }
@@ -271,17 +317,37 @@ export function buildSpawnPlan(dataset: DomainDataset): SpawnPlan {
   const totalDurationMs = historyStartMs + historyDurationMs
 
   const tickerLines: TickerLine[] = [
-    { atMs: STAGE_START_MS.countries, text: pluralCount(countries.length, 'country', 'countries') },
-    { atMs: STAGE_START_MS.regions, text: pluralCount(dataset.domainEntities.filter((e) => e.tier === 'region').length, 'region', 'regions') },
-    { atMs: STAGE_START_MS.environment, text: `${dataset.environmentNodes.length} environmental sensors · live` },
     {
-      atMs: STAGE_START_MS.routesOperators,
-      text: `${pluralCount(routes.length, 'route', 'routes')} · ${pluralCount(dataset.domainEntities.filter((e) => e.tier === 'operator').length, 'operator', 'operators')}`,
+      atMs: STAGE_START_MS.countries,
+      text: pluralCount(countries.length, "country", "countries"),
     },
-    { atMs: STAGE_START_MS.climbers, text: pluralCount(dataset.domainEntities.filter((e) => e.tier === 'climber').length, 'individual', 'individuals') },
+    {
+      atMs: STAGE_START_MS.plants,
+      text: pluralCount(
+        dataset.domainEntities.filter((e) => e.tier === "plant").length,
+        "plant",
+        "plants"
+      ),
+    },
+    {
+      atMs: STAGE_START_MS.environment,
+      text: `${dataset.environmentNodes.length} environmental sensors · live`,
+    },
+    {
+      atMs: STAGE_START_MS.linesOperators,
+      text: `${pluralCount(lines.length, "line", "lines")}`,
+    },
+    {
+      atMs: STAGE_START_MS.machines,
+      text: pluralCount(
+        dataset.domainEntities.filter((e) => e.tier === "machine").length,
+        "individual",
+        "individuals"
+      ),
+    },
     {
       atMs: STAGE_START_MS.records,
-      text: `${dataset.subNodes.length.toLocaleString()} attached records · ${new Set(dataset.historyLinks.map((h) => h.climberId)).size} prior expeditions`,
+      text: `${dataset.subNodes.length.toLocaleString()} attached records · ${new Set(dataset.historyLinks.map((h) => h.machineId)).size} prior campaigns`,
     },
   ]
 

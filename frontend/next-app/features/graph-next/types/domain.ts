@@ -8,7 +8,15 @@
 
 import type { GraphDataset, GraphEntity, GraphId } from './graph'
 
-export type EntityTier = 'country' | 'region' | 'route' | 'operator' | 'climber' | 'sensor'
+/**
+ * The structural tiers, outermost first.
+ *
+ * There is no `operator`. Machines are installed on lines; the people who
+ * operate them are related to them, not above them in the hierarchy — the
+ * ontology says OPERATED_BY, not "contains". Drawing operators as a rung of
+ * the ladder invented a level of structure the plant does not have.
+ */
+export type EntityTier = 'country' | 'plant' | 'line' | 'machine' | 'sensor'
 
 export type EntityStatus = 'nominal' | 'anomaly'
 
@@ -47,40 +55,40 @@ export interface SubNode extends GraphEntity {
 }
 
 /**
- * S8.4b: ONE per region, always live — the node that makes the graph feel
+ * S8.4b: ONE per plant, always live — the node that makes the graph feel
  * alive between interactions. Deliberately NOT a DomainEntity (no `tier`,
  * no country-hue colouring, ignores anomaly/status entirely in favour of
  * its own `breached` reading) and not a SubNode either (it never
  * collapses, never stops pulsing, and carries live-ticking conditions a
- * static historical record never would). `windKph` etc. are the dataset's
+ * static historical record never would). `vibrationMmS` etc. are the dataset's
  * own SEEDED baseline; environmentStore.ts owns the live tick on top of
  * this baseline while NETWORK is mounted.
  */
 export interface EnvironmentNode extends GraphEntity {
   id: GraphId
   kind: 'environment'
-  regionId: GraphId
+  plantId: GraphId
   countryId: GraphId
-  windKph: number
-  temperatureC: number
-  altitudeBandM: [number, number]
-  visibilityKm: number
-  freezingLevelM: number
+  vibrationMmS: number
+  spindleTempC: number
+  loadBandM: [number, number]
+  oeePct: number
+  cycleTimeS: number
   breached: boolean
 }
 
 /**
- * S8.4b: "a climber who has previously climbed in another region draws a
- * link to that region." Directional (climber -> prior region, never the
+ * S8.4b: "a machine who has previously climbed in another plant draws a
+ * link to that plant." Directional (machine -> prior plant, never the
  * reverse) and deliberately NOT modelled as a GraphEdge — history links
- * render on canvas, routed behind everything, with their own opacity rules
- * (12% rest / 100% on hover-or-selection of that climber) that don't fit
+ * render on canvas, lined behind everything, with their own opacity rules
+ * (12% rest / 100% on hover-or-selection of that machine) that don't fit
  * the shared structural/operational/filament/anomaly edge-appearance
  * system at all.
  */
 export interface HistoryLink {
-  climberId: GraphId
-  regionId: GraphId
+  machineId: GraphId
+  plantId: GraphId
 }
 
 export type GraphNode = DomainEntity | SubNode | EnvironmentNode
@@ -94,9 +102,9 @@ export function isEnvironmentNode(node: GraphNode): node is EnvironmentNode {
 }
 
 /**
- * Structural: the hierarchy chain up to (and including) operator, plus
- * route -> sensor. Operational: the FINAL hop from operator down to
- * climber, plus climber <-> climber rope links — the day-to-day working
+ * Structural: the hierarchy chain down to line, plus machine -> sensor.
+ * Operational: the FINAL hop from line down to
+ * machine, plus machine <-> machine rope links — the day-to-day working
  * relationship, not paperwork hierarchy, so it takes the "healthy
  * operational flow" colour (S8.0) rather than plain structural white.
  * Filament: entity -> each of its own sub-nodes. Anomaly overrides any of
@@ -120,13 +128,13 @@ export interface DomainDataset extends GraphDataset {
   domainEntities: DomainEntity[]
   /** Just the sub-nodes — the "terminal points" S8.0's reference image needs thousands of. */
   subNodes: SubNode[]
-  /** S8.4b: one per region (14) — always-live conditions, never part of domainEntities/subNodes. */
+  /** S8.4b: one per plant (14) — always-live conditions, never part of domainEntities/subNodes. */
   environmentNodes: EnvironmentNode[]
-  /** S8.4b: climber -> prior-region links, ~60% of climbers, 1-3 each. */
+  /** S8.4b: machine -> prior-plant links, ~60% of machines, 1-3 each. */
   historyLinks: HistoryLink[]
   edges: GraphEdge[]
   /** = subNodes.length, reported per S8.3's acceptance line. */
   pointCount: number
-  anomalyClimberIds: GraphId[]
+  anomalyMachineIds: GraphId[]
   anomalySensorIds: GraphId[]
 }

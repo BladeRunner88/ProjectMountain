@@ -66,7 +66,7 @@ export function MeaningList({
       const cov = readingCoverage(reading)
       const headlineBound = reading.bound.find((b) => b.fieldKey === reading.headlineFieldKey)
       const aboutLabel =
-        reading.about.kind === 'climber' ? `${reading.about.label} · ${maskedSerial(reading.about.serial)}` : reading.about.label
+        reading.about.kind === 'machine' ? `${reading.about.label} · ${maskedSerial(reading.about.serial)}` : reading.about.label
       return {
         reading,
         aboutLabel,
@@ -341,8 +341,8 @@ function Row({ row, top, onSelect }: { row: ListRow; top: number; onSelect: () =
       </span>
       <span style={{ flex: 1.3, color: TEXT_SECONDARY }}>{reading.source}</span>
       <span style={{ flex: 2.2 }}>
-        {reading.about.kind === 'climber' ? (
-          <PersonBadge climberId={reading.about.climberId} name={reading.about.label} serial={reading.about.serial} />
+        {reading.about.kind === 'machine' ? (
+          <PersonBadge machineId={reading.about.machineId} name={reading.about.label} serial={reading.about.serial} />
         ) : (
           <span style={{ color: TEXT_SECONDARY }}>{row.aboutLabel}</span>
         )}

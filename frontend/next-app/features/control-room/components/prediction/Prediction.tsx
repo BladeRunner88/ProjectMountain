@@ -38,10 +38,10 @@ const SUB_TABS: { id: SubTab; label: string }[] = [
 export function Prediction(): ReactElement {
   const { dataset } = useDataset()
   const [subTab, setSubTab] = useState<SubTab>('list')
-  const [selectedClimberId, setSelectedClimberId] = useState<string | null>(null)
+  const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null)
 
-  function selectPerson(climberId: string, moveToProfile: boolean): void {
-    setSelectedClimberId(climberId)
+  function selectPerson(machineId: string, moveToProfile: boolean): void {
+    setSelectedMachineId(machineId)
     if (moveToProfile) setSubTab('profile')
   }
 
@@ -54,10 +54,10 @@ export function Prediction(): ReactElement {
       <div style={{ marginTop: SPACE_32 }} data-prediction-panel={subTab}>
         {subTab === 'list' ? <PredictionList state={dataset.predictions} onSelectPerson={(id) => selectPerson(id, true)} /> : null}
         {subTab === 'profile' ? (
-          selectedClimberId ? (
+          selectedMachineId ? (
             <PredictionProfile
               state={dataset.predictions}
-              climberId={selectedClimberId}
+              machineId={selectedMachineId}
               onSelectPerson={(id) => selectPerson(id, false)}
             />
           ) : (
@@ -65,17 +65,17 @@ export function Prediction(): ReactElement {
           )
         ) : null}
         {subTab === 'cascade' ? (
-          selectedClimberId ? (
-            <PredictionCascade state={dataset.predictions} climberId={selectedClimberId} />
+          selectedMachineId ? (
+            <PredictionCascade state={dataset.predictions} machineId={selectedMachineId} />
           ) : (
             <SelectSomeoneFirst />
           )
         ) : null}
         {subTab === 'forecast' ? (
-          selectedClimberId ? (
+          selectedMachineId ? (
             <PredictionForecast
               state={dataset.predictions}
-              climberId={selectedClimberId}
+              machineId={selectedMachineId}
               onSelectPerson={(id) => selectPerson(id, false)}
             />
           ) : (
@@ -105,7 +105,7 @@ function FramingRules(): ReactElement {
       }}
     >
       <FramingRule label="OPERATIONAL RISK, NOT DIAGNOSIS">
-        {'Outcomes read "requires descent" or "requires review," never a medical condition.'}
+        {'Outcomes read "requires descent" or "requires review," never a service condition.'}
       </FramingRule>
       <FramingRule label="COGNITIVE STATE IS INFERRED, NOT MEASURED">
         ASE does not read brain activity. It infers decision-making risk from behaviour, physiology and conditions.

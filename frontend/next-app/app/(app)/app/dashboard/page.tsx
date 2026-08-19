@@ -5,7 +5,7 @@ import { Dashboard } from "@/features/dashboard"
 
 export const metadata: Metadata = {
   title: "Dashboard — Isildur",
-  description: "Live expedition operations dashboard.",
+  description: "Live campaign operations dashboard.",
 }
 
 export default function DashboardPage(): ReactElement {

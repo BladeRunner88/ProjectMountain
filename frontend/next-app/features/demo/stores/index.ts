@@ -4,10 +4,10 @@ export {
   startGraphSimulation,
   stopGraphSimulation,
   useGraphSimulationStore,
-  climbers,
+  machines,
   companies,
   countries,
   environments,
-  regions,
+  plants,
   type GraphSimulationSnapshot,
 } from './graphSimulationStore'

@@ -15,7 +15,7 @@
 //
 // Nested <g> transforms multiply, so a node that is simultaneously still
 // settling from its own arrival (inner) and already swelling to bud its
-// next litter (mid) — S8.5N deliberately overlaps routes landing with
+// next litter (mid) — S8.5N deliberately overlaps lines landing with
 // operators budding — composes correctly with no two animations racing
 // over the same element's `transform`. This was the real reason the old
 // single-<g>-per-node shape (S8.4b/8.5R) couldn't be reused: a CSS
@@ -55,7 +55,7 @@ import {
 import { isFilterVisible, resolveEdgeOpacity, resolveOpacity, type EmphasisContext } from '../services/emphasis'
 import { siblingInTier } from '../services/keyboardNav'
 import { TIER_RADIUS_PX, ENVIRONMENT_RADIUS_PX } from '../services/sizes'
-import { ANOMALY_RED, CLIMBER_WHITE, ENVIRONMENT_TEAL } from '../types/tokens'
+import { ANOMALY_RED, MACHINE_WHITE, ENVIRONMENT_TEAL } from '../types/tokens'
 import { TEXT_SECONDARY } from '@/features/ase/tokens'
 import { EntityTooltip } from './EntityTooltip'
 import type { EnvironmentReading } from '../stores/environmentStore'
@@ -83,7 +83,7 @@ interface StaticEntity {
   fromParentId: GraphId | undefined
   arrivalDelayMs: number
   parentPopStyle: CSSProperties
-  /** Only set for the 9 anomalous climbers. */
+  /** Only set for the 9 anomalous machines. */
   turnRedDelayMs: number | undefined
 }
 interface StaticEdge {
@@ -98,7 +98,7 @@ interface StaticEdge {
 }
 interface StaticEnvironment {
   id: GraphId
-  regionId: GraphId
+  plantId: GraphId
   color: string
   normalColor: string
   budStartMs: number
@@ -201,7 +201,7 @@ export function NetworkSvgLayer({
 
     const environments: StaticEnvironment[] = dataset.environmentNodes.map((env) => ({
       id: env.id,
-      regionId: env.regionId,
+      plantId: env.plantId,
       color: colors.colorFor(env.id),
       normalColor: colors.normalColorFor(env.id),
       budStartMs: spawnPlan.budStartMs.get(env.id) ?? 0,
@@ -234,7 +234,7 @@ export function NetworkSvgLayer({
       offsets.set(id, { dx: parent.x - own.x, dy: parent.y - own.y })
     }
     for (const e of entities) set(e.id, e.fromParentId)
-    for (const env of environments) set(env.id, env.regionId)
+    for (const env of environments) set(env.id, env.plantId)
     return offsets
   }, [entities, environments, snapshot.layout])
 
@@ -300,9 +300,9 @@ export function NetworkSvgLayer({
       }
       for (const env of environments) {
         const envPos = currentPos(layout, offsets, env.id)
-        const regionPos = currentPos(layout, offsets, env.regionId)
+        const plantPos = currentPos(layout, offsets, env.plantId)
         const path = envPathRefs.current.get(env.id)
-        if (envPos && regionPos && path) path.setAttribute('d', quadraticSvgPath(computeQuadraticCurve(`env:${env.id}`, envPos, regionPos)))
+        if (envPos && plantPos && path) path.setAttribute('d', quadraticSvgPath(computeQuadraticCurve(`env:${env.id}`, envPos, plantPos)))
       }
       for (const c of countryLabels) {
         const p = currentPos(layout, offsets, c.id)
@@ -321,7 +321,7 @@ export function NetworkSvgLayer({
   const targetTierByEdgeKey = useMemo(() => {
     const byId = new Map(dataset.domainEntities.map((e) => [e.id, e.tier]))
     const map = new Map<string, EntityTier>()
-    for (const e of edges) map.set(e.key, byId.get(e.targetId) ?? 'climber')
+    for (const e of edges) map.set(e.key, byId.get(e.targetId) ?? 'machine')
     return map
      
   }, [dataset, edges])
@@ -337,7 +337,7 @@ export function NetworkSvgLayer({
       const path = pathRefs.current.get(e.key)
       if (!path) continue
       path.style.display = isFilterVisible(e.sourceId, filterVisible) && isFilterVisible(e.targetId, filterVisible) ? '' : 'none'
-      path.style.opacity = String(resolveEdgeOpacity(e.key, e.targetId, targetTierByEdgeKey.get(e.key) ?? 'climber', ctx))
+      path.style.opacity = String(resolveEdgeOpacity(e.key, e.targetId, targetTierByEdgeKey.get(e.key) ?? 'machine', ctx))
     }
   }
 
@@ -353,7 +353,7 @@ export function NetworkSvgLayer({
   return (
     <>
       <svg data-graph-view="network" width="100%" height="100%" viewBox={`0 0 ${size.width} ${size.height}`} className="pointer-events-none absolute left-0 top-0">
-        {/* environment edges to their region — behind everything else visually (thin, dim) */}
+        {/* environment edges to their plant — behind everything else visually (thin, dim) */}
         {environments.map((env) => (
           <path
             key={`env-edge-${env.id}`}
@@ -491,7 +491,7 @@ export function NetworkSvgLayer({
               }}
             >
               <g className={renderFinal ? undefined : 'network-parent-pop'} style={renderFinal ? undefined : e.parentPopStyle}>
-                {isSelected && <circle r={selectionRingRadius} fill="none" stroke={CLIMBER_WHITE} strokeWidth={SELECTION_RING_WIDTH_PX} />}
+                {isSelected && <circle r={selectionRingRadius} fill="none" stroke={MACHINE_WHITE} strokeWidth={SELECTION_RING_WIDTH_PX} />}
                 {e.isAnomalous && <circle r={e.radius * ANOMALY_GLOW_SCALE} fill={ANOMALY_RED} opacity={0.28} style={{ filter: 'blur(2.5px)' }} />}
 
                 {e.isCountry ? (
@@ -504,7 +504,7 @@ export function NetworkSvgLayer({
                         className="network-arrival-ring"
                         r={1}
                         fill="none"
-                        stroke={CLIMBER_WHITE}
+                        stroke={MACHINE_WHITE}
                         strokeWidth={1}
                         style={{ animationDelay: `${e.arrivalDelayMs}ms` }}
                       />

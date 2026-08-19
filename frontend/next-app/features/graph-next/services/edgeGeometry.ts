@@ -4,8 +4,8 @@
 // seeded per edge — straight lines are "the single biggest reason a node
 // graph looks like a diagram instead of an organism."
 
-import { mulberry32, seedFromString } from './rng'
-import type { Point } from '../types/graph'
+import { mulberry32, seedFromString } from "./rng"
+import type { Point } from "../types/graph"
 
 export interface QuadraticCurve {
   x1: number
@@ -20,7 +20,11 @@ const BOW_MIN_FRAC = 0.08
 const BOW_MAX_FRAC = 0.18
 
 /** Deterministic per edge (same edgeKey always bows the same way and amount) — computed fresh from CURRENT endpoints every call, so it stays correct under drift without needing to store anything. */
-export function computeQuadraticCurve(edgeKey: string, a: Point, b: Point): QuadraticCurve {
+export function computeQuadraticCurve(
+  edgeKey: string,
+  a: Point,
+  b: Point
+): QuadraticCurve {
   const dx = b.x - a.x
   const dy = b.y - a.y
   const length = Math.hypot(dx, dy) || 1
@@ -33,7 +37,14 @@ export function computeQuadraticCurve(edgeKey: string, a: Point, b: Point): Quad
   const py = dx / length
   const midX = (a.x + b.x) / 2
   const midY = (a.y + b.y) / 2
-  return { x1: a.x, y1: a.y, cx: midX + px * bow, cy: midY + py * bow, x2: b.x, y2: b.y }
+  return {
+    x1: a.x,
+    y1: a.y,
+    cx: midX + px * bow,
+    cy: midY + py * bow,
+    x2: b.x,
+    y2: b.y,
+  }
 }
 
 /**
@@ -42,10 +53,15 @@ export function computeQuadraticCurve(edgeKey: string, a: Point, b: Point): Quad
  * "dips toward the centre rather than crossing the outer mass — otherwise
  * fifty of these turn the graph into string." The control point is pulled
  * from the chord's midpoint toward `center` by `dipFraction`, so however
- * far apart a climber and a prior region land, the link bellies inward
+ * far apart a machine and a prior plant land, the link bellies inward
  * rather than slicing straight across whatever's between them.
  */
-export function computeHistoryLinkCurve(a: Point, b: Point, center: Point, dipFraction = 0.35): QuadraticCurve {
+export function computeHistoryLinkCurve(
+  a: Point,
+  b: Point,
+  center: Point,
+  dipFraction = 0.35
+): QuadraticCurve {
   const midX = (a.x + b.x) / 2
   const midY = (a.y + b.y) / 2
   return {
@@ -78,7 +94,12 @@ export function quadraticPointAt(c: QuadraticCurve, t: number): Point {
  * a width that linearly interpolates from `widthStart` (near the parent) to
  * `widthEnd` (at the terminal), then closed back along the other side.
  */
-export function taperedRibbonPoints(c: QuadraticCurve, widthStart: number, widthEnd: number, segments = 5): Point[] {
+export function taperedRibbonPoints(
+  c: QuadraticCurve,
+  widthStart: number,
+  widthEnd: number,
+  segments = 5
+): Point[] {
   const top: Point[] = []
   const bottom: Point[] = []
   for (let i = 0; i <= segments; i++) {

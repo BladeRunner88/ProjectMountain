@@ -46,19 +46,19 @@ function readinessScore(current: RadarAxes): number {
 
 export function PredictionProfile({
   state,
-  climberId,
+  machineId,
   onSelectPerson,
 }: {
   state: PredictionState
-  climberId: string
-  onSelectPerson: (climberId: string) => void
+  machineId: string
+  onSelectPerson: (machineId: string) => void
 }): ReactElement {
-  const p = state.predictions.get(climberId)
+  const p = state.predictions.get(machineId)
   if (!p) return <p style={{ ...TYPE_BODY, color: TEXT_DIM }}>No prediction for this person.</p>
 
   const overall = readinessScore(p.current)
   const band = decisionBandForCapacity(overall)
-  const partnerId = p.human.partnerClimberId
+  const partnerId = p.human.partnerMachineId
 
   return (
     <div>
@@ -119,10 +119,10 @@ function RatingCard({
 }
 
 const RADAR_KEYS: (keyof RadarAxes)[] = [
-  'acclimatisation',
+  'runIn',
   'cardiacReserve',
   'oxygenEfficiency',
-  'ascentDiscipline',
+  'rampUpDiscipline',
   'cognitiveState',
   'exposureLoad',
 ]
@@ -183,7 +183,7 @@ function RadarSection({ baseline, current }: { baseline: RadarAxes; current: Rad
           <polygon points={polygon(current)} fill={NOMINAL} fillOpacity={0.14} stroke={NOMINAL} strokeWidth={2} />
         </svg>
         <p style={{ ...TYPE_CAPTION, color: TEXT_DIM, marginTop: SPACE_8, textTransform: 'none', letterSpacing: 'normal' }}>
-          The shaded area is where you were at Camp II. The solid line is now.
+          The shaded area is where you were at Station II. The solid line is now.
         </p>
       </div>
     </div>
@@ -199,8 +199,8 @@ function AttributeBars({ baseline, current }: { baseline: RadarAxes; current: Ra
           const delta = current[k] - baseline[k]
           const deltaLabel =
             delta === 0
-              ? 'no change from your Camp II reading'
-              : `${delta > 0 ? delta : -delta} ${delta > 0 ? 'above' : 'below'} your Camp II reading`
+              ? 'no change from your Station II reading'
+              : `${delta > 0 ? delta : -delta} ${delta > 0 ? 'above' : 'below'} your Station II reading`
           return (
             <SegmentedBar
               key={k}

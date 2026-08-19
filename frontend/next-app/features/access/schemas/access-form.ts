@@ -69,7 +69,7 @@ export const step2Schema = z.object({
   addressLine1: stringRule((v) => validateRequired(v, "Address line 1")),
   addressLine2: z.string(),
   city: stringRule((v) => validateRequired(v, "City")),
-  stateRegion: stringRule((v) => validateRequired(v, "State or region")),
+  statePlant: stringRule((v) => validateRequired(v, "State or plant")),
   postalCode: stringRule((v) => validateRequired(v, "Postal code")),
 })
 

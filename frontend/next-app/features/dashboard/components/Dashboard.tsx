@@ -3,54 +3,54 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 
 import { useGraphSimulationContext } from '@/features/demo/components/GraphSimulationProvider'
-import { climbers, companies, countries, environments, regions } from '@/features/demo/services/dataset'
+import { machines, companies, countries, environments, plants } from '@/features/demo/services/dataset'
 import type { SourceId } from '@/features/demo/types'
 
 import { useExposureHistory } from '../hooks/useExposureHistory'
 import type { SourceRow } from '../types'
 import { BG, TEXT_PRIMARY } from '../types/tokens'
-import { AscentBalance } from './AscentBalance'
-import { CampTemperature } from './CampTemperature'
+import { RampUpBalance } from './RampUpBalance'
+import { StationTemperature } from './StationTemperature'
 import { Conditions } from './Conditions'
 import { ConnectedSystems } from './ConnectedSystems'
 import { DataStream } from './DataStream'
-import { ExpeditionClock } from './ExpeditionClock'
+import { CampaignClock } from './CampaignClock'
 import { ExposureLoad } from './ExposureLoad'
 import { FindingsList } from './FindingsList'
 import { KpiTile, Panel, PanelLabel, PanelRow } from './primitives'
-import { RouteAnalysis } from './RouteAnalysis'
+import { LineAnalysis } from './LineAnalysis'
 import { SystemCounters } from './SystemCounters'
 
-const POSITIONS = ['Base Camp', 'Camp I', 'Camp II', 'Camp III', 'Camp IV', 'Summit push']
-const EXPOSED_POSITIONS = new Set(['Camp III', 'Camp IV', 'Summit push'])
-const ASCENT_RATE_REFERENCE = [220, 190, 160, 130, 100, 70]
-const MAX_PARTIES_ON_ROUTE = 26
+const POSITIONS = ['Base Station', 'Station I', 'Station II', 'Station III', 'Station IV', 'Target push']
+const EXPOSED_POSITIONS = new Set(['Station III', 'Station IV', 'Target push'])
+const RAMPUP_RATE_REFERENCE = [220, 190, 160, 130, 100, 70]
+const MAX_PARTIES_ON_LINE = 26
 
 const SOURCE_NAME: Record<SourceId, string> = {
   'sensor-mesh': 'Sensor mesh',
-  'weather-feed': 'Weather feed',
-  'permit-registry': 'Permit registry',
-  'operator-rosters': 'Operator rosters',
-  'medical-logs': 'Medical logs',
+  'weather-feed': 'Metrology lab',
+  'workOrder-registry': 'CMMS',
+  'operator-registers': 'Plant MES',
+  'service-logs': 'Service contractor',
 }
 const SOURCE_NAME_BY_ID = new Map(Object.entries(SOURCE_NAME) as [SourceId, string][])
 
-const regionById = new Map(regions.map((r) => [r.id, r]))
+const plantById = new Map(plants.map((r) => [r.id, r]))
 
 export function Dashboard(): ReactElement {
-  const { climberVitals, environmentReading, statusOf, layout, findings } = useGraphSimulationContext()
+  const { machineReadings, environmentReading, statusOf, layout, findings } = useGraphSimulationContext()
   const [selectedSourceId, setSelectedSourceId] = useState<SourceId | null>(null)
 
-  const lowestSpo2 = useMemo(() => {
+  const lowestOee = useMemo(() => {
     let min = 100
-    for (const vitals of climberVitals.values()) min = Math.min(min, vitals.spo2)
+    for (const readings of machineReadings.values()) min = Math.min(min, readings.oee)
     return min
-  }, [climberVitals])
+  }, [machineReadings])
 
   const congestionPct = useMemo(
     () =>
       Math.round(
-        (regions.reduce((sum, r) => sum + r.partiesOnRoute, 0) / regions.length / MAX_PARTIES_ON_ROUTE) * 100
+        (plants.reduce((sum, r) => sum + r.partiesOnLine, 0) / plants.length / MAX_PARTIES_ON_LINE) * 100
       ),
     []
   )
@@ -64,8 +64,8 @@ export function Dashboard(): ReactElement {
     for (const env of environments) {
       const status = statusOf.get(env.id)
       const rank = status === 'anomaly' ? 2 : status === 'watch' ? 1 : 0
-      const wind = environmentReading.get(env.id)?.windKph ?? 0
-      const score = rank * 1000 + wind
+      const vibration = environmentReading.get(env.id)?.vibrationMmS ?? 0
+      const score = rank * 1000 + vibration
       if (score > bestScore) {
         bestScore = score
         best = env
@@ -74,63 +74,63 @@ export function Dashboard(): ReactElement {
     return best
   }, [statusOf, environmentReading])
 
-  const featuredRegion = featuredEnvironment ? regionById.get(featuredEnvironment.regionId) : undefined
+  const featuredPlant = featuredEnvironment ? plantById.get(featuredEnvironment.plantId) : undefined
   const featuredReading = featuredEnvironment ? environmentReading.get(featuredEnvironment.id) : undefined
 
   const exposedPct = useMemo(() => {
-    const exposed = climbers.filter((c) => EXPOSED_POSITIONS.has(c.currentPosition)).length
-    return Math.round((exposed / climbers.length) * 100)
+    const exposed = machines.filter((c) => EXPOSED_POSITIONS.has(c.currentPosition)).length
+    return Math.round((exposed / machines.length) * 100)
   }, [])
 
   const currentExposureLoadPct = totalNodes === 0 ? 0 : (anomalyCount / totalNodes) * 100
   const exposureHistory = useExposureHistory(currentExposureLoadPct)
 
-  const campTemps = useMemo(() => {
+  const stationTemps = useMemo(() => {
     if (!featuredReading) return []
     const lapsePerM = 6.5 / 1000
-    const camps = [
+    const stations = [
       { label: 'BC', offsetM: 0 },
       { label: 'C2', offsetM: 700 },
       { label: 'C3', offsetM: 1300 },
       { label: 'C4', offsetM: 1900 },
     ]
-    return camps.map((camp) => ({
-      label: camp.label,
-      tempC: Math.round(featuredReading.tempC - camp.offsetM * lapsePerM),
+    return stations.map((station) => ({
+      label: station.label,
+      tempC: Math.round(featuredReading.tempC - station.offsetM * lapsePerM),
     }))
   }, [featuredReading])
 
-  const { spo2Series, hrSeries } = useMemo(() => {
-    const spo2: number[] = []
-    const hr: number[] = []
+  const { oeeSeries, hrSeries } = useMemo(() => {
+    const oee: number[] = []
+    const vibration: number[] = []
     for (const position of POSITIONS) {
-      const atPosition = climbers.filter((c) => c.currentPosition === position)
+      const atPosition = machines.filter((c) => c.currentPosition === position)
       if (atPosition.length === 0) {
-        spo2.push(90)
-        hr.push(90)
+        oee.push(90)
+        vibration.push(90)
         continue
       }
-      let spo2Sum = 0
+      let oeeSum = 0
       let hrSum = 0
-      for (const climber of atPosition) {
-        const vitals = climberVitals.get(climber.id)
-        spo2Sum += vitals?.spo2 ?? climber.baseSpO2
-        hrSum += vitals?.hr ?? climber.baseHr
+      for (const machine of atPosition) {
+        const readings = machineReadings.get(machine.id)
+        oeeSum += readings?.oee ?? machine.baseOee
+        hrSum += readings?.vibration ?? machine.baseVibration
       }
-      spo2.push(Math.round(spo2Sum / atPosition.length))
-      hr.push(Math.round(hrSum / atPosition.length))
+      oee.push(Math.round(oeeSum / atPosition.length))
+      vibration.push(Math.round(hrSum / atPosition.length))
     }
-    return { spo2Series: spo2, hrSeries: hr }
-  }, [climberVitals])
+    return { oeeSeries: oee, hrSeries: vibration }
+  }, [machineReadings])
 
-  const sensorMeshCountRef = useRef(climbers.length)
-  const [sensorMeshCount, setSensorMeshCount] = useState(climbers.length)
+  const sensorMeshCountRef = useRef(machines.length)
+  const [sensorMeshCount, setSensorMeshCount] = useState(machines.length)
   const [sensorMeshSync, setSensorMeshSync] = useState(() => new Date())
   useEffect(() => {
-    sensorMeshCountRef.current += climbers.length
+    sensorMeshCountRef.current += machines.length
     setSensorMeshCount(sensorMeshCountRef.current)
     setSensorMeshSync(new Date())
-  }, [climberVitals])
+  }, [machineReadings])
 
   const weatherFeedCountRef = useRef(environments.length)
   const [weatherFeedCount, setWeatherFeedCount] = useState(environments.length)
@@ -141,12 +141,12 @@ export function Dashboard(): ReactElement {
     setWeatherFeedSync(new Date())
   }, [environmentReading])
 
-  const [permitRegistrySync] = useState(() => new Date(Date.now() - (7 * 60 + 12) * 60 * 1000))
-  const [operatorRosterSync] = useState(() => new Date(Date.now() - 14 * 60 * 1000))
-  const [medicalLogsSync] = useState(() => new Date(Date.now() - 41 * 60 * 1000))
-  const permitRegistryCount = useMemo(() => countries.reduce((sum, c) => sum + c.permitsIssued, 0), [])
-  const operatorRosterCount = useMemo(() => companies.reduce((sum, c) => sum + c.guidesActive, 0), [])
-  const medicalLogsCount = climbers.length
+  const [workOrderRegistrySync] = useState(() => new Date(Date.now() - (7 * 60 + 12) * 60 * 1000))
+  const [operatorRegisterSync] = useState(() => new Date(Date.now() - 14 * 60 * 1000))
+  const [serviceLogsSync] = useState(() => new Date(Date.now() - 41 * 60 * 1000))
+  const workOrderRegistryCount = useMemo(() => countries.reduce((sum, c) => sum + c.workOrdersIssued, 0), [])
+  const operatorRegisterCount = useMemo(() => companies.reduce((sum, c) => sum + c.guidesActive, 0), [])
+  const serviceLogsCount = machines.length
 
   const sources: SourceRow[] = [
     {
@@ -164,24 +164,24 @@ export function Dashboard(): ReactElement {
       degraded: false,
     },
     {
-      id: 'permit-registry',
-      name: SOURCE_NAME['permit-registry'],
-      recordCount: permitRegistryCount,
-      lastSync: permitRegistrySync,
+      id: 'workOrder-registry',
+      name: SOURCE_NAME['workOrder-registry'],
+      recordCount: workOrderRegistryCount,
+      lastSync: workOrderRegistrySync,
       degraded: true,
     },
     {
-      id: 'operator-rosters',
-      name: SOURCE_NAME['operator-rosters'],
-      recordCount: operatorRosterCount,
-      lastSync: operatorRosterSync,
+      id: 'operator-registers',
+      name: SOURCE_NAME['operator-registers'],
+      recordCount: operatorRegisterCount,
+      lastSync: operatorRegisterSync,
       degraded: false,
     },
     {
-      id: 'medical-logs',
-      name: SOURCE_NAME['medical-logs'],
-      recordCount: medicalLogsCount,
-      lastSync: medicalLogsSync,
+      id: 'service-logs',
+      name: SOURCE_NAME['service-logs'],
+      recordCount: serviceLogsCount,
+      lastSync: serviceLogsSync,
       degraded: false,
     },
   ]
@@ -195,7 +195,7 @@ export function Dashboard(): ReactElement {
     return (
       <div className="h-full min-h-svh w-full overflow-y-auto" style={{ backgroundColor: BG, color: TEXT_PRIMARY }}>
         <p className="px-8 py-8 font-mono text-[12px]" style={{ color: TEXT_PRIMARY }}>
-          No expedition environments in this demo dataset.
+          No campaign environments in this demo dataset.
         </p>
       </div>
     )
@@ -205,10 +205,10 @@ export function Dashboard(): ReactElement {
     <div className="h-full min-h-svh w-full overflow-y-auto" style={{ backgroundColor: BG, color: TEXT_PRIMARY }}>
       <PanelRow>
         <Panel span={4}>
-          <KpiTile label="Lowest SpO2 on route" value={String(lowestSpo2)} unit="%" segValue={lowestSpo2} segMax={100} />
+          <KpiTile label="Lowest Oee on line" value={String(lowestOee)} unit="%" segValue={lowestOee} segMax={100} />
         </Panel>
         <Panel span={4}>
-          <KpiTile label="Route congestion" value={String(congestionPct)} unit="%" segValue={congestionPct} segMax={100} />
+          <KpiTile label="Line congestion" value={String(congestionPct)} unit="%" segValue={congestionPct} segMax={100} />
         </Panel>
         <Panel span={4}>
           <KpiTile
@@ -223,20 +223,20 @@ export function Dashboard(): ReactElement {
 
       <PanelRow>
         <Panel span={4} className="flex flex-col gap-5">
-          <PanelLabel>Expedition clock</PanelLabel>
-          <ExpeditionClock />
+          <PanelLabel>Campaign clock</PanelLabel>
+          <CampaignClock />
         </Panel>
         <Panel span={4}>
-          <RouteAnalysis
-            routeName={featuredRegion?.name ?? 'Route analysis'}
-            entry={featuredEnvironment.altitudeBandLowM}
-            crux={featuredRegion?.maxAltitudeM ?? featuredEnvironment.altitudeBandHighM}
-            exit={featuredEnvironment.altitudeBandHighM}
+          <LineAnalysis
+            lineName={featuredPlant?.name ?? 'Line analysis'}
+            entry={featuredEnvironment.loadBandLowM}
+            crux={featuredPlant?.maxLoadM ?? featuredEnvironment.loadBandHighM}
+            exit={featuredEnvironment.loadBandHighM}
           />
         </Panel>
         <Panel span={4} className="flex flex-col gap-5">
-          <PanelLabel>Ascent balance</PanelLabel>
-          <AscentBalance exposedPct={exposedPct} />
+          <PanelLabel>RampUp balance</PanelLabel>
+          <RampUpBalance exposedPct={exposedPct} />
         </Panel>
       </PanelRow>
 
@@ -246,23 +246,23 @@ export function Dashboard(): ReactElement {
           <ExposureLoad values={exposureHistory} />
         </Panel>
         <Panel span={6} className="flex flex-col gap-5">
-          <PanelLabel>{`Camp temperature — ${featuredRegion?.name ?? ''}`}</PanelLabel>
-          <CampTemperature camps={campTemps} />
+          <PanelLabel>{`Station temperature — ${featuredPlant?.name ?? ''}`}</PanelLabel>
+          <StationTemperature stations={stationTemps} />
         </Panel>
       </PanelRow>
 
       <PanelRow>
         <Panel span={6} className="flex flex-col gap-5">
-          <PanelLabel>{`Conditions — ${featuredRegion?.name ?? ''}`}</PanelLabel>
+          <PanelLabel>{`Conditions — ${featuredPlant?.name ?? ''}`}</PanelLabel>
           <Conditions
             tempC={featuredReading?.tempC ?? 0}
-            windKph={featuredReading?.windKph ?? 0}
-            windBearingDeg={featuredReading?.windBearingDeg ?? 0}
+            vibrationMmS={featuredReading?.vibrationMmS ?? 0}
+            vibrationBearingDeg={featuredReading?.vibrationBearingDeg ?? 0}
           />
         </Panel>
         <Panel span={6} className="flex flex-col gap-5">
           <PanelLabel>Data stream</PanelLabel>
-          <DataStream spo2Series={spo2Series} hrSeries={hrSeries} ascentSeries={ASCENT_RATE_REFERENCE} />
+          <DataStream oeeSeries={oeeSeries} hrSeries={hrSeries} rampUpSeries={RAMPUP_RATE_REFERENCE} />
         </Panel>
       </PanelRow>
 

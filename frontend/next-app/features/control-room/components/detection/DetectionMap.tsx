@@ -9,10 +9,10 @@ import {
   HAIRLINE,
   MAP_GRID_LINE,
   MAP_GRID_LINE_HEAVY,
-  MAP_HEADER_CLIMBER,
+  MAP_HEADER_MACHINE,
   MAP_HEADER_COUNTRY,
   MAP_HEADER_OPERATOR,
-  MAP_HEADER_ROUTE,
+  MAP_HEADER_LINE,
   MAP_HEADER_RULE,
   MAP_HEADER_SENSOR,
   NOMINAL,
@@ -52,9 +52,9 @@ import {
 
 const KIND_HEADER_COLOR: Record<GraphNodeKind, string> = {
   country: MAP_HEADER_COUNTRY,
-  route: MAP_HEADER_ROUTE,
+  line: MAP_HEADER_LINE,
   operator: MAP_HEADER_OPERATOR,
-  climber: MAP_HEADER_CLIMBER,
+  machine: MAP_HEADER_MACHINE,
   sensor: MAP_HEADER_SENSOR,
   rule: MAP_HEADER_RULE,
 }
@@ -65,7 +65,7 @@ const HEADER_HEIGHT = 58
 const PORT_ROW_HEIGHT = 34
 const NODE_PADDING_V = 17
 const COLUMN_GAP = 220
-const COLUMN_ORDER: GraphNodeKind[] = ['rule', 'country', 'route', 'operator', 'sensor', 'climber']
+const COLUMN_ORDER: GraphNodeKind[] = ['rule', 'country', 'line', 'operator', 'sensor', 'machine']
 const COLUMN_X: Record<GraphNodeKind, number> = COLUMN_ORDER.reduce(
   (acc, kind, i) => {
     acc[kind] = 30 + i * (NODE_WIDTH + COLUMN_GAP)
@@ -95,9 +95,9 @@ function computeLayout(graph: DetectionGraph): Layout {
   const byKind: Record<GraphNodeKind, GraphNode[]> = {
     rule: [],
     country: [],
-    route: [],
+    line: [],
     operator: [],
-    climber: [],
+    machine: [],
     sensor: [],
   }
   for (const n of graph.nodes) byKind[n.kind].push(n)
@@ -118,12 +118,12 @@ function computeLayout(graph: DetectionGraph): Layout {
   const rules = byKind.rule
   const countries = byKind.country
   const countryIdx = indexMap(countries)
-  const routes = orderByParent(byKind.route, countryIdx)
-  const routeIdx = indexMap(routes)
-  const operators = orderByParent(byKind.operator, routeIdx)
+  const lines = orderByParent(byKind.line, countryIdx)
+  const lineIdx = indexMap(lines)
+  const operators = orderByParent(byKind.operator, lineIdx)
   const operatorIdx = indexMap(operators)
-  const climbers = orderByParent(byKind.climber, operatorIdx)
-  const sensors = orderByParent(byKind.sensor, routeIdx)
+  const machines = orderByParent(byKind.machine, operatorIdx)
+  const sensors = orderByParent(byKind.sensor, lineIdx)
 
   const positions = new Map<string, { x: number; y: number }>()
   let maxBottom = 0
@@ -137,12 +137,12 @@ function computeLayout(graph: DetectionGraph): Layout {
   }
   place(rules, 'rule')
   place(countries, 'country')
-  place(routes, 'route')
+  place(lines, 'line')
   place(operators, 'operator')
-  place(climbers, 'climber')
+  place(machines, 'machine')
   place(sensors, 'sensor')
 
-  const width = COLUMN_X.climber + NODE_WIDTH + 40
+  const width = COLUMN_X.machine + NODE_WIDTH + 40
   const height = maxBottom + 40
   return { positions, width, height }
 }
@@ -160,7 +160,7 @@ export function DetectionMap({
   const router = useRouter()
 
   const fullGraph = useMemo(() => buildDetectionGraph(engine), [engine])
-  const [collapsedKinds, setCollapsedKinds] = useState<Set<GraphNodeKind>>(new Set(['operator', 'climber']))
+  const [collapsedKinds, setCollapsedKinds] = useState<Set<GraphNodeKind>>(new Set(['operator', 'machine']))
   const [manuallyExpanded, setManuallyExpanded] = useState<Set<string>>(new Set())
   const collapsedGraph = useMemo(
     () => applyCollapse(fullGraph, collapsedKinds, manuallyExpanded),
@@ -350,8 +350,8 @@ export function DetectionMap({
       setManuallyExpanded(next)
       return
     }
-    if (node.climberId) {
-      select({ kind: 'identity', climberId: node.climberId })
+    if (node.machineId) {
+      select({ kind: 'identity', machineId: node.machineId })
       router.push(tabHref('identity'))
       return
     }
@@ -476,9 +476,9 @@ function MapToolbar({
         onClick={() => onToggleCollapse('operator')}
       />
       <ToolbarToggle
-        label="Collapse climbers"
-        active={collapsedKinds.has('climber')}
-        onClick={() => onToggleCollapse('climber')}
+        label="Collapse machines"
+        active={collapsedKinds.has('machine')}
+        onClick={() => onToggleCollapse('machine')}
       />
       <select
         value={focusId ?? ''}

@@ -9,7 +9,7 @@ export type AccessRequestPayload = {
   address_line1: string
   address_line2: string | null
   city: string
-  state_region: string
+  state_plant: string
   postal_code: string
   business_description: string
   use_case: string

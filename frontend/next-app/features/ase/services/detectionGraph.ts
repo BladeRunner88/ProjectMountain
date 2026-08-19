@@ -7,15 +7,15 @@
 // the map from decoration into an explanation of what is being watched."
 //
 // PORT SIDE, a deliberate reading of an ambiguous spec: watched-value ports
-// (Blood oxygen, Wind, ...) are drawn spec'd as an entity's OUTPUTS (right
+// (Effectiveness, Vibration, ...) are drawn spec'd as an entity's OUTPUTS (right
 // edge), but rule nodes sit at the canvas's far LEFT wiring rightward into
 // exactly those ports. Taken literally, every rule wire would have to loop
 // behind its target node to reach a right-edge port from a node stationed
 // to its left — unreadable at 16 real wires. Watched-value ports render on
 // the LEFT edge here instead, alongside the structural "in" ports, so a
 // rule approaching from the left connects directly. Structural hierarchy
-// ports (Route/Operator/Country membership one way, Parties-on-route/
-// Roster the other) keep the spec'd left-in/right-out edges — only the
+// ports (Line/Operator/Country membership one way, Parties-on-line/
+// Register the other) keep the spec'd left-in/right-out edges — only the
 // rule-facing ports move, and only because two literal readings of this
 // spec conflict and one of them has to give.
 
@@ -40,20 +40,20 @@ export interface PortInstance {
   live: { valueText: string; ageAt: Instant; confidencePct: number } | null
 }
 
-export type GraphNodeKind = 'country' | 'route' | 'operator' | 'climber' | 'sensor' | 'rule'
+export type GraphNodeKind = 'country' | 'line' | 'operator' | 'machine' | 'sensor' | 'rule'
 
 export interface GraphNode {
   id: string
   kind: GraphNodeKind
   label: string
-  /** Header's right-aligned masked serial tail, climbers only. */
+  /** Header's right-aligned masked serial tail, machines only. */
   serialTail: string | null
   parentId: string | null
   ports: PortInstance[]
   firingRuleIds: string[]
   status: NodeStatus
   severity: Severity | null // rule nodes only — the 3px top-edge colour
-  climberId: string | null
+  machineId: string | null
   isSummary: boolean
   /** Real underlying node ids folded into this summary — expanding it reveals exactly these, never a fabricated count. */
   summaryMemberIds: string[]
@@ -78,21 +78,21 @@ export interface DetectionGraph {
 
 const ENTITY_PORTS: Record<Exclude<GraphNodeKind, 'rule'>, { in: string[]; out: string[]; watched: string[] }> = {
   country: { in: [], out: [], watched: [] },
-  route: { in: ['Country'], out: ['Parties on route', 'Conditions'], watched: [] },
-  operator: { in: ['Route'], out: ['Guides active', 'Roster'], watched: [] },
-  climber: { in: ['Route', 'Operator', 'Rope partner'], out: [], watched: ['Blood oxygen', 'Heart rate', 'Camp', 'Ascent rate', 'Position'] },
-  sensor: { in: ['Route'], out: [], watched: ['Wind', 'Temperature', 'Visibility', 'Battery', 'Last reading'] },
+  line: { in: ['Country'], out: ['Parties on line', 'Conditions'], watched: [] },
+  operator: { in: ['Line'], out: ['Guides active', 'Register'], watched: [] },
+  machine: { in: ['Line', 'Operator', 'Rope partner'], out: [], watched: ['Effectiveness', 'Vibration', 'Station', 'RampUp rate', 'Position'] },
+  sensor: { in: ['Line'], out: [], watched: ['Vibration', 'Spindle temp', 'Effectiveness', 'Battery', 'Last reading'] },
 }
 
-/** Which watched-value port label a rule's own condition reads — the wire target. Rules that watch a kind of value not modelled as a port (permits, system) wire nowhere; List/Detections already cover them fully. */
+/** Which watched-value port label a rule's own condition reads — the wire target. Rules that watch a kind of value not modelled as a port (workOrders, system) wire nowhere; List/Detections already cover them fully. */
 const RULE_WATCHED_PORT: Record<string, string> = {
-  'rule-low-spo2': 'Blood oxygen',
-  'rule-high-pulse': 'Heart rate',
-  'rule-climbing-too-fast': 'Ascent rate',
+  'rule-low-oee': 'Effectiveness',
+  'rule-high-vibration': 'Vibration',
+  'rule-climbing-too-fast': 'RampUp rate',
   'rule-rope-partner-lost': 'Rope partner',
-  'rule-pressure-mismatch': 'Camp',
-  'rule-dangerous-wind': 'Wind',
-  'rule-visibility-collapse': 'Visibility',
+  'rule-pressure-mismatch': 'Station',
+  'rule-dangerous-vibration': 'Vibration',
+  'rule-effectiveness-collapse': 'Effectiveness',
   'rule-low-battery': 'Battery',
   'rule-sensor-quiet': 'Last reading',
   'rule-not-enough-guides': 'Guides active',
@@ -112,9 +112,9 @@ function formatDetectionValue(rule: DetectionRule, value: number): string {
   return rule.thresholdUnit === '%' ? `${rounded}%` : `${rounded} ${rule.thresholdUnit}`
 }
 
-/** ase/detection.ts's tree tier is `'regionRoute'` (it renders one card for a route inside its region) — this graph's own vocabulary just calls that tier `'route'`. */
+/** ase/detection.ts's tree tier is `'plantLine'` (it renders one card for a line inside its plant) — this graph's own vocabulary just calls that tier `'line'`. */
 function tierToKind(tier: MapNode['tier']): Exclude<GraphNodeKind, 'rule'> {
-  return tier === 'regionRoute' ? 'route' : tier
+  return tier === 'plantLine' ? 'line' : tier
 }
 
 /** Builds the port-graph for the Map tab from the same engine state List/Detections/Tuning read — nothing here is a second dataset, only a second SHAPE drawn over the first. */
@@ -149,7 +149,7 @@ export function buildDetectionGraph(engine: DetectionEngineState): DetectionGrap
       firingRuleIds: n.firingRuleIds,
       status: n.status,
       severity: null,
-      climberId: n.climberId ?? null,
+      machineId: n.machineId ?? null,
       isSummary: false,
       summaryMemberIds: [],
     }
@@ -171,7 +171,7 @@ export function buildDetectionGraph(engine: DetectionEngineState): DetectionGrap
       firingRuleIds: [],
       status: firingDetections.length > 0 ? 'anomaly' : 'nominal',
       severity: rule.severity,
-      climberId: null,
+      machineId: null,
       isSummary: false,
       summaryMemberIds: [],
     })
@@ -194,7 +194,7 @@ export function buildDetectionGraph(engine: DetectionEngineState): DetectionGrap
     }
   }
 
-  // -- structural wires: country->route->operator->climber, route->sensor --
+  // -- structural wires: country->line->operator->machine, line->sensor --
   const structureWires: GraphWire[] = []
   for (const n of nodes) {
     if (!n.parentId) continue
@@ -218,11 +218,11 @@ export function buildDetectionGraph(engine: DetectionEngineState): DetectionGrap
   return { nodes: [...ruleNodes, ...nodes], wires: [...structureWires, ...ruleWires] }
 }
 
-const COLLAPSIBLE_KINDS = new Set<GraphNodeKind>(['operator', 'climber'])
+const COLLAPSIBLE_KINDS = new Set<GraphNodeKind>(['operator', 'machine'])
 
 /**
  * Folds every non-anomalous node in `collapsedKinds` into one summary node
- * per parent — "Khumbu Vertical · 4 climbers · 1 firing." Anomalous nodes
+ * per parent — "Khumbu Vertical · 4 machines · 1 firing." Anomalous nodes
  * are NEVER folded in, regardless of collapse state (spec's own line:
  * "trouble is never hidden inside a summary") — they keep rendering as
  * individual nodes, wired normally, right alongside the summary that
@@ -253,7 +253,7 @@ export function applyCollapse(graph: DetectionGraph, collapsedKinds: Set<GraphNo
         firingRuleIds: [],
         status: 'nominal',
         severity: null,
-        climberId: null,
+        machineId: null,
         isSummary: true,
         summaryMemberIds: [n.id],
       })

@@ -15,9 +15,9 @@ export const DEMO_STEPS: DemoStepDef[] = [
   { id: 'overview', n: 1, tabId: 'overview', title: 'Overview', narration: ['Hover the degraded source and watch conclusions dim in proportion to what actually depends on it.', 'Five systems in. One understanding out.'], durationSec: 25 },
   { id: 'meaning', n: 2, tabId: 'meaning', title: 'Meaning', narration: ['Raw payload on the left, plain-English sentences on the right.', 'Your connector delivered the left. We produced the right.'], durationSec: 25 },
   { id: 'identity', n: 3, tabId: 'identity', title: 'Identity', narration: ['Three records become one person.', 'Drag the match threshold and watch precision move against ground truth.'], durationSec: 30 },
-  { id: 'reasoning', n: 4, tabId: 'reasoning', title: 'Reasoning', narration: ['The ruled-out hypotheses first, then the chain, then the counterfactual.', 'Without the weather feed, we could not have told you this.'], durationSec: 30 },
-  { id: 'prediction', n: 5, tabId: 'prediction', title: 'Prediction', narration: ['One climber at 68%, with the drivers behind it.', 'When we say 70%, we are right 66% of the time. Here are the ones we got wrong.'], durationSec: 35 },
-  { id: 'exposure', n: 6, tabId: 'exposure', title: 'Exposure', narration: ['Kill the permit registry.', 'Watch what stops being knowable.'], durationSec: 30 },
+  { id: 'reasoning', n: 4, tabId: 'reasoning', title: 'Reasoning', narration: ['The ruled-out hypotheses first, then the chain, then the counterfactual.', 'Without the metrology lab, we could not have told you this.'], durationSec: 30 },
+  { id: 'prediction', n: 5, tabId: 'prediction', title: 'Prediction', narration: ['One machine at 68%, with the drivers behind it.', 'When we say 70%, we are right 66% of the time. Here are the ones we got wrong.'], durationSec: 35 },
+  { id: 'exposure', n: 6, tabId: 'exposure', title: 'Exposure', narration: ['Kill the CMMS.', 'Watch what stops being knowable.'], durationSec: 30 },
   { id: 'timeline', n: 7, tabId: 'revision', title: 'Timeline', narration: ['Scrub back to 14:02.', 'This is what we knew when the decision was made.'], durationSec: 25 },
 ]
 

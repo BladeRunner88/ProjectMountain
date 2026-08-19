@@ -24,7 +24,7 @@ import type { Dataset } from '@/features/ase/services/dataset'
 import type { Reading } from '@/features/ase/services/contextEngine'
 import type { TracedId, TracedValue } from '@/features/ase/services/traced'
 import type { TabId } from '@/features/ase/types/tabs'
-import { focusRingStyle, PersonBadge, tabHref, type TabRoute, useFocusRing } from '@/features/control-room'
+import { focusRingStyle, PersonBadge, tabHref, type TabLine, useFocusRing } from '@/features/control-room'
 
 interface ReasoningLink {
   question: string
@@ -37,7 +37,7 @@ interface FindingLink {
 interface CounterfactualTarget {
   targetTraced: TracedValue<unknown>
   describe: string
-  navigateTo: TabRoute
+  navigateTo: TabLine
 }
 
 export function MeaningImpact({ reading, dataset }: { reading: Reading; dataset: Dataset }): ReactElement {
@@ -108,8 +108,8 @@ function WhoItConcerns({ reading }: { reading: Reading }): ReactElement {
     <div>
       <p style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>WHO IT CONCERNS</p>
       <div style={{ marginTop: SPACE_16 }}>
-        {about.kind === 'climber' ? (
-          <PersonBadge climberId={about.climberId} name={about.label} serial={about.serial} />
+        {about.kind === 'machine' ? (
+          <PersonBadge machineId={about.machineId} name={about.label} serial={about.serial} />
         ) : (
           <p style={{ ...TYPE_BODY, color: TEXT_PRIMARY }}>{about.label}</p>
         )}
@@ -167,7 +167,7 @@ function WhatItContributedTo({
 }: {
   reasoningLinks: ReasoningLink[]
   findingLinks: FindingLink[]
-  onNavigate: (path: TabRoute) => void
+  onNavigate: (path: TabLine) => void
 }): ReactElement {
   const hasAny = reasoningLinks.length > 0 || findingLinks.length > 0
   return (
@@ -221,7 +221,7 @@ function IfThisReadingWereWrong({
 }: {
   cfTarget: CounterfactualTarget | null
   headlineRawTv: TracedValue<unknown> | null
-  onNavigate: (path: TabRoute) => void
+  onNavigate: (path: TabLine) => void
 }): ReactElement {
   const { focused, handlers } = useFocusRing()
 

@@ -5,17 +5,20 @@
 // entities), and a viewport-fitting helper NETWORK's own pan/zoom
 // (viewport.ts) eases toward.
 
-import type { DomainDataset } from '../types/domain'
-import type { HoverChain } from './hoverChain'
-import type { GraphId, Point, Size } from '../types/graph'
-import type { Viewport } from '../types/graph'
+import type { DomainDataset } from "../types/domain"
+import type { HoverChain } from "./hoverChain"
+import type { GraphId, Point, Size } from "../types/graph"
+import type { Viewport } from "../types/graph"
 
 interface AdjacencyEntry {
   neighborId: GraphId
   edgeKey: string
 }
 
-export function computeTwoHopNeighbourhood(dataset: DomainDataset, originId: GraphId): HoverChain {
+export function computeTwoHopNeighbourhood(
+  dataset: DomainDataset,
+  originId: GraphId
+): HoverChain {
   const entityIds = new Set(dataset.domainEntities.map((e) => e.id))
   const adjacency = new Map<GraphId, AdjacencyEntry[]>()
   function link(a: GraphId, b: GraphId, edgeKey: string) {
@@ -27,7 +30,7 @@ export function computeTwoHopNeighbourhood(dataset: DomainDataset, originId: Gra
     adjacency.set(b, lb)
   }
   for (const e of dataset.edges) {
-    if (e.kind === 'filament') continue
+    if (e.kind === "filament") continue
     if (!entityIds.has(e.source) || !entityIds.has(e.target)) continue
     link(e.source, e.target, `${e.source}->${e.target}`)
   }
@@ -58,7 +61,10 @@ interface BoundingBox {
   maxY: number
 }
 
-export function boundingBoxOf(layout: ReadonlyMap<GraphId, Point>, ids: ReadonlySet<GraphId>): BoundingBox | null {
+export function boundingBoxOf(
+  layout: ReadonlyMap<GraphId, Point>,
+  ids: ReadonlySet<GraphId>
+): BoundingBox | null {
   let minX = Infinity
   let minY = Infinity
   let maxX = -Infinity
@@ -79,7 +85,12 @@ export function boundingBoxOf(layout: ReadonlyMap<GraphId, Point>, ids: Readonly
 const FIT_PADDING = 0.65
 
 /** The viewport (screenPos = worldPos*zoom + (cx,cy)) that centres and fits `box` inside a canvas of `size`, clamped to the same [min, max] zoom range as ordinary scroll-zoom. */
-export function viewportToFit(box: BoundingBox, size: Size, minZoom: number, maxZoom: number): Viewport {
+export function viewportToFit(
+  box: BoundingBox,
+  size: Size,
+  minZoom: number,
+  maxZoom: number
+): Viewport {
   const boxW = Math.max(1, box.maxX - box.minX)
   const boxH = Math.max(1, box.maxY - box.minY)
   const zoomX = (size.width * FIT_PADDING) / boxW

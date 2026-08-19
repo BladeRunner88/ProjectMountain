@@ -66,11 +66,11 @@ export function DetectionTuning({
       : Math.round((liveResult.firingCount / population.length) * ((24 * 60) / Math.max(rule.windowMinutes ?? 15, 5)))
 
   const operatorCount = useMemo(() => {
-    if (rule.watches !== 'climbers') return null
+    if (rule.watches !== 'machines') return null
     const ids = new Set<string>()
     for (const m of population) {
       const subject = m.subject
-      if (subject.kind !== 'climber') continue
+      if (subject.kind !== 'machine') continue
       const node = engine.mapNodes.find((n) => n.id === subject.nodeId)
       if (node?.parentId) ids.add(node.parentId)
     }
@@ -268,8 +268,8 @@ function MemberList({ members }: { members: TuningPopulationMember[] }): ReactEl
   return (
     <div className="flex flex-wrap" style={{ gap: SPACE_8, marginTop: SPACE_8 }}>
       {members.map((m, i) =>
-        m.subject.kind === 'climber' ? (
-          <PersonBadge key={i} climberId={m.subject.climberId} name={m.subject.name} serial={m.subject.serial} />
+        m.subject.kind === 'machine' ? (
+          <PersonBadge key={i} machineId={m.subject.machineId} name={m.subject.name} serial={m.subject.serial} />
         ) : (
           <span key={i} style={{ ...TYPE_BODY, color: TEXT_SECONDARY }}>
             {subjectLabel(m.subject)}

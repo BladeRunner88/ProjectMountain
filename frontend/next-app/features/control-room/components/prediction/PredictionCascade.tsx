@@ -24,20 +24,20 @@ import { DirectManipulationSlider } from '@/features/control-room'
 
 const DECISION_TAG_COLOR: Record<CascadeDecision['tag'], string> = { expected: TEXT_DIM, elevated: WATCH, critical: ANOMALY }
 
-export function PredictionCascade({ state, climberId }: { state: PredictionState; climberId: string }): ReactElement {
-  const p = state.predictions.get(climberId)
-  const [wind, setWind] = useState(0)
-  const [temperature, setTemperature] = useState(0)
-  const [visibility, setVisibility] = useState(0)
+export function PredictionCascade({ state, machineId }: { state: PredictionState; machineId: string }): ReactElement {
+  const p = state.predictions.get(machineId)
+  const [vibration, setVibration] = useState(0)
+  const [spindleTemp, setSpindleTemp] = useState(0)
+  const [effectiveness, setEffectiveness] = useState(0)
   const [pressure, setPressure] = useState(0)
 
   const projection = useMemo(() => {
     if (!p) return null
-    const oxygenSlowdown = Math.max(0, Math.round(wind * 0.6 + Math.max(0, -temperature) * 0.3))
-    const latencyRise = Math.max(0, Math.round(wind * 0.9 + visibility * 0.4))
-    const complianceMinutes = Math.max(15, Math.round(180 - wind * 2.2 - Math.max(0, -pressure) * 3))
+    const oxygenSlowdown = Math.max(0, Math.round(vibration * 0.6 + Math.max(0, -spindleTemp) * 0.3))
+    const latencyRise = Math.max(0, Math.round(vibration * 0.9 + effectiveness * 0.4))
+    const complianceMinutes = Math.max(15, Math.round(180 - vibration * 2.2 - Math.max(0, -pressure) * 3))
     return { oxygenSlowdown, latencyRise, complianceMinutes }
-  }, [p, wind, temperature, visibility, pressure])
+  }, [p, vibration, spindleTemp, effectiveness, pressure])
 
   if (!p) return <p style={{ ...TYPE_BODY, color: TEXT_DIM }}>No prediction for this person.</p>
 
@@ -66,10 +66,10 @@ export function PredictionCascade({ state, climberId }: { state: PredictionState
       >
         <p style={{ ...TYPE_CAPTION, color: TEXT_DIM }}>WHAT IF THE WEATHER TURNS</p>
         <div className="grid grid-cols-4" style={{ gap: SPACE_24, marginTop: SPACE_16 }}>
-          <SliderField label="Wind" unit="kph" value={wind} min={0} max={40} onChange={setWind} />
-          <SliderField label="Temperature" unit="°C" value={temperature} min={-15} max={0} onChange={setTemperature} />
-          <SliderField label="Visibility" unit="m" value={visibility} min={-300} max={0} onChange={setVisibility} negateForDisplay />
-          <SliderField label="Pressure" unit="hPa" value={pressure} min={-20} max={0} onChange={setPressure} />
+          <SliderField label="Vibration" unit="mm/s" value={vibration} min={0} max={8} onChange={setVibration} />
+          <SliderField label="Spindle temp" unit="°C" value={spindleTemp} min={0} max={30} onChange={setSpindleTemp} />
+          <SliderField label="Effectiveness" unit="%" value={effectiveness} min={-40} max={0} onChange={setEffectiveness} negateForDisplay />
+          <SliderField label="Pressure" unit="bar" value={pressure} min={-3} max={0} onChange={setPressure} />
         </div>
         {projection ? (
           <p style={{ ...TYPE_BODY, color: TEXT_PRIMARY, marginTop: SPACE_24, textTransform: 'none', letterSpacing: 'normal' }}>
