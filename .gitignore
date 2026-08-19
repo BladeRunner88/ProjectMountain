@@ -5,3 +5,6 @@ backend/venv
 
 # Agent worktrees are scratch checkouts, never part of the history.
 .claude/worktrees/
+
+# Skill/MCP discovery cache. Regenerated locally; never source.
+docs/.agent-cache/

@@ -18,15 +18,16 @@ dependencies = [
   "pydantic-settings==2.15.0",
   "openpyxl==3.1.5",
   "rapidfuzz==3.14.5",
+]
+
+[project.optional-dependencies]
+dev = [
   "pytest==9.1.1",
   "pytest-cov==7.1.0",
   "httpx==0.28.1",
   "ruff==0.16.3",
   "mypy==2.3.1",
 ]
-
-[project.optional-dependencies]
-dev = ["pytest", "pytest-cov", "httpx", "ruff", "mypy"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]

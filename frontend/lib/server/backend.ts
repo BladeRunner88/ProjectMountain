@@ -12,12 +12,8 @@ const BACKEND_TIMEOUT_MS = 30_000
 
 /**
  * The versioned API surface. Every backend path is prefixed here, in one place,
- * rather than in each of the twenty route handlers.
- *
- * The backend also still serves these paths unprefixed, but that mount is
- * deprecated (it sends a `Deprecation` header) and exists only so this flip did
- * not have to be a flag day. Write endpoints added in Phase 6 are on the
- * prefixed surface ONLY, so anything new is unreachable without this.
+ * rather than in each of the twenty route handlers. The unprefixed FastAPI
+ * mount is gone; `/api/v1` is the only surface.
  */
 const API_PREFIX = "/api/v1"
 

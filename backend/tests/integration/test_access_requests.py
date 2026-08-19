@@ -97,3 +97,26 @@ def test_an_invalid_submission_is_rejected_before_anything_is_written(
     with _session() as session:
         after = session.scalar(select(func.count()).select_from(AccessRequest)) or 0
     assert after == before, "validation must run before anything is written"
+
+
+def test_an_oversized_field_is_rejected_before_anything_is_written(
+    client: TestClient,
+) -> None:
+    oversized = {**VALID_PAYLOAD, "company_name": "N" * 121}
+    with _session() as session:
+        before = session.scalar(select(func.count()).select_from(AccessRequest)) or 0
+
+    response = client.post(f"{API}/access-requests", json=oversized)
+
+    assert response.status_code == 422
+    with _session() as session:
+        after = session.scalar(select(func.count()).select_from(AccessRequest)) or 0
+    assert after == before
+
+
+def test_an_unknown_field_is_rejected(client: TestClient) -> None:
+    response = client.post(
+        f"{API}/access-requests",
+        json={**VALID_PAYLOAD, "role": "admin"},
+    )
+    assert response.status_code == 422

@@ -54,13 +54,14 @@ app = FastAPI(
 )
 
 # An explicit allowlist rather than "*": the frontend sends credentialed requests, and
-# browsers reject a wildcard origin on those.
+# browsers reject a wildcard origin on those. Methods and headers are named too — a
+# wildcard here would let a browsered caller preflight any verb against the API.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 

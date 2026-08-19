@@ -1,24 +1,27 @@
 import { NextResponse, type NextRequest } from "next/server"
 
 import { ACCESS_COOKIE_NAME, ACCESS_COOKIE_VALUE } from "@/lib/access"
+import {
+  ACCESS_REQUIRED_DETAIL,
+  isApiPath,
+  requiresAccess,
+} from "@/lib/access-gate"
 
-function isProtectedPath(pathname: string): boolean {
-  return (
-    pathname === "/app" ||
-    pathname.startsWith("/app/") ||
-    pathname === "/demo" ||
-    pathname.startsWith("/demo/")
-  )
+function hasAccessCookie(request: NextRequest): boolean {
+  return request.cookies.get(ACCESS_COOKIE_NAME)?.value === ACCESS_COOKIE_VALUE
 }
 
 export function proxy(request: NextRequest): NextResponse {
-  if (!isProtectedPath(request.nextUrl.pathname)) {
+  const { pathname } = request.nextUrl
+  if (!requiresAccess(pathname) || hasAccessCookie(request)) {
     return NextResponse.next()
   }
 
-  const cookie = request.cookies.get(ACCESS_COOKIE_NAME)?.value
-  if (cookie === ACCESS_COOKIE_VALUE) {
-    return NextResponse.next()
+  if (isApiPath(pathname)) {
+    return NextResponse.json(
+      { detail: ACCESS_REQUIRED_DETAIL },
+      { status: 401 }
+    )
   }
 
   const redirectUrl = request.nextUrl.clone()
@@ -28,5 +31,5 @@ export function proxy(request: NextRequest): NextResponse {
 }
 
 export const config = {
-  matcher: ["/app", "/app/:path*", "/demo", "/demo/:path*"],
+  matcher: ["/app", "/app/:path*", "/demo", "/demo/:path*", "/api/:path*"],
 }
