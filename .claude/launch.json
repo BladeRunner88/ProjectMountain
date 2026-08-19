@@ -4,7 +4,7 @@
     {
       "name": "isildur-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "frontend/next-app", "run", "dev"],
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
       "port": 3000
     }
   ]

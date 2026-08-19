@@ -185,33 +185,32 @@ backend/
 ├── .env.example                  # every var, no real values — COMMIT THIS
 ├── alembic/
 │   └── versions/
-├── src/
-│   └── app/
-│       ├── main.py               # FastAPI() instance, lifespan, middleware, routers. <100 lines
-│       ├── api/
-│       │   ├── router.py         # aggregates domain routers under /api/v1
-│       │   └── deps.py           # shared dependency type aliases
-│       ├── core/
-│       │   ├── config.py         # pydantic-settings Settings
-│       │   ├── security.py       # hashing, JWT encode/decode — no HTTP, no DB
-│       │   ├── logging.py        # structured logging setup
-│       │   └── exceptions.py     # domain exception base classes
-│       ├── db/
-│       │   ├── base.py           # DeclarativeBase + naming convention
-│       │   ├── session.py        # DuckDB engine + sessionmaker (sync)
-│       │   └── mixins.py         # TimestampMixin, UUIDMixin
-│       ├── domains/
-│       │   ├── users/
-│       │   │   ├── router.py     # HTTP only
-│       │   │   ├── schemas.py    # Pydantic v2 — the wire contract
-│       │   │   ├── models.py     # SQLAlchemy ORM — the storage contract
-│       │   │   ├── repository.py # all queries for this domain
-│       │   │   ├── service.py    # business rules, transactions
-│       │   │   ├── deps.py       # domain-specific dependencies
-│       │   │   └── exceptions.py # UserNotFoundError, EmailAlreadyUsedError
-│       │   └── orders/
-│       │       └── ...same shape...
-│       └── worker/               # background jobs, if any
+├── app/
+│   ├── main.py                   # FastAPI() instance, lifespan, middleware, routers. <100 lines
+│   ├── api/
+│   │   ├── router.py             # aggregates domain routers under /api/v1
+│   │   └── deps.py               # shared dependency type aliases
+│   ├── core/
+│   │   ├── config.py             # pydantic-settings Settings
+│   │   ├── security.py           # hashing, JWT encode/decode — no HTTP, no DB
+│   │   ├── logging.py            # structured logging setup
+│   │   └── exceptions.py         # domain exception base classes
+│   ├── db/
+│   │   ├── base.py               # DeclarativeBase + naming convention
+│   │   ├── session.py            # DuckDB engine + sessionmaker (sync)
+│   │   └── mixins.py             # TimestampMixin, UUIDMixin
+│   ├── domains/
+│   │   ├── users/
+│   │   │   ├── router.py         # HTTP only
+│   │   │   ├── schemas.py        # Pydantic v2 — the wire contract
+│   │   │   ├── models.py         # SQLAlchemy ORM — the storage contract
+│   │   │   ├── repository.py     # all queries for this domain
+│   │   │   ├── service.py        # business rules, transactions
+│   │   │   ├── deps.py           # domain-specific dependencies
+│   │   │   └── exceptions.py     # UserNotFoundError, EmailAlreadyUsedError
+│   │   └── orders/
+│   │       └── ...same shape...
+│   └── worker/                   # background jobs, if any
 └── tests/
     ├── conftest.py               # engine, session, client, factory fixtures
     ├── unit/                     # services with mocked repositories
@@ -1190,8 +1189,8 @@ pnpm build                # next build  — must succeed
 cd backend
 uv run ruff format --check .
 uv run ruff check .       # must be clean, zero warnings
-uv run mypy src           # strict
-uv run pytest -q --cov=src --cov-report=term-missing
+uv run mypy app           # strict
+uv run pytest -q --cov=app --cov-report=term-missing
 ```
 
 Recommended config:
@@ -1303,7 +1302,7 @@ Rules:
 - Tests are independent and order-agnostic. Each gets a clean transaction, rolled back after.
 - Test behaviour through the public interface, not private methods.
 - Every bug fix ships with a regression test that fails before the fix.
-- Cover the error paths, not just the happy path. Coverage floor: 80% on `src/`, 100% on `core/security.py`.
+- Cover the error paths, not just the happy path. Coverage floor: 80% on `app/`, 100% on `core/security.py`.
 - **Cover the write-conflict path.** Any code wrapped in `with_write_retry` needs a test that forces a conflict and asserts the retry succeeded and did not duplicate a side effect. Untested retry logic is worse than none.
 
 Frontend: Vitest + React Testing Library. Query by role and accessible name (`getByRole('button', { name: /save/i })`), never by class or test-id-as-crutch. Test what the user sees, not implementation details.

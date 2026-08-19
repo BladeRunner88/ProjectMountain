@@ -48,7 +48,7 @@ ASE’s prototype demonstrates resolving that mess into one queryable knowledge 
 **Confirmed.** This repo is a local prototype with two halves:
 
 1. **Backend** — Python, DuckDB, FastAPI. Synthesizes a messy multi-vendor landscape for a **synthetic online gaming operator**, cleans it, resolves it into an ontology-backed graph, computes findings, and serves them read-only over HTTP.
-2. **Frontend** — React, Next.js 16 App Router, Tailwind, at `frontend/next-app/`. A marketing site, a gated onboarding form, and an authenticated-looking app (graph, search, dashboard, control room, demo workspace).
+2. **Frontend** — React, Next.js 16 App Router, Tailwind, at `frontend/`. A marketing site, a gated onboarding form, and an authenticated-looking app (graph, search, dashboard, control room, demo workspace).
 
 **Critical product fact:** the backend demonstration domain and most of the in-app demonstration domain are **not the same world**. See §15.
 
@@ -479,7 +479,7 @@ Topbar title is omitted on Control Room (that surface has its own bar). Demo wor
 
 ### 6.5 Shared libraries
 
-Paths below are relative to `frontend/next-app/`.
+Paths below are relative to `frontend/`.
 
 | Module | Role |
 |---|---|
@@ -958,13 +958,13 @@ Comments in `features/ase/services/dataset.ts` say the engines are domain-agnost
 
 ### 15.3 Stale documentation inside the repo
 
-Resolved as of the Next.js migration and the docs refresh that accompanied it: the root and `frontend/next-app` READMEs now name the real tree, the real scripts, and `NEXT_PUBLIC_API_URL`, and they state per route which surfaces read the backend and which are browser fixtures.
+Resolved as of the Next.js migration and the docs refresh that accompanied it: the root and `frontend` READMEs now name the real tree, the real scripts, and `NEXT_PUBLIC_API_URL`, and they state per route which surfaces read the backend and which are browser fixtures.
 
 Remaining:
 
 - `backend/README.md` setup block says `python3 -m venv .venv`, but the checked-out virtualenv in use is `backend/venv`.
 - `next build` warns: `The "middleware" file convention is deprecated. Please use "proxy" instead.` `middleware.ts` has not been renamed; the build reports it as `ƒ Proxy (Middleware)`.
-- `frontend/next-app/AGENTS.md` correctly warns that this Next version differs from model training data — worth heeding, since Next 16 conventions differ from Next 13/14 material.
+- `frontend/AGENTS.md` correctly warns that this Next version differs from model training data — worth heeding, since Next 16 conventions differ from Next 13/14 material.
 
 ### 15.4 Honesty vs. marketing
 
@@ -980,7 +980,7 @@ Landing promises RBAC, full audit of every access, deploy in cloud/on-prem/air-g
 - Access grant is forgeable: `middleware.ts` trusts a plain `isildur_access=1` cookie, and the client gate trusts `localStorage`. Both are settable from the browser console.
 - JSONL access requests grow forever; no PII handling beyond gitignore.
 - No tests for the FastAPI layer in-repo (frontend has substantial Vitest coverage for ASE/graph).
-- No Docker or CI config anywhere in the repo, and no env example at the repo root (`frontend/next-app/.env.example` is the only one).
+- No Docker or CI config anywhere in the repo, and no env example at the repo root (`frontend/.env.example` is the only one).
 
 ### 15.6 What *is* genuinely implemented and worth treating as the product core
 
@@ -1012,7 +1012,7 @@ read-only, so several API processes can share one database file.
 **Frontend**
 
 ```bash
-cd frontend/next-app
+cd frontend
 npm install
 npm run dev            # http://localhost:3000
 ```
@@ -1031,7 +1031,7 @@ server-side `API_URL` today — all fetching is browser-side.
 without it you are redirected to `/request-access`. Completing that form sets the cookie.
 
 Artifacts `isildur.duckdb`, `data/raw/*`, and `access_requests.jsonl` are gitignored, as are
-`frontend/next-app/{node_modules,.next}` and `.env*` (except `.env.example`).
+`frontend/{node_modules,.next}` and `.env*` (except `.env.example`).
 
 ## Appendix B — Repository map
 
@@ -1047,7 +1047,7 @@ isildur/
     requirements.txt
     venv/               gitignored
     isildur.duckdb, data/raw/*, access_requests.jsonl    gitignored artifacts
-  frontend/next-app/
+  frontend/
     AGENTS.md           "this is NOT the Next.js you know" warning
     README.md
     .env.example        NEXT_PUBLIC_API_URL only

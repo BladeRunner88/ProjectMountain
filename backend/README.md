@@ -94,7 +94,7 @@ backend/
   pyproject.toml        deps, ruff, mypy, pytest, [tool.fastapi]
   requirements.txt      == pins; this repo has no uv, so this is the lockfile of record
   .env.example          every variable the backend reads
-  src/app/
+  app/
     main.py             FastAPI instance, lifespan, CORS, error translation, both mounts
     api/                router assembly (versioned + legacy), shared dependency aliases
     core/               settings, logging, domain exception base classes, pagination
@@ -124,7 +124,7 @@ refuses the second connection outright.
 ### Migrations
 
 Alembic owns the `app` schema and nothing else. The pipeline-owned schemas are excluded by
-`src/app/db/alembic_filter.py`; without that filter every autogenerate would propose
+`app/db/alembic_filter.py`; without that filter every autogenerate would propose
 dropping the entire warehouse.
 
 ```bash
@@ -230,10 +230,10 @@ ISILDUR_DB_PATH=/path/to/isildur.duckdb venv/bin/pytest -q
 The full gate, all of which must pass before a change is done:
 
 ```bash
-venv/bin/ruff format --check src alembic tests
-venv/bin/ruff check src alembic tests
+venv/bin/ruff format --check app alembic tests
+venv/bin/ruff check app alembic tests
 venv/bin/mypy
-venv/bin/pytest -q --cov=src --cov-report=term-missing
+venv/bin/pytest -q --cov=app --cov-report=term-missing
 ```
 
 `tests/test_api.py` is the pre-refactor route-surface suite. It passed byte-identical

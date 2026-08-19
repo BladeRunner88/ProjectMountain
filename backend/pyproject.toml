@@ -8,23 +8,28 @@ version = "0.2.0"
 description = "Isildur / ASE — ontology-backed data intelligence API over DuckDB"
 requires-python = ">=3.11"
 dependencies = [
-  "duckdb",
-  "duckdb-engine",
-  "sqlalchemy>=2.0",
-  "alembic",
-  "fastapi",
-  "uvicorn[standard]",
-  "pydantic>=2",
-  "pydantic-settings",
-  "openpyxl",
-  "rapidfuzz",
+  "duckdb==1.5.5",
+  "duckdb-engine==0.17.0",
+  "sqlalchemy==2.0.52",
+  "alembic==1.19.1",
+  "fastapi==0.141.1",
+  "uvicorn[standard]==0.52.1",
+  "pydantic==2.13.4",
+  "pydantic-settings==2.15.0",
+  "openpyxl==3.1.5",
+  "rapidfuzz==3.14.5",
+  "pytest==9.1.1",
+  "pytest-cov==7.1.0",
+  "httpx==0.28.1",
+  "ruff==0.16.3",
+  "mypy==2.3.1",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov", "httpx", "ruff", "mypy"]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+include = ["app*"]
 
 [tool.setuptools.package-data]
 app = ["py.typed"]
@@ -37,7 +42,7 @@ app = "app.main:app"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-src = ["src", "tests"]
+src = ["."]
 # The pre-refactor route-surface suite. It is the proof that the domain port changed no
 # behaviour, so it is kept byte-identical — reformatting it would destroy that evidence.
 # It moves into tests/contract/ and joins the gates once the port is signed off.
@@ -47,6 +52,11 @@ extend-exclude = ["tests/test_api.py"]
 select = ["E", "W", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "TCH", "RUF", "S", "ASYNC"]
 ignore = ["S101"]
 
+[tool.ruff.lint.isort]
+# alembic/ lives at the backend root, so src=["."] would otherwise classify the
+# alembic package as first-party and regroup every migration file.
+known-third-party = ["alembic"]
+
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]
 # S311: the pipeline's whole purpose is reproducible synthetic data. `secrets` would
@@ -55,7 +65,7 @@ ignore = ["S101"]
 #   request input. It is an offline batch job with no HTTP surface. The rule stays in
 #   force everywhere the API can be reached, which is where it matters: on DuckDB an
 #   injected COPY or read_csv is arbitrary filesystem access as the API process.
-"src/app/pipeline/*" = ["S311", "S608"]
+"app/pipeline/*" = ["S311", "S608"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -63,7 +73,7 @@ strict = true
 warn_unreachable = true
 disallow_untyped_defs = true
 plugins = ["pydantic.mypy"]
-mypy_path = "src"
+mypy_path = "."
 packages = ["app"]
 
 # Neither package ships type information. `types-openpyxl` would fix openpyxl, but
@@ -77,7 +87,7 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers"
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["."]
 markers = [
   "slow: builds the full-scale warehouse (~20s). The findings detectors need production volume to have anything to detect.",
 ]

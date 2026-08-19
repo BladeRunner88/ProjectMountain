@@ -15,12 +15,12 @@ fixtures.
 ```
 isildur/
   backend/            Python + DuckDB + FastAPI — data pipeline and read-only API
-  frontend/next-app/  Next.js 16 App Router + Tailwind — marketing site and app
+  frontend/           Next.js 16 App Router + Tailwind — marketing site and app
   docs/isildur.md     Product requirements document / prototype audit
 ```
 
 See [backend/README.md](backend/README.md) and
-[frontend/next-app/README.md](frontend/next-app/README.md) for each half in detail.
+[frontend/README.md](frontend/README.md) for each half in detail.
 
 ## Architecture, at a glance
 
@@ -36,14 +36,14 @@ backend/
     ingest_clean.py       2. ingest + normalize (field mapping, currency, timezone, status vocab)
     entity_resolution.py  3. resolve records into canonical objects + typed links
     findings.py           4. compute operational findings across sources
-  src/app/            domain-driven FastAPI surface over the resolved graph
+  app/                domain-driven FastAPI surface over the resolved graph
 ```
 
 The frontend is a Next.js App Router project. Routing lives in `app/`; everything else is
 sliced by feature rather than by technical layer:
 
 ```
-frontend/next-app/
+frontend/
   app/                    App Router — routing, layouts, loading/error boundaries only
     (app)/                route group for gated surfaces: /app/* and /demo/*
       layout.tsx            the authenticated app shell (sidebar + topbar)
@@ -94,7 +94,7 @@ with `curl -s localhost:8010/health`.
 **Frontend**
 
 ```bash
-cd frontend/next-app
+cd frontend
 npm install
 npm run dev
 ```
@@ -105,7 +105,7 @@ Available scripts: `dev`, `build`, `start`, `lint`, `format`, `typecheck`, `test
 
 **Configuration**
 
-Copy `frontend/next-app/.env.example` to `.env.local` to change anything. The only
+Copy `frontend/.env.example` to `.env.local` to change anything. The only
 variable read today is:
 
 | Variable | Read by | Default |
@@ -121,7 +121,7 @@ The old Vite `VITE_API_URL` variable is gone; it does nothing.
 ## Checks
 
 ```bash
-cd frontend/next-app
+cd frontend
 npm run typecheck && npm run lint && npm test && npm run build
 ```
 
