@@ -148,3 +148,12 @@ sensor_profiles = Table(
 
 # What /health counts as "events" — every observation the pipeline ingested.
 EVENT_TABLES = (batches, cycles, runs, work_orders, callouts)
+
+source_fields = Table(
+    "source_fields",
+    warehouse_metadata,
+    Column("source_field", String),
+    Column("source_file", String),
+    Column("department", String),
+    schema=_SCHEMA,
+)

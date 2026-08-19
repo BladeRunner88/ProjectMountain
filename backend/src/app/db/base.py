@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from typing import Any, ClassVar
 from uuid import UUID, uuid4
 
-from sqlalchemy import MetaData
+from sqlalchemy import Double, MetaData
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import TypeEngine
 
@@ -29,10 +29,18 @@ class Base(DeclarativeBase):
     """Deterministic constraint names keep Alembic autogenerate stable."""
 
     metadata = MetaData(naming_convention=NAMING_CONVENTION, schema=APP_SCHEMA)
-    # Every `Mapped[datetime]` becomes a UTC-normalising column without asking. The
-    # driver otherwise rewrites an aware stamp into the machine's local zone and drops
-    # the offset — see app.db.utc_datetime.
-    type_annotation_map: ClassVar[dict[type[Any], type[TypeEngine[Any]]]] = {datetime: UtcDateTime}
+    # Two defaults overridden for every model at once, so no column can opt out by
+    # being forgotten:
+    #
+    #   datetime — the driver rewrites an aware stamp into the machine's local zone and
+    #     drops the offset. See app.db.utc_datetime.
+    #   float — SQLAlchemy's default maps to a 4-byte FLOAT, so a weight of 0.8 reads
+    #     back as 0.800000011920929. Every float here is a threshold, a weight or a
+    #     score that a person set and expects to see again unchanged.
+    type_annotation_map: ClassVar[dict[type[Any], type[TypeEngine[Any]]]] = {
+        datetime: UtcDateTime,
+        float: Double,
+    }
 
 
 def utc_now() -> datetime:

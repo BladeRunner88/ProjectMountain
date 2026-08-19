@@ -53,6 +53,12 @@ _TABLES: dict[str, str] = {
         sample_rate_hz DOUBLE, baseline DOUBLE, amplitude DOUBLE, noise_sigma DOUBLE,
         status VARCHAR, {_PROVENANCE}
     """,
+    # Every field name each vendor file actually contained, mapped or not. The
+    # unmapped ones are the point: they are what the Meaning surface exists to show,
+    # and nothing else in the warehouse records them.
+    f"{CLEAN_SCHEMA}.source_fields": f"""
+        source_field VARCHAR, {_PROVENANCE}
+    """,
     f"{CLEAN_SCHEMA}.sensor_profiles": f"""
         channel_id VARCHAR, tag_masked VARCHAR, channel VARCHAR, unit VARCHAR,
         sample_rate_hz DOUBLE, baseline DOUBLE, amplitude DOUBLE, period_seconds DOUBLE,

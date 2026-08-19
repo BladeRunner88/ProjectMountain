@@ -1,4 +1,6 @@
-"""Timestamps mean the same instant on every machine.
+"""Column types that would otherwise silently change a value.
+
+Timestamps mean the same instant on every machine.
 
 The driver's own behaviour is the hazard: given an aware datetime it converts to the
 process's local zone and drops the offset, so the same code writing "now" produces a
@@ -20,6 +22,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.base import APP_SCHEMA, Base
 from app.domains.findings.models import FindingReview
+from app.domains.resolution.models import ResolutionWeightOverride
 
 # Deliberately not a whole number of hours, and not the zone any CI box runs in.
 AWKWARD_ZONE = "Asia/Kathmandu"
@@ -141,3 +144,31 @@ def test_the_default_stamps_are_normalised_too(engine: Engine, local_zone: None)
     assert review is not None
     # A local-time stamp on a +05:45 box would land nearly six hours in the future.
     assert before - timedelta(seconds=5) <= review.created_at <= datetime.now(UTC)
+
+
+def test_a_float_survives_the_round_trip_unchanged(engine: Engine) -> None:
+    """SQLAlchemy's default `Mapped[float]` is a 4-byte FLOAT.
+
+    Every float in the app schema is a threshold, a weight or a similarity score that a
+    person set, and at single precision 0.8 reads back as 0.800000011920929 — a number
+    nobody typed, shown beside the one they did. `Base.type_annotation_map` maps float to
+    Double so no new column can inherit the narrow default.
+    """
+    factory = sessionmaker(engine, expire_on_commit=False, class_=Session)
+    with factory() as session:
+        session.add(
+            ResolutionWeightOverride(
+                field="asset_tag",
+                weight=0.8,
+                set_by="j.okafor",
+                set_at=NOON_UTC,
+                note=None,
+            )
+        )
+        session.commit()
+
+    with factory() as session:
+        stored = session.scalar(select(ResolutionWeightOverride))
+
+    assert stored is not None
+    assert stored.weight == 0.8

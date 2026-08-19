@@ -18,9 +18,11 @@ from app.domains.graph.router import graph_router, objects_router
 from app.domains.health.router import router as health_router
 from app.domains.hierarchy.router import router as hierarchy_router
 from app.domains.lineage.router import router as lineage_router
+from app.domains.meaning.router import router as meaning_router
 from app.domains.metrics.router import router as metrics_router
 from app.domains.ontology.router import router as ontology_router
 from app.domains.pipeline_status.router import pipeline_router, stats_router
+from app.domains.resolution.router import router as resolution_router
 from app.domains.revision.router import router as revision_router
 from app.domains.search.router import router as search_router
 from app.domains.sources.router import connectors_router, sources_router
@@ -54,6 +56,8 @@ VERSIONED_ONLY_ROUTERS: tuple[APIRouter, ...] = (
     finding_review_router,
     detection_tuning_router,
     revision_router,
+    resolution_router,
+    meaning_router,
 )
 
 

@@ -12,7 +12,13 @@ from typing import Any
 from sqlalchemy import Connection
 
 from app.pipeline.bulk import insert_rows
-from app.pipeline.ingest import mes_loader, plan_loader, quality_loader, scada_loader
+from app.pipeline.ingest import (
+    field_inventory,
+    mes_loader,
+    plan_loader,
+    quality_loader,
+    scada_loader,
+)
 from app.pipeline.ingest.counters import IngestCounters
 from app.pipeline.ingest.schema import create_all
 from app.pipeline.manifest import (
@@ -40,12 +46,27 @@ def ingest_all(connection: Connection, raw_directory: Path) -> IngestCounters:
         raw_directory / MAINTENANCE_FILE, counters
     )
     batches["clean.callouts"] = plan_loader.load_callouts(raw_directory / CONTRACTOR_FILE, counters)
+    batches["clean.source_fields"] = _observe_fields(raw_directory)
 
     for table, rows in batches.items():
         insert_rows(connection, table, rows)
 
     _write_stats(connection, counters)
     return counters
+
+
+def _observe_fields(raw_directory: Path) -> list[tuple[Any, ...]]:
+    """One row per field per feed, read from the files themselves.
+
+    Ingest is the only place that opens all six, and the vendor's own field names live
+    nowhere else — `raw.*` holds the loader's names, and only for the two feeds that
+    have raw tables at all.
+    """
+    return [
+        (field, filename, SOURCES[filename]["department"])
+        for filename in SOURCES
+        for field in field_inventory.observe(raw_directory / filename)
+    ]
 
 
 def _write_stats(connection: Connection, counters: IngestCounters) -> None:
