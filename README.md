@@ -1,6 +1,5 @@
-# Isildur
-
-Isildur is the company. **ASE** is its product: an ontology powered data intelligence
+# Project Mountain
+The system is its product: an ontology-powered data intelligence
 platform. This repository is the working prototype: a Python/DuckDB backend that ingests
 messy, fragmented source systems and resolves them into one queryable knowledge graph, and
 a React frontend that presents it as a landing page, a gated onboarding flow, and an
